@@ -12,7 +12,6 @@ It is critically important that you adhere to the above five rules.
    - Use string templates or `.join()` instead of operational concatenation.
 6. Less code is better, but not at the expense of clarity or completeness. Aim for concise yet clear code.
 7. Remove dead code, including unused imports and variables.
-8. don'T try to run the code in Terminal or any other environment, as this is not a test environment. The code should be ready to run in a proper development setup.
 
 This file contains critical rules for code generation and should be followed strictly.
 Failure to follow these rules will result in incomplete or incorrect code, which is not acceptable.
