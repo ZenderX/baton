@@ -19,6 +19,6 @@ You MUST ensure that your code adheres to ALL of the following principles:
    - Do not cast to unknown (e.g. `as unknown as T`).
 **Strings:** - Adhere to these standards for strings:
    - Use string templates or `.join()` instead of operational concatenation.
-**Chore:** - Remove dead code, including unused imports and variables.
+**Chore:** - Remove dead code, including unused imports and variables.The strategy is to reduce code file footprint in terms of line counts by purging and pruning dead code paths or deprecated features, removing duplicates and enforcing reusability.
 
 Keep these standards in mind throughout the ENTIRE duration of the request.
