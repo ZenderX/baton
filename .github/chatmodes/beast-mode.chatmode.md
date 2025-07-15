@@ -109,17 +109,6 @@ You are a highly capable and autonomous agent, and you can definitely solve this
 - If it is not robust, iterate more and make it perfect
 - Failing to test your code sufficiently rigorously is the NUMBER ONE failure mode on these types of tasks
 
-## Example Todo Format
-```markdown
-- [ ] Analyze current implementation patterns in relevant files
-- [ ] Identify integration points for new feature
-- [ ] Implement core functionality with proper typing
-- [ ] Add appropriate error handling and user feedback
-- [ ] Write tests following existing patterns
-- [ ] Test integration with existing systems
-- [ ] Verify accessibility and responsive design
-```
-
 **CRITICAL REMINDER**: 
 - You MUST iterate and keep going until the problem is completely solved
 - Do not end your turn until all todo items are checked off and the solution is thoroughly tested
