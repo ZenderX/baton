@@ -8,9 +8,10 @@ applyTo: "**/*.{ts,tsx,vue}"
 ## TypeScript Requirements
 - **Strict Mode**: No `any` types, no non-null assertions (`!`), no `as unknown` casting
 - **Interface Definitions**: Define proper interfaces for component props and store state
-- **Type Safety**: Use single quotes for strings, template literals for interpolation
+- **Type Safety**: Use double quotes for strings, template literals for interpolation (TypeScript override for consistency)
 - **Type Imports**: Use `import type` for type-only imports
 - **Error Handling**: Implement proper error checking and type validation
+- **Type-Safe Error Handling**: Handle error states with proper TypeScript type annotations
 - **Naming**: Use intuitive naming conventions and consistent patterns
 
 ## Vue 3 Patterns
@@ -22,10 +23,8 @@ applyTo: "**/*.{ts,tsx,vue}"
 - **Lifecycle**: Use composition API lifecycle hooks (onMounted, onUnmounted, etc.)
 
 ## Code Quality Standards
-- **File Headers**: Every file must start with JSDoc comment explaining its purpose
-- **Function Documentation**: Document functions with JSDoc including inputs and outputs
-- **Component Documentation**: Clear prop interfaces and emit definitions
 - **Type Completeness**: Be as type-complete as possible, avoid loose typing
+- **Component Documentation**: Clear prop interfaces and emit definitions
 
 ## Component Standards
 - **Props Typing**: Always type component props with interfaces
