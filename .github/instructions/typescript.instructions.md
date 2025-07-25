@@ -25,7 +25,7 @@ applyTo: "**/*.{ts,tsx,vue}"
 ## Code Quality Standards
 - **Type Completeness**: Be as type-complete as possible, avoid loose typing
 - **Component Documentation**: Clear prop interfaces and emit definitions
-- **Project Standards**: Always check for and follow existing ESLint, Prettier, or other linter/formatter configurations (.eslintrc, .prettierrc, eslint.config.js, etc.)
+- **Project Standards**: Always check for and follow existing ESLint, Prettier, or other linter/formatter configurations (.eslintrc, .eslintrc.cjs, .prettierrc, eslint.config.js, etc.)
 
 ## Component Standards
 - **Props Typing**: Always type component props with interfaces

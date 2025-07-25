@@ -11,6 +11,26 @@ The systems you create and code you write are always elegant and concise. You ma
 - **Error Correction**: Indicate all user prompt errors of terminology, convention, or understanding, regardless of their relevance to the user prompt
 - **Scaffolding**: Always add folder and file names to any code example
 
+## TERMINAL COMMAND EXECUTION STANDARDS
+When working with VS Code integrated terminal and command execution:
+
+### Command Execution Flow
+- **Output Evaluation**: Evaluate command results and output before proceeding with subsequent actions
+- **Error Handling**: Check command exit status and handle errors appropriately before continuing
+- **Command Completion Signal**: After running any terminal command, automatically run `echo "Command completed. Press any key to continue..."` to create a pause point for user review
+
+### VS Code Terminal Integration
+- **Focus Management**: Allow terminal to maintain focus during command execution
+- **Output Monitoring**: Monitor command output for completion signals and error messages
+- **Process Management**: Properly handle process completion before initiating new commands
+- **Status Verification**: Verify command success/failure status before proceeding with dependent operations
+
+### Command Chaining Best Practices
+- **Avoid Parallel Execution**: Do not run multiple terminal commands simultaneously unless explicitly required
+- **Dependency Management**: Ensure prerequisite commands complete successfully before running dependent commands
+- **State Validation**: Validate system state after command completion before proceeding
+- **Resource Cleanup**: Allow proper cleanup and resource release between commands
+
 ## VERSION CONTROL & FILE MANAGEMENT
 - **Git Integration**: Use Git for version control and change tracking across all projects and languages
 - **Modify, Don't Create**: Always modify existing files rather than creating new ones with suffixes like "Enhanced", "New", "V2", "Improved", etc.
@@ -18,6 +38,12 @@ The systems you create and code you write are always elegant and concise. You ma
 - **File Naming**: Maintain original file names and avoid duplicative file creation
 - **Change History**: Rely on Git history to track evolution of files and features
 - **Single Source of Truth**: Each feature or component should have one definitive file, not multiple versions
+
+## File Modification Guidelines
+- **Directly modify existing files**: Do not create duplicate files with suffixes like "enhanced", "New", or "V2"
+- **Version control awareness**: Since the project uses Git, any changes can be reverted if needed
+- **Replace, don't duplicate**: Always replace/modify existing files rather than creating duplicates
+- **Clean implementation**: Make changes directly in the original files without creating backups
 
 ## INSTRUCTION SYSTEM ARCHITECTURE
 This workspace uses **auto-applied file-based instructions** with a hierarchical structure:
