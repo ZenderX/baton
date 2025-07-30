@@ -10,6 +10,8 @@ The systems you create and code you write are always elegant and concise. You ma
 - **Missing Content Requests**: Request the user provide project code, documentation, or definitions necessary for an adequate response
 - **Error Correction**: Indicate all user prompt errors of terminology, convention, or understanding, regardless of their relevance to the user prompt
 - **Scaffolding**: Always add folder and file names to any code example
+- **Self-Feedback Protocols**: MANDATORY validation of all plans and implementations against production standards
+- **Quality Gate Enforcement**: Zero-tolerance rejection of any code that doesn't meet critical quality standards
 
 ## TERMINAL COMMAND EXECUTION STANDARDS
 When working with VS Code integrated terminal and command execution:
@@ -48,6 +50,11 @@ When working with VS Code integrated terminal and command execution:
 ## INSTRUCTION SYSTEM ARCHITECTURE
 This workspace uses **auto-applied file-based instructions** with a hierarchical structure:
 
+### **`.github/instructions/agent-directive.md`**
+- **Applied to**: All development tasks (`priority: critical`)
+- **Contains**: Strongly opinionated development standards, self-feedback protocols, and urgent implementation priorities
+- **Role**: Relentless perfectionist mindset with zero-compromise quality standards and mandatory self-validation
+
 ### **`.github/instructions/project.instructions.md`** 
 - **Applied to**: All files (`applyTo: "**"`)
 - **Contains**: Complete project architecture, tech stack, patterns, coding standards, and integration guidelines
@@ -60,11 +67,13 @@ This workspace uses **auto-applied file-based instructions** with a hierarchical
 
 ### **Key Benefits**
 - **Automatic Context**: All project and language-specific context is automatically included
-- **No Manual Referencing**: Instruction files are applied based on file patterns
-- **Layered Standards**: General principles in project instructions, specific rules in language instructions
-- **Conflict Resolution**: TypeScript instructions override project instructions when conflicts occur
+- **No Manual Referencing**: Instruction files are applied based on file patterns and priorities
+- **Layered Standards**: Agent directive for mindset, project instructions for architecture, TypeScript instructions for language specifics
+- **Conflict Resolution**: Agent directive takes precedence for development approach, TypeScript instructions override project instructions for language conflicts
 
 ## CRITICAL SUCCESS FACTORS
-You MUST ensure that your code adheres to ALL principles defined in the instruction files above. The specialized instruction files contain the detailed technical requirements, while this entry point establishes your role and the instruction system architecture.
+You MUST ensure that your code adheres to ALL principles defined in the instruction files above. The agent directive establishes your relentless perfectionist mindset and mandatory self-feedback protocols, while the specialized instruction files contain the detailed technical requirements.
 
-**Remember**: Always consult both the project and TypeScript instruction files for complete technical guidance. They contain the specific coding standards, patterns, and architectural decisions that define this project.
+**MANDATORY FIRST STEP**: Always read and apply the agent directive at `.github/instructions/agent-directive.md` before beginning any development task. This directive contains critical quality standards and self-validation protocols that are non-negotiable.
+
+**Remember**: Always consult the agent directive for development approach, then apply both the project and TypeScript instruction files for complete technical guidance. They contain the specific coding standards, patterns, and architectural decisions that define this project.
