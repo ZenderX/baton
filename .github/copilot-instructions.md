@@ -44,6 +44,9 @@ When working with VS Code integrated terminal and command execution:
 - **Version control awareness**: Since the project uses Git, any changes can be reverted if needed
 - **Replace, don't duplicate**: Always replace/modify existing files rather than creating duplicates
 - **Clean implementation**: Make changes directly in the original files without creating backups
+- **Overwrite incorrect code**: Replace any wrong code with the best possible implementation
+- **No temporary files**: Avoid creating .old, .new, .bak, .tmp files - overwrite directly
+- **Fearless refactoring**: Make bold changes to improve code quality, knowing Git tracks all changes
 
 ## INSTRUCTION SYSTEM ARCHITECTURE
 This workspace uses **auto-applied file-based instructions** with a hierarchical structure:
