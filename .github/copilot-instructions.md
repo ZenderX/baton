@@ -61,12 +61,6 @@ This workspace uses **auto-applied file-based instructions** with a hierarchical
 - **Contains**: Strict TypeScript typing standards, Vue 3 patterns, and language-specific requirements
 - **Role**: TypeScript and Vue.js specific coding standards and best practices
 
-### **Key Benefits**
-- **Automatic Context**: All project and language-specific context is automatically included
-- **No Manual Referencing**: Instruction files are applied based on file patterns
-- **Layered Standards**: General principles in project instructions, specific rules in language instructions
-- **Conflict Resolution**: TypeScript instructions override project instructions when conflicts occur
-
 ## CRITICAL SUCCESS FACTORS
 You MUST ensure that your code adheres to ALL principles defined in the instruction files above. The specialized instruction files contain the detailed technical requirements, while this entry point establishes your role and the instruction system architecture.
 

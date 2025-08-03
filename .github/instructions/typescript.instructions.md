@@ -23,9 +23,27 @@ applyTo: "**/*.{ts,tsx,vue}"
 - **Lifecycle**: Use composition API lifecycle hooks (onMounted, onUnmounted, etc.)
 
 ## Code Quality Standards
-- **Type Completeness**: Be as type-complete as possible, avoid loose typing
+
+## General Coding Principles
+
+### Code Quality Standards
+- **User-Focused**: Prioritize accessibility, performance, and user experience
+- **Pragmatic Solutions**: Choose simple, maintainable solutions over complex ones
+- **Best Practices**: Optimize for performance, maintainability, readability, and modularity
 - **Component Documentation**: Clear prop interfaces and emit definitions
-- **Project Standards**: Always check for and follow existing ESLint, Prettier, or other linter/formatter configurations (.eslintrc, .eslintrc.cjs, .prettierrc, eslint.config.js, etc.)
+- **Latest Versions**: Always use latest stable versions of libraries and frameworks
+- **Completeness**: Generate full code, no placeholders. If unable, explain in comments
+- **Type Completeness**: Be as type-complete as possible, avoid loose typing
+- **Clean Code**: Ensure code is clean, readable, and maintainable
+  - Use consistent naming conventions
+  - Avoid unnecessary complexity and deeply nested structures
+  - Ensure code is modular and reusable where possible
+  - Use modern JavaScript/TypeScript features appropriately
+- **Dead Code Removal**: Remove unused imports, variables, and deprecated features
+- **Security-Conscious**: Always consider authentication and data protection
+- **No Fallbacks**: Remove fallback strategies; implement in separate modules if necessary
+- **Linting**: Always check for and follow existing ESLint, Prettier, or other linter/formatter configurations (.eslintrc, .eslintrc.cjs, .prettierrc, eslint.config.js, etc.)
+- **Team-Oriented**: Write code that other developers can understand and extend
 
 ## Component Standards
 - **Props Typing**: Always type component props with interfaces
@@ -38,3 +56,19 @@ applyTo: "**/*.{ts,tsx,vue}"
 - **Mock Typing**: Type mocks and test utilities correctly
 - **Test Data**: Create typed test data and fixtures
 - **Assertion Types**: Use type-safe test assertions
+
+### Documentation Standards
+- **File Headers**: Begin EVERY file with a JSDoc comment block explaining its purpose and role
+- **Function Documentation**: Document EVERY function with JSDoc including inputs and outputs
+- **Inline Comments**: Clarify purpose and implementation of non-obvious code segments
+- **External Functions**: Comment external function calls with inputs, outputs, and purpose
+
+### Error Handling
+- **Error Checking**: Implement comprehensive error checking and type validation
+- **Treat Warnings as Errors**: Address all compiler warnings
+- **Graceful Degradation**: Handle error states with proper user feedback
+
+### String Conventions
+- **Quote Style**: Use double quotes (`"`) for strings consistently across the project
+- **String Building**: Use template literals or `.join()` instead of concatenation
+- **Interpolation**: Prefer template literals for dynamic string content
