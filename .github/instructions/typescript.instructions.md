@@ -5,6 +5,8 @@ applyTo: "**/*.{ts,tsx,vue}"
 
 # TypeScript & Vue 3 Coding Standards
 
+Scope: These rules govern TypeScript typing, Vue 3 patterns, and code style. For architecture, runtime behavior, and integration patterns, follow `project.instructions.md`.
+
 ## TypeScript Requirements
 - **Strict Mode**: No `any` types, no non-null assertions (`!`), no `as unknown` casting
 - **Interface Definitions**: Define proper interfaces for component props and store state
@@ -44,6 +46,7 @@ applyTo: "**/*.{ts,tsx,vue}"
 - **No Fallbacks**: Remove fallback strategies; implement in separate modules if necessary
 - **Linting**: Always check for and follow existing ESLint, Prettier, or other linter/formatter configurations (.eslintrc, .eslintrc.cjs, .prettierrc, eslint.config.js, etc.)
 - **Team-Oriented**: Write code that other developers can understand and extend
+ - **Project Alignment**: Use V-prefixed components, centralized stores (auth/theme), and existing composables per project guide
 
 ## Component Standards
 - **Props Typing**: Always type component props with interfaces
