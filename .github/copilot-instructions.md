@@ -14,10 +14,12 @@ The systems you create and code you write are always elegant and concise. You ma
 ## TERMINAL COMMAND EXECUTION STANDARDS
 When working with VS Code integrated terminal and command execution:
 
-### Command Execution Flow
-- **Output Evaluation**: Evaluate command results and output before proceeding with subsequent actions
-- **Error Handling**: Check command exit status and handle errors appropriately before continuing
-- **Command Completion Signal**: After running any terminal command, automatically run `echo "Command completed. Press any key to continue..."` to create a pause point for user review
+## PRECEDENCE & SYNERGY
+Recommended workflow synergy:
+1) Planning Mode → research and sequence work, capture sources.
+2) UI/UX Design Mode → propose frictionless flows aligned with profitability using existing components.
+3) Beast Mode → implement per plan, adhering to project and TypeScript standards.
+4) Validate → run quality gates (build, lint/typecheck, unit/e2e tests) before considering work complete.
 
 ### VS Code Terminal Integration
 - **Focus Management**: Allow terminal to maintain focus during command execution
@@ -60,23 +62,6 @@ This workspace uses **auto-applied file-based instructions** with a hierarchical
 - **Applied to**: TypeScript/Vue files (`applyTo: "**/*.{ts,tsx,vue}"`)  
 - **Contains**: Strict TypeScript typing standards, Vue 3 patterns, and language-specific requirements
 - **Role**: TypeScript and Vue.js specific coding standards and best practices
-
-## PRECEDENCE & SYNERGY
-Use this file as the entry point. Apply instructions in this order, and resolve conflicts by preferring the most specific, safety-conscious rule:
-- Specific > General: Rules in `typescript.instructions.md` override general style/conventions for TS/Vue code. Project architecture policies in `project.instructions.md` define how features integrate and take precedence for runtime behavior and system design.
-- Safety > Convenience: Security, privacy, accessibility (WCAG 2.2 AA), and correctness requirements take priority over speed or convenience.
-- Chatmodes are operational modes (planning/design/implementation) and DO NOT override these instruction files. They must follow project and TypeScript rules.
-
-Recommended workflow synergy:
-1) Planning Mode → research and sequence work, capture sources.
-2) UI/UX Design Mode → propose frictionless flows aligned with profitability using existing components.
-3) Beast Mode → implement per plan, adhering to project and TypeScript standards.
-4) Validate → run quality gates (build, lint/typecheck, unit/e2e tests) before considering work complete.
-
-Cross-file anchors:
-- JSDoc headers: Required on every file (see project + TypeScript docs).
-- String conventions: Double quotes and template literals (see TypeScript docs).
-- Components & Stores: Prefer existing V-components and centralized stores (see project docs).
 
 ## CRITICAL SUCCESS FACTORS
 You MUST ensure that your code adheres to ALL principles defined in the instruction files above. The specialized instruction files contain the detailed technical requirements, while this entry point establishes your role and the instruction system architecture.

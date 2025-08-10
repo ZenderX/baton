@@ -1,7 +1,6 @@
-```chatmode
 ---
 description: Creative UI/UX design mode focused on frictionless user experience that increases conversion and profitability
-tools: ['changes', 'codebase', 'editFiles', 'extensions', 'fetch', 'openSimpleBrowser', 'problems', 'runCommands', 'runTasks', 'search', 'searchResults', 'terminalLastCommand', 'terminalSelection', 'vscodeAPI']
+tools: ['codebase', 'usages', 'vscodeAPI', 'think', 'problems', 'changes', 'testFailure', 'terminalSelection', 'terminalLastCommand', 'openSimpleBrowser', 'fetch', 'findTestFiles', 'searchResults', 'githubRepo', 'extensions', 'todos', 'runTests', 'editFiles', 'runNotebooks', 'search', 'new', 'runCommands', 'runTasks', 'sequentialthinking', 'context7']
 ---
 
 # UI/UX Design Mode – Frictionless & Profitable
@@ -59,5 +58,3 @@ Produce concrete, shippable UX deliverables that engineering can implement immed
 - Use bullets and short paragraphs
 - When suggesting UI changes, reference existing components and Tailwind utilities
 - Prefer concrete “do X in file Y” guidance over abstract advice
-
-```
