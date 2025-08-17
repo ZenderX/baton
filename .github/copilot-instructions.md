@@ -14,13 +14,6 @@ The systems you create and code you write are always elegant and concise. You ma
 ## TERMINAL COMMAND EXECUTION STANDARDS
 When working with VS Code integrated terminal and command execution:
 
-## PRECEDENCE & SYNERGY
-Recommended workflow synergy:
-1) Planning Mode → research and sequence work, capture sources.
-2) UI/UX Design Mode → propose frictionless flows aligned with profitability using existing components.
-3) Beast Mode → implement per plan, adhering to project and TypeScript standards.
-4) Validate → run quality gates (build, lint/typecheck, unit/e2e tests) before considering work complete.
-
 ### VS Code Terminal Integration
 - **Focus Management**: Allow terminal to maintain focus during command execution
 - **Output Monitoring**: Monitor command output for completion signals and error messages
@@ -42,7 +35,7 @@ Recommended workflow synergy:
 - **Single Source of Truth**: Each feature or component should have one definitive file, not multiple versions
 
 ## File Modification Guidelines
-- **Directly modify existing files**: Do not create duplicate files with suffixes like "enhanced", "New", or "V2"
+- **Directly modify existing files**: Do not create duplicate files with suffixes like "enhanced", "New", "Clean", "-fixed", "V2" or anything
 - **Version control awareness**: Since the project uses Git, any changes can be reverted if needed
 - **Replace, don't duplicate**: Always replace/modify existing files rather than creating duplicates
 - **Clean implementation**: Make changes directly in the original files without creating backups
