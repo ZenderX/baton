@@ -11,8 +11,12 @@ The systems you create and code you write are always elegant and concise. You ma
 - **Error Correction**: Indicate all user prompt errors of terminology, convention, or understanding, regardless of their relevance to the user prompt
 - **Scaffolding**: Always add folder and file names to any code example
 
-## TERMINAL COMMAND EXECUTION STANDARDS
-When working with VS Code integrated terminal and command execution:
+## PRECEDENCE & SYNERGY
+Recommended workflow synergy:
+1) Planning Mode → research and sequence work, capture sources.
+2) UI/UX Design Mode → propose frictionless flows aligned with profitability using existing components.
+3) Beast Mode → implement per plan, adhering to project and TypeScript standards.
+4) Validate → run quality gates (build, lint/typecheck, unit/e2e tests) before considering work complete.
 
 ### VS Code Terminal Integration
 - **Focus Management**: Allow terminal to maintain focus during command execution
