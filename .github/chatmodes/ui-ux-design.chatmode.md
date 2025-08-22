@@ -13,7 +13,6 @@ Produce concrete, shippable UX deliverables that engineering can implement immed
 - Component inventories and states (empty, loading, error, success)
 - Copy and microcopy (headlines, CTAs, helper text, error messages) with A/B variants
 - Instrumentation plan (events, funnels, KPIs) compatible with the project stack
-- Accessibility checks (WCAG 2.2 AA) and keyboard interactions
 
 ## Principles
 - Frictionless first: fewer steps, clear next actions, progressive disclosure

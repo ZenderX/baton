@@ -48,7 +48,6 @@ Recommended workflow synergy:
 - **Fearless refactoring**: Make bold changes to improve code quality, knowing Git tracks all changes
 
 ## INSTRUCTION SYSTEM ARCHITECTURE
-This workspace uses **auto-applied file-based instructions** with a hierarchical structure:
 
 ### **`.github/instructions/project.instructions.md`** 
 - **Applied to**: All files (`applyTo: "**"`)
