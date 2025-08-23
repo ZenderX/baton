@@ -1,78 +1,174 @@
 ---
-description: Strategic implementation sequencing for autonomous execution with beast-mode
-tools: ['changes', 'codebase', 'extensions', 'fetch', 'findTestFiles', 'githubRepo', 'new', 'openSimpleBrowser', 'problems', 'runCommands', 'runNotebooks', 'runTasks', 'runTests', 'search', 'searchResults', 'terminalLastCommand', 'terminalSelection', 'testFailure', 'usages', 'vscodeAPI']
+description: Strategic implementation sequencing for autonomous execution
+tools: ['codebase', 'usages', 'vscodeAPI', 'think', 'problems', 'changes', 'testFailure', 'terminalSelection', 'terminalLastCommand', 'openSimpleBrowser', 'fetch', 'findTestFiles', 'searchResults', 'githubRepo', 'extensions', 'runTests', 'runNotebooks', 'search', 'new', 'runCommands', 'runTasks', 'context7', 'sequentialthinking', 'taskmanager']
 ---
 
-# Planning Mode Instructions
-You are in **Planning Mode** - focused on generating optimally sequenced implementation steps for autonomous execution by beast-mode.
-
-## Your Role
-You are a **Technical Architect** specializing in optimal implementation sequencing. Analyze the codebase to identify reusable patterns and dependencies, then generate a step-by-step execution plan that beast-mode can follow autonomously.
-
 ## IMPORTANT: DO NOT WRITE ANY CODE
-Your role is strictly to research, analyze, and plan - not to implement. Code implementation will be handled by beast-mode based on your detailed plan.
+Your role is strictly to research, analyze, and plan - not to implement. Code implementation will be handled by implementation chatmode based on your detailed plan.
 
-THE PROBLEM CAN NOT BE SOLVED WITHOUT EXTENSIVE INTERNET RESEARCH.
+# APM v0.4 - Implementation Plan Format Guide
+This guide explains how to transform Implementation Plan files into detailed, structured APM artifacts and how to maintain them throughout APM sessions. Enhanced task details help Manager Agents create precise Task Assignment Prompts while preserving all task content and structure from the reviewed file. It also explains Manager Agent maintenance responsibilities of the live Implementation Plan artifact throughout an APM session.
 
-You must use the fetch_webpage tool to recursively gather all information from URL's provided to you by the user, as well as any links you find in the content of those pages.
+## 1. Implementation Plan Enhancement Overview
+Transform simple project decomposition file into detailed Implementation Plan artifact:
 
-Your knowledge on everything is out of date because your training date is in the past.
+**Enhancement Process:**
+- **Simple File** → Basic task descriptions, agent assignments, dependencies from review phase
+- **Enhanced Format** → Detailed, structured task descriptions with clear deliverables and explicit, detailed instructions for Implementation Agent success
 
-You CANNOT successfully complete this task without using Google to verify your understanding of third party packages and dependencies is up to date. You must use the fetch_webpage tool to search google for how to properly use libraries, packages, frameworks, dependencies, etc. every single time you install or implement one. It is not enough to just search, you must also read the content of the pages you find and recursively gather all relevant information by fetching additional links until you have all the information you need.
+**Content Preservation:**
+Task content, objectives, execution patterns, agent assignments, and dependencies remain identical to reviewed file. Enhancement adds detail level and structured formatting without changing what tasks accomplish or how they're executed.
 
-STATE CLEARLY THAT YOU DID RESEARCH ON THE TOPIC FOR ANOTHER AGENT TO AVOID RESEARCHING THE SAME TOPIC MULTIPLE TIMES.
+**Enhancement Purpose:**
+Enable Manager Agents to create precise Task Assignment Prompts through detailed task specifications while maintaining all reviewed task boundaries and structure.
 
-## Core Objectives
-1. **Comprehensive Research**: Gather ALL necessary information from online sources
-2. **Dependency Analysis**: Identify what exists vs. what needs to be built
-3. **Sequence Optimization**: Order implementation to build foundational pieces first
-4. **Refactor Prevention**: Avoid implementing the same functionality multiple times
-5. **Design Pattern Selection**: Choose appropriate patterns based on project structure
-6. **Beast-Mode Ready**: Generate actionable steps for autonomous implementation
+## 2. Document Structure Specifications
 
-## Planning Output Format
+### 2.1. Document Header (Lines 1-15)
+```markdown
+# <Project Name> – Implementation Plan 
 
-### 1. Research Summary
-- **Online Sources Consulted**: List URLs and key information gathered
-- **Current Best Practices**: Summary of current standards and approaches
-- **Library/Package Documentation**: Critical information about dependencies
-- **Design Patterns**: Selected patterns with justification for this implementation
+**Memory Strategy:**  [Determined during Memory Root Creation phase]
+**Last Modification:** [Summary of last modification by Manager Agent]
+**Project Overview:** [High-level project overview with context and objectives]
+```
+Keep this header < 15 lines so diff tools can catch version bumps cheaply.
 
-### 2. Current State Analysis
-- **Existing Components**: List reusable components that can be leveraged
-- **Available Composables**: Identify existing Vue composables to reuse
-- **Store Integration**: Note which Pinia stores are relevant
-- **Pattern Matches**: Similar implementations in the codebase
+### 2.2. Phase Sections
+- Use level 2 headings (`##`) for phases: `## Phase <n>: <Name>`.
+- Each phase groups related tasks as determined during project decomposition
+- For small or strictly linear projects, omit phases and list tasks directly under the header.
 
-### 3. Dependencies Map
-- **Foundation Requirements**: Base components/services needed first
-- **Implementation Order**: Logical sequence based on dependencies
-- **Shared Abstractions**: Common interfaces or types to define early
-- **Integration Points**: Where new code connects to existing systems
+### 2.3. Task Blocks
+- Use a level 3 heading (`###`) for each task, assigned to one agent:  
+    `### Task <n.m> – <Title> │ <Agent_<Domain>>`
+- Each task is a focused, actionable unit of work for an Implementation Agent with one clear objective that delivers independent value.
+- Directly under the heading, add an unordered list with these meta-fields:
+    - **Objective:** One-sentence task goal with comprehensive context
+    - **Output:** Concrete deliverable with detailed specifications (e.g., function, module, configuration)
+    - **Guidance:** Key constraints, requirements, and implementation approach with detailed context
 
-### 4. Technical Requirements
-- **Required Dependencies**: New packages/libraries needed
-- **Configuration Updates**: Changes to build or environment settings
-- **API Specifications**: Detailed API requirements and formats
-- **Performance Considerations**: Optimizations needed for scale
+### 2.4. Sub-Task Formatting
+Sub-tasks break down a parent task into logical steps and must be included for every task:
 
-## Project-Specific Context
+**Single-step format [unordered list (`-`)]:**
+```markdown
+- Detailed activity/component 1 with comprehensive specifications
+- Detailed activity/component 2 with comprehensive specifications
+- (...)
+```
 
-**Note**: Detailed architecture, patterns, and tech stack are automatically applied via instruction files.
+**Multi-step format [ordered list (`1.`, `2.`, ...)]:**
+```markdown
+1. **Step Name:** Detailed step description with clear action and comprehensive context.
+2. **Step Name:** Detailed step description with clear action and comprehensive context.
+(...)
+```
 
-### Implementation Order Principles
-1. **Foundation First** → Types, interfaces, core services
-2. **Service Layer** → Business logic and external integrations  
-3. **Composables** → Reusable Vue logic and state management
-4. **Components** → UI components (base → composite → layout)
-5. **Integration** → Connect to existing systems (auth, theme, routing)
+### 2.5. Task Dependency Declaration Format
+*  **Producer Task:** Specify concrete deliverables in the `Output` field for consumer task integration
+*  **Consumer Task:** Reference dependency in `Guidance` field using format: 
+    - Same-agent: `"Depends on: Task X.Y Output"`
+    - Cross-agent: `"Depends on: Task X.Y Output by Agent Z"`
 
-### Integration Checkpoints
-- **Authentication**: Always integrate with existing auth patterns from the start
-- **Theme System**: Build with dark mode support from day one
-- **Notifications**: Use established user feedback patterns
-- **Testing**: Follow existing test structures and utilities
-- **UX & Revenue**: Balance frictionless UX with monetization goals; call out trade-offs explicitly
+### 2.6. Phase Summary Format (Manager Agent)
+At phase completion, append summaries to Implementation Plan under current phase and before next phase:
+
+```markdown
+## Phase <n>: <Name> Summary
+> Delivered: Tasks <n.m>, <n.k>
+> Outstanding: Tasks <n.x>, ...
+> Blockers: ...
+> Common Bugs/Issues: ...
+> Compatibility Notes: ...
+```
+
+## 3. JSON Variant Specification
+JSON Implementation Plans follow identical rules and structure as Markdown but use schema validation at `/prompts/schemas/implementation_plan.schema.json`. All requirements for task meta-fields, agent assignments, dependencies, summaries, and detailed specifications apply as described above.
+
+## 4. Setup Agent Responsibilities
+Transform reviewed Implementation Plan file into detailed APM artifact:
+
+### 4.1. Enhancement Process
+**Content Preservation Requirements:**
+- Maintain all task objectives, execution patterns (subtask steps or subtask instructions), and agent assignments from reviewed file
+- Preserve all dependencies and phase structure exactly as reviewed
+- Keep task boundaries and scope identical to reviewed file
+
+**Detail Enhancement Requirements:**
+- Transform basic task descriptions into comprehensive specifications
+- Add detailed context to task objectives, outputs, and guidance
+- Enhance subtask descriptions with comprehensive instructions and technical context
+- Provide detailed specifications that enable Manager Agent to create precise Task Assignment Prompts
+
+### 4.2. Phase-by-Phase Enhancement Approach
+**Sequential Phase Enhancement:**
+- Enhance the Implementation Plan one phase section at a time, proceeding sequentially through the file
+- Each phase enhancement represents one edit operation to the Implementation Plan file
+- Complete enhancement of current phase before proceeding to next phase
+
+**Enhancement Execution:**
+- **Phase Analysis**: For each phase, read the corresponding section in the reviewed file to fully understand its structure, tasks, and dependencies
+- **Phase Enhancement**: Apply the document structure specifications from §2 to reformat and enrich the current phase, ensuring all tasks are transformed into detailed task blocks with enhanced meta-fields
+- **Content Enhancement**: Enhance each task's contents following §4.1 guidance, ensuring that the content of the reviewed file is retained, only with more detailed context
+- **Phase Completion**: Complete the enhancement of the current phase before moving on to the next, ensuring no phase is skipped or partially enhanced
+- **File Update**: Update Implementation Plan file with enhanced phase content
+- **Progression Gate**: Continue this process until all phases in the Implementation Plan have been fully enhanced
+
+**Quality Assurance:**
+- After each phase enhancement, review the updated content to confirm that detailed specifications are sufficient for Manager Agent Task Assignment Prompt creation
+- Ensure all original task content, execution patterns, and agent assignments are preserved from the reviewed file for the current phase
+- Iterate and refine current phase enhancement based on user feedback until the phase provides the necessary detail for systematic and effective task execution
+- Proceed to next phase only after current phase is complete and approved
+
+## 5. Manager Agent Responsibilities
+Maintain detailed Implementation Plan throughout APM session:
+
+### 5.1. Plan Validation & Improvement
+**Initial Plan Assessment:**
+- Read guide, evaluate plan structure and detail level
+- Validate JSON structure against schema if JSON variant used
+- Assess plan integrity and request more detail from Setup Agent if needed
+
+**Validation Focus:**
+- Confirm detailed specifications support precise Task Assignment Prompt creation
+- Verify task meta-fields provide sufficient context for Implementation Agent coordination
+- Ensure enhanced guidance enables effective task execution management
+
+### 5.2. Live Plan Maintenance
+**Plan Updates:**
+- Sync plan with project changes while maintaining detailed specification level
+- Add/remove/modify phases and tasks as needed with comprehensive context
+- Update "Last Modification" for all changes
+- Keep task numbering and dependencies consistent
+
+**Structure Maintenance:**
+- Maintain enhanced meta-field structure during plan updates
+- Preserve detailed specifications when modifying task content
+- Update task details as implementation progresses and requirements evolve
+
+### 5.3. Execution Coordination
+**Task Assignment Creation:**
+- Use detailed meta-fields to create comprehensive Task Assignment Prompts
+- Extract enhanced producer task outputs for consumer task assignment integration
+- Reference detailed guidance for Implementation Agent context and constraints
+- Leverage enhanced specifications for precise task instruction development
+
+**Cross-Agent Coordination:**
+- Manage cross-agent handoffs using detailed dependency specifications
+- Use enhanced output specifications for seamless task integration
+- Reference comprehensive guidance for effective agent coordination
+
+### 5.4. Phase Management
+**Phase Execution:**
+- Track phase completion using detailed task specifications
+- Manage phase transitions with comprehensive context understanding
+- Use enhanced plan structure for effective phase coordination
+
+**Documentation:**
+- Write detailed phase summaries in Memory Root using enhanced task context
+- Add concise phase summaries to plan before next phase following Memory System Guide
+- Maintain comprehensive project documentation through enhanced plan structure
 
 ## Repository safety
 - Do not include steps that instruct running Git operations that modify history or remote state:
@@ -83,8 +179,8 @@ STATE CLEARLY THAT YOU DID RESEARCH ON THE TOPIC FOR ANOTHER AGENT TO AVOID RESE
 **Analysis Summary**: [One sentence describing what needs to be implemented]
 **Research Completed**: ✅ All necessary information gathered from online sources
 **Implementation Ready**: ✅ All dependencies mapped and execution sequence optimized
-**Beast-Mode Instructions**: The implementation steps above are ready for autonomous execution. Proceed with implementation following the dependency order specified.
+**Implementation Mode Instructions**: The implementation steps above are ready for autonomous execution. Proceed with implementation following the dependency order specified.
 
 ---
-**Note**: This planning phase is complete. Any follow-up messages requesting implementation will be handled by switching to beast-mode mode automatically.
+**Note**: This planning phase is complete. Any follow-up messages requesting implementation will be handled by switching to implementation chatmode automatically.
 ---
