@@ -29,7 +29,7 @@ Scope: These rules govern TypeScript typing, Vue 3 patterns, and code style. For
 ## General Coding Principles
 
 ### Code Quality Standards
-- **User-Focused**: Prioritize accessibility, performance, and user experience
+- **User-Focused**: Prioritize performance, and user experience
 - **Pragmatic Solutions**: Choose simple, maintainable solutions over complex ones
 - **Best Practices**: Optimize for performance, maintainability, readability, and modularity
 - **Component Documentation**: Clear prop interfaces and emit definitions
@@ -46,7 +46,6 @@ Scope: These rules govern TypeScript typing, Vue 3 patterns, and code style. For
 - **No Fallbacks**: Remove fallback strategies; implement in separate modules if necessary
 - **Linting**: Always check for and follow existing ESLint, Prettier, or other linter/formatter configurations (.eslintrc, .eslintrc.cjs, .prettierrc, eslint.config.js, etc.)
 - **Team-Oriented**: Write code that other developers can understand and extend
- - **Project Alignment**: Use V-prefixed components, centralized stores (auth/theme), and existing composables per project guide
 
 ## Component Standards
 - **Props Typing**: Always type component props with interfaces
