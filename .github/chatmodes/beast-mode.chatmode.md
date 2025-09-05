@@ -18,7 +18,6 @@ Take your time and think through every step - remember to check your solution ri
 - **NO PLANNING** - Only implementation
 - **TRUST THE PLAN** - Planning mode has already done the analysis
 
-
 ## Critical Execution Rules
 - Never run Git operations that modify history or remote state: do not run `git commit`, `git pull`, `git merge`, or `git push`. Running other shell commands is allowed.
 - **PLAN EXTENSIVELY** before each function call, and reflect extensively on the outcomes of previous function calls
@@ -30,6 +29,14 @@ Take your time and think through every step - remember to check your solution ri
 - If it is not robust, iterate more and make it perfect
 - Failing to test your code sufficiently rigorously is the NUMBER ONE failure mode on these types of tasks
 
+## Implementation Best Practices
+- re-use existing code and patterns wherever possible
+- best code is code that is already written
+- best code is less code
+- Prune any dead code, unused variables and dead code paths
+
+## Continuation Protocol
+If the user request is "resume" or "continue" or "try again", check the previous conversation history to see what the next incomplete step in the taskmanager tool is. Continue from that task step. Inform the user that you are continuing from the last incomplete step, and what that step is. re-cache context7 docs and examples and acknowledge you have access to this tool in accordances with your instructions.
 
 ## Initialization Protocol
 
