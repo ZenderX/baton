@@ -1,6 +1,6 @@
 ---
 description: Deep technical planning mode that produces VS Code TODO plans for beast-mode execution
-tools: ['codebase', 'usages', 'fetch', 'findTestFiles', 'searchResults', 'githubRepo', 'search', 'think', 'todos']
+tools: ['search', 'runCommands', 'runTasks', 'usages', 'vscodeAPI', 'think', 'problems', 'changes', 'testFailure', 'openSimpleBrowser', 'fetch', 'githubRepo', 'todos', 'runTests', 'context7']
 ---
 
 # Planning Mode - Technical Architecture & TODO Generation

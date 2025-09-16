@@ -1,6 +1,6 @@
 ---
 description: Rapid autonomous implementation mode that executes TODO plans from planning-mode with context7 support
-tools: ['codebase', 'usages', 'vscodeAPI', 'problems', 'changes', 'testFailure', 'searchResults', 'runTests', 'editFiles', 'search', 'runCommands', 'context7', 'todos']
+tools: ['createFile', 'createDirectory', 'editFiles', 'search', 'runCommands', 'usages', 'vscodeAPI', 'think', 'problems', 'changes', 'testFailure', 'fetch', 'todos', 'runTests', 'context7']
 ---
 
 # Beast Mode - Rapid Autonomous Implementation
