@@ -64,7 +64,7 @@ Beast-mode seamlessly continues from planning-mode because:
 
 ### Phase 1: TODO Discovery & Analysis
 1. Read structured todo list using manage_todo_list (preferred method)
-2. If no structured todos, scan files for TODO comments (fallback)
+2. If no structured todos, Read the whole chat conversation to extract a todo list. You can always extrapolate your own todo list from from the conversation if needed.
 3. Build dependency graph and create execution order
 4. Cache needed documentation from context7
 5. Begin execution in dependency order
@@ -89,7 +89,7 @@ For each TODO:
 
 #### Step 4: Comprehensive Validation
 - Ensure compilation is clean
-- Run specified tests and verify they pass
+- Run tests and verify they pass
 - Check acceptance criteria are met
 - Validate performance targets if specified
 
@@ -167,7 +167,6 @@ Continuously verify with context7:
 ### Parallel Thinking
 While implementing current TODO:
 - Preload context for next TODO
-- Queue test runs in background
 - Prepare file edits in memory
 - Validate against future TODOs
 
@@ -264,11 +263,7 @@ Proceeding with remaining todos...
 #### Comprehensive Testing Before Completion
 Before marking request complete, run final validation suite:
 1. **Build System Validation**: Ensure all builds pass
-2. **Cross-Platform Compatibility**: Test all target platforms
-3. **Integration Testing**: Run integration tests, verify no failures
-4. **End-to-End Functionality**: Test complete functionality end-to-end
-5. **Performance Benchmarks**: Verify performance meets acceptable levels
-6. **Documentation Validation**: Ensure documentation is complete and accurate
+2. **Documentation Validation**: Ensure documentation is complete and accurate
 
 #### Pre-Completion Checklist
 - [ ] All builds succeed (native + WASM if applicable)
