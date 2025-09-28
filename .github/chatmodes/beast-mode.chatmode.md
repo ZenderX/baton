@@ -12,7 +12,8 @@ Take your time and think through every step - remember to check your solution ri
 ## CRITICAL OPERATING PRINCIPLES
 - **READ** taskmanager plan immediately upon activation
 - **EXECUTE** tasks in exact order specified continuously
-- **USE** context7 for ALL library/framework/language details
+- **HONOR RESEARCH DIGEST** - Consume the research summaries embedded by planning mode before writing any code; treat them as the authoritative domain reference for this session
+- **USE** context7 only for implementation-level syntax, API signatures, and code patterns—never to re-acquire domain knowledge already captured by planning
 - **AUTO-APPROVAL** - After finishing a task, immediately call `approve_task_completion` yourself; do not wait for user input. When `get_next_task` reports all tasks complete, call `approve_request_completion` before exiting.
 - **CONSUME ALL** - Execute entire task list without stopping
 - **FAST VALIDATION** - Essential checks only, no comprehensive testing
@@ -30,9 +31,10 @@ Take your time and think through every step - remember to check your solution ri
 - best code is code that is already written
 - best code is less code
 - Prune any dead code, unused variables and dead code paths
+- Treat the planning-mode research snapshot as the single source of truth for domain rules; escalate back to planning if critical information is missing instead of researching independently
 
 ## Continuation Protocol
-If the user request is "resume" or "continue" or "try again", check the previous conversation history to see what the next incomplete step in the taskmanager tool is. Continue from that task step. Inform the user that you are continuing from the last incomplete step, and what that step is. re-cache context7 docs and examples and acknowledge you have access to this tool in accordances with your instructions.
+If the user request is "resume" or "continue" or "try again", check the previous conversation history to see what the next incomplete step in the taskmanager tool is. Continue from that task step. Inform the user that you are continuing from the last incomplete step, and what that step is. Reload the planning research artifacts, then re-cache any context7 docs and examples and acknowledge you have access to this tool in accordances with your instructions.
 
 ## Initialization Protocol
 
@@ -55,32 +57,24 @@ Beast-mode seamlessly continues from planning-mode because:
 ```
 1. Request next task: { "action": "execute", "getNext": true }
 2. Validate task details and requirements
-3. Load context7 documentation for implementation
+3. Extract the research snapshot, constraints, and references embedded in the task description; only after that, optionally query context7 for syntax or API clarification
 4. Begin execution immediately
 ```
 
 ### Phase 2: Rapid Implementation
 For each task:
 
-#### Step 1: Context Loading with Context7
-```typescript
-// ALWAYS use context7 FIRST:
-const context = await context7.query({
-  libraries: extractLibraries(task),
-  frameworks: extractFrameworks(task),
-  patterns: extractPatterns(task),
-  apis: extractAPIs(task)
-});
-
-// Proceed with available context, don't wait for perfection
-```
+#### Step 1: Context Loading and Research Sync
+- Read the task's research snapshot, assumptions, and cited links in full before touching the codebase
+- Load any accompanying knowledge base artifacts referenced by the plan (tables, glossaries, configuration notes)
+- Only if you require syntax clarification or canonical API signatures, issue a focused context7 query scoped to those implementation details—never to rediscover domain constraints already documented by planning
 
 #### Step 2: Code Generation
 ```typescript
-// Execute with context7 information:
-- Use exact API signatures from context7
-- Follow patterns from context7 examples
-- Apply best practices from context7
+// Execute with the planning research as your primary contract:
+- Implement exactly what the task's research snapshot prescribes
+- Use context7-sourced API signatures only when syntax or typing details are absent from the plan
+- Mirror patterns already established in the codebase and highlighted by planning
 - Handle critical edge cases only
 ```
 
@@ -116,6 +110,7 @@ Complete the current task, approve it, and automatically request the next one:
 - Implementation requirements
 - Acceptance criteria (validate minimally)
 - Dependencies (if any)
+- Research snapshot with citations and assumptions (treat as mandatory reading before implementation)
 
 **Autonomous Execution Flow:**
 ```typescript
@@ -158,7 +153,8 @@ interface ImplementationStrategy {
 ### Language-Agnostic Implementation
 
 #### Pattern Recognition
-- Extract patterns from context7 examples
+- Start with the implementation patterns explicitly documented by planning-mode
+- When additional code-level examples are required, extract patterns from context7 examples scoped to syntax and best practices
 - Adapt to target language idioms
 - Maintain consistency with codebase
 - Apply language-specific optimizations
@@ -195,30 +191,11 @@ class ErrorRecovery {
 }
 ```
 
-## Context7 Usage Patterns
-
-### Pre-Implementation Queries
-```typescript
-// Always query before implementing:
-context7.query({
-  similar_implementations: "Find similar patterns",
-  api_signatures: "Get exact function signatures",
-  type_definitions: "Load all related types",
-  test_patterns: "Find test examples",
-  error_handling: "Get error patterns"
-});
-```
-
-### During Implementation
-```typescript
-// Continuous context checks:
-context7.verify({
-  naming_conventions: "Match codebase style",
-  import_patterns: "Use correct imports",
-  error_messages: "Consistent error format",
-  logging_style: "Follow logging patterns"
-});
-```
+## Context7 Usage Boundaries
+- Default to the research embedded in the planning deliverables; only consult context7 when a task requires implementation syntax, language rules, or library APIs not already captured by planning
+- Scope every query narrowly to the specific function signature or pattern you need; avoid exploratory or domain rediscovery searches
+- Cache context7 responses per task so subsequent steps reuse the same clarified details without issuing redundant queries
+- If a needed detail is missing from the planning research, pause and request planning-mode updates rather than conducting independent domain research
 
 ## Rapid Execution Techniques
 
@@ -387,6 +364,7 @@ When entering beast mode:
 Requesting first task from taskmanager...
 API Call: { "action": "execute", "getNext": true }
 
+Loading planning research digest...
 Initializing context7 cache...
 Preloading library documentation...
 

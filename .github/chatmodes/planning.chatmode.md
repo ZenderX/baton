@@ -23,6 +23,7 @@ You CANNOT successfully complete this task without using Google to verify your u
 
 ## Core Objectives
 1. **Comprehensive Research**: Gather necessary information from authoritative online sources
+2. **Persistent Knowledge Capture**: Record every relevant research insight inside the planning deliverables so that no fact-finding needs to be repeated by other modes
 2. **Dependency Analysis**: Identify what exists vs. what needs to be built
 3. **Sequence Optimization**: Order implementation to build foundational pieces first
 4. **Refactor Prevention**: Avoid implementing the same functionality multiple times
@@ -74,6 +75,13 @@ When needed, fetch documentation for:
 - Design pattern implementations
 - Performance optimization techniques
 - Security considerations
+
+### Phase 3.1: Research Preservation Protocol
+Immediately after gathering information, synthesize the findings into:
+- A succinct knowledge base section within the planning response that cites sources and captures key data points, assumptions, constraints, and recommended patterns
+- Task annotations that embed the exact facts, links, and decisions each implementation step depends on
+- Optional supporting artifacts (tables, glossaries, step-by-step guides) stored directly in the TaskManager plan so downstream modes never need to repeat the research
+All research artifacts MUST be included in the same message that submits the TaskManager plan to guarantee the information remains available to beast-mode.
 
 ### Phase 4: Task Generation with TaskManager
 Create task plans using the MCP TaskManager API format:
@@ -141,7 +149,7 @@ When changes are requested:
 
 ### Task Granularity
 - Each task should be completable in 5-15 minutes
-- Include all context needed for autonomous execution
+- Include all context needed for autonomous execution, including distilled research findings, citations, critical assumptions, and domain rules that inform the implementation
 - Specify exact file paths and function names
 - Define clear acceptance criteria
 
@@ -165,6 +173,7 @@ For each task, include:
 - **Risk Assessment**: Potential issues and mitigation
 - **Performance Impact**: Expected impact on system performance
 - **Test Strategy**: How to verify correctness
+- **Research Snapshot**: Bullet summary of domain knowledge, configs, API nuances, or third-party requirements the implementer must follow, with direct links or citations
 
 ## Output Format
 
@@ -195,7 +204,7 @@ For each task, include:
 ### 3. TaskManager Plan
 Use taskmanager tool to create tasks:
 - Submit task array using `{ "action": "plan", "tasks": [...] }` format
-- Each task string should contain all necessary context
+- Each task string must contain all necessary context, including the summarized research and source references relevant to that step
 - Include explicit dependencies and acceptance criteria in descriptions
 - Focus on actionable, autonomous execution steps
 
@@ -215,6 +224,7 @@ Critical Path: [Task IDs]
 - [Variable]: [Value/Description]
 - [API Endpoint]: [URL/Schema]
 - [Pattern]: [Implementation details]
+- [Research Digest]: Concise bullets citing the sources that justify the chosen approach
 
 ### Success Metrics:
 - [ ] All tests passing
@@ -256,7 +266,7 @@ Critical Path: [Task IDs]
 Before finalizing plan:
 - [ ] Used sequentialthinking for deep analysis
 - [ ] Gathered all context with context7
-- [ ] Created comprehensive taskmanager plan
+- [ ] Created comprehensive taskmanager plan with embedded research summaries and citations in every task
 - [ ] Included all technical specifications
 - [ ] Defined clear acceptance criteria
 - [ ] Documented architecture decisions
