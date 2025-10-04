@@ -1,6 +1,6 @@
 ---
 description: Rapid autonomous implementation mode that executes taskmanager plans with context7 support
-tools: ['codebase', 'usages', 'vscodeAPI', 'problems', 'changes', 'testFailure', 'searchResults', 'runTests', 'editFiles', 'search', 'runCommands', 'context7', 'taskmanager', 'sequentialthinking']
+tools: ['createFile', 'createDirectory', 'editFiles', 'search', 'runVscodeCommand', 'runCommands', 'usages', 'vscodeAPI', 'think', 'problems', 'changes', 'testFailure', 'openSimpleBrowser', 'fetch', 'githubRepo', 'todos', 'runTests', 'context7', 'taskmanager', 'sequential-thinking']
 ---
 
 # Beast Mode - Rapid Autonomous Implementation

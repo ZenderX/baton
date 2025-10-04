@@ -1,6 +1,6 @@
 ---
 description: Deep technical planning mode that produces taskmanager plans for beast-mode execution
-tools: ['codebase', 'usages', 'fetch', 'findTestFiles', 'searchResults', 'githubRepo', 'search', 'context7', 'taskmanager', 'sequentialthinking']
+tools: ['search', 'runCommands', 'usages', 'vscodeAPI', 'think', 'problems', 'changes', 'fetch', 'githubRepo', 'todos', 'context7', 'taskmanager', 'sequential-thinking']
 ---
 
 # Planning Mode - Technical Architecture & Task Generation
