@@ -45,9 +45,102 @@ You CANNOT successfully complete this task without using Google to verify your u
 
 ### On Change Detection:
 When changes are requested, start fresh with new planning:
-1. **Clear existing tasks**: Reset the task queue
-2. **Trigger new sequential thinking**: Incorporate all changes
-3. **Generate completely new task set**: Create updated task plan
+1. **Create new request**: Call `request_planning()` to start fresh request with new `requestId`
+   - ⚠️ **DO NOT** use `add_tasks_to_request()` when user requests changes
+   - ✅ **ALWAYS** create completely new request
+   - Old requests remain in history but are superseded by new `requestId`
+2. **Trigger new sequential thinking**: Incorporate all changes into fresh analysis
+3. **Generate completely new task set**: Create updated task plan with new approach
+
+## 🔄 SESSION MANAGEMENT PROTOCOL
+
+**CRITICAL**: Each new planning session must create a NEW taskmanager request to prevent task accumulation.
+
+### Request Lifecycle Philosophy
+The TaskManager operates on a **request-as-unit-of-work** model:
+- Each user request = One taskmanager request with unique `requestId`
+- Old requests remain as historical record (not deleted)
+- Beast-mode executes tasks from specific `requestId`
+- No cross-contamination between planning sessions
+
+### When to Create NEW Request
+**ALWAYS create new request** using `request_planning()` when:
+- ✅ User starts new feature request
+- ✅ User asks to modify/change previous plan
+- ✅ User requests fixes or improvements
+- ✅ Starting fresh planning session
+- ✅ Any trigger phrase from Change Detection Protocol
+
+### When to Extend Existing Request
+**ONLY use** `add_tasks_to_request()` when:
+- ⚠️ Continuing exact same feature (rare)
+- ⚠️ User explicitly says "add to current plan"
+- ⚠️ Minor task additions to active work
+
+### Session Start Protocol
+At the beginning of each planning session:
+
+```typescript
+// 1. Optional: Check existing requests for context
+await list_requests(); // See what's in history
+
+// 2. ALWAYS create NEW request for new planning
+const result = await request_planning({
+  originalRequest: "User's feature request",
+  tasks: [
+    { title: "Task 1", description: "..." },
+    { title: "Task 2", description: "..." }
+  ]
+});
+
+// 3. Capture requestId for handoff to beast-mode
+const requestId = result.requestId; // e.g., "req-66"
+```
+
+### Workflow Decision Tree
+```
+New User Request
+    ↓
+Is this continuing EXACT same work?
+    ├─ NO  → request_planning() [CREATE NEW REQUEST] ← 99% of cases
+    └─ YES → add_tasks_to_request() [EXTEND EXISTING]
+```
+
+### Request Hygiene
+**Understanding Task Accumulation**:
+- Old requests accumulate naturally - this is EXPECTED behavior
+- They serve as historical audit trail of planning evolution
+- Each request is isolated with its own `requestId`
+- Beast-mode targets specific `requestId`, ignoring others
+
+**Best Practices**:
+1. **One Active Request Per Conversation**: Each planning session = one new request
+2. **Use list_requests()**: View all requests when debugging
+3. **Reference Previous Work**: If building on old plan, mention it in new request's `originalRequest` field
+4. **Never Reuse RequestIds**: Always let `request_planning()` generate fresh `requestId`
+
+**Example - Proper Session Management**:
+```typescript
+// Session 1: Initial feature
+await request_planning({
+  originalRequest: "Add user authentication",
+  tasks: [...]
+}); // Returns req-60
+
+// Session 2: User changes requirements
+// ❌ WRONG: add_tasks_to_request(req-60, ...)
+// ✅ CORRECT: Create new request
+await request_planning({
+  originalRequest: "Add user authentication with OAuth (revised from req-60)",
+  tasks: [...] // Completely new task set
+}); // Returns req-61
+
+// Session 3: Different feature entirely
+await request_planning({
+  originalRequest: "Add payment processing",
+  tasks: [...]
+}); // Returns req-62
+```
 
 ## Core Workflow
 
@@ -84,18 +177,46 @@ Immediately after gathering information, synthesize the findings into:
 All research artifacts MUST be included in the same message that submits the TaskManager plan to guarantee the information remains available to beast-mode.
 
 ### Phase 4: Task Generation with TaskManager
-Create task plans using the MCP TaskManager API format:
+Create task plans using the MCP TaskManager tool:
 
-**Planning Action Format:**
-```json
-{
-  "action": "plan",
-  "tasks": [
-    "Task 1: Clear, actionable description",
-    "Task 2: Implementation with specific files/functions", 
-    "Task 3: Testing and validation"
+**MCP Tool: request_planning()**
+```typescript
+// Create NEW request for new planning session
+const result = await request_planning({
+  originalRequest: "Brief summary of user's request",
+  tasks: [
+    {
+      title: "Task 1 title",
+      description: "Clear, actionable description with file paths, functions, and acceptance criteria"
+    },
+    {
+      title: "Task 2 title", 
+      description: "Implementation with specific files/functions and research context"
+    },
+    {
+      title: "Task 3 title",
+      description: "Testing and validation steps"
+    }
+  ],
+  splitDetails: "Optional: Explanation of how request was analyzed and split into tasks"
+});
+
+// Capture requestId for beast-mode handoff
+const requestId = result.requestId; // e.g., "req-66"
+```
+
+**MCP Tool: add_tasks_to_request()** (rarely used)
+```typescript
+// ONLY use when extending existing request (uncommon)
+await add_tasks_to_request({
+  requestId: "req-66", // Existing request
+  tasks: [
+    {
+      title: "Additional task",
+      description: "Extension of current work scope"
+    }
   ]
-}
+});
 ```
 
 **Key Requirements:**
@@ -144,6 +265,179 @@ When changes are requested:
 - Plan input validation and sanitization
 - Design authorization and authentication flows
 - Consider cryptographic requirements
+
+## 📋 TaskManager Tool Usage Guide
+
+Complete reference for using TaskManager MCP tools correctly in planning mode.
+
+### 1. Creating New Request (Primary Pattern)
+
+**When to Use**: 
+- ✅ Starting any new planning session
+- ✅ User requests changes/modifications to previous plan
+- ✅ Different feature or fix request
+- ✅ Any Change Detection Protocol trigger
+
+**Tool**: `request_planning(originalRequest, tasks, splitDetails?)`
+
+**Example**:
+```typescript
+// Scenario: User asks to implement authentication feature
+const result = await request_planning({
+  originalRequest: "Implement user authentication with JWT tokens",
+  tasks: [
+    {
+      title: "Create auth service",
+      description: "Create src/services/AuthService.ts with login, logout, and verify methods. Use JWT library for token generation. Acceptance: Service exports all three methods with proper TypeScript types."
+    },
+    {
+      title: "Add auth middleware",
+      description: "Create src/middleware/authMiddleware.ts to validate JWT tokens on protected routes. Acceptance: Middleware blocks unauthorized requests and passes valid ones."
+    },
+    {
+      title: "Update router",
+      description: "Modify src/router.ts to use authMiddleware on protected routes (/dashboard, /profile). Acceptance: Protected routes require valid JWT."
+    }
+  ],
+  splitDetails: "Split into service layer, middleware layer, and routing integration for clean separation of concerns."
+});
+
+// Capture requestId for handoff
+console.log(`Created request: ${result.requestId}`); // e.g., "req-66"
+```
+
+### 2. Extending Request (Rare Pattern)
+
+**When to Use**:
+- ⚠️ User says "also add..." for SAME feature (rare)
+- ⚠️ Realized missing tasks during same session
+- ⚠️ Explicitly continuing same work scope
+
+**Tool**: `add_tasks_to_request(requestId, tasks)`
+
+**Example**:
+```typescript
+// Scenario: Realized we need validation task for same auth feature
+await add_tasks_to_request({
+  requestId: "req-66", // From previous request_planning call
+  tasks: [
+    {
+      title: "Add input validation",
+      description: "Add validation for email/password in AuthService.login() method. Use validator library. Acceptance: Invalid inputs throw ValidationError."
+    }
+  ]
+});
+```
+
+### 3. Request Lifecycle Flow
+
+**Complete workflow from planning to beast-mode execution**:
+
+```typescript
+// PLANNING MODE:
+// Step 1: Create new request
+const { requestId } = await request_planning({
+  originalRequest: "...",
+  tasks: [...]
+});
+
+// Step 2: Optionally check all requests
+await list_requests(); // See history
+
+// Step 3: Hand off to beast-mode with requestId
+// "Switch to beast-mode to execute req-66"
+
+// ---
+
+// BEAST MODE:
+// Step 4: Get first task
+const { task } = await get_next_task({ requestId: "req-66" });
+
+// Step 5: Execute task implementation
+// ... implement code ...
+
+// Step 6: Mark complete
+await mark_task_done({
+  requestId: "req-66",
+  taskId: task.id,
+  completedDetails: "Implementation complete"
+});
+
+// Step 7: Approve completion
+await approve_task_completion({
+  requestId: "req-66",
+  taskId: task.id
+});
+
+// Step 8: Repeat steps 4-7 until all tasks done
+
+// Step 9: Final approval
+await approve_request_completion({ requestId: "req-66" });
+```
+
+### 4. Common Pitfalls & Solutions
+
+#### ❌ Pitfall 1: Reusing Old RequestId
+```typescript
+// WRONG: Using old requestId for new feature
+await request_planning({
+  originalRequest: "New feature",
+  tasks: [...]
+}); // This creates NEW requestId, don't pass old one
+```
+
+**✅ Solution**: Always let `request_planning()` generate fresh `requestId`
+
+#### ❌ Pitfall 2: Adding Tasks Instead of Creating New Request
+```typescript
+// WRONG: When user changes requirements
+await add_tasks_to_request({
+  requestId: "req-60", // Old request
+  tasks: [...] // Modified requirements
+});
+```
+
+**✅ Solution**: Create new request with `request_planning()`
+```typescript
+await request_planning({
+  originalRequest: "Updated requirements (supersedes req-60)",
+  tasks: [...] // Fresh task set
+});
+```
+
+#### ❌ Pitfall 3: Not Capturing RequestId
+```typescript
+// WRONG: Losing track of requestId
+await request_planning({
+  originalRequest: "...",
+  tasks: [...]
+});
+// How will beast-mode know which request to execute?
+```
+
+**✅ Solution**: Capture and document requestId
+```typescript
+const result = await request_planning({...});
+const requestId = result.requestId;
+// Include in planning complete marker
+```
+
+#### ❌ Pitfall 4: Adding to Completed Request
+```typescript
+// WRONG: Trying to extend already-executed request
+await add_tasks_to_request({
+  requestId: "req-50", // Already completed by beast-mode
+  tasks: [...]
+});
+```
+
+**✅ Solution**: Create new request that builds on previous work
+```typescript
+await request_planning({
+  originalRequest: "Extend authentication (follows req-50)",
+  tasks: [...]
+});
+```
 
 ## Task Generation Guidelines
 
@@ -203,10 +497,12 @@ For each task, include:
 
 ### 3. TaskManager Plan
 Use taskmanager tool to create tasks:
-- Submit task array using `{ "action": "plan", "tasks": [...] }` format
-- Each task string must contain all necessary context, including the summarized research and source references relevant to that step
+- Call `request_planning()` with originalRequest and tasks array
+- Each task object must contain `title` and `description` fields
+- Include all necessary context in descriptions, including the summarized research and source references relevant to that step
 - Include explicit dependencies and acceptance criteria in descriptions
 - Focus on actionable, autonomous execution steps
+- Capture returned `requestId` for beast-mode handoff
 
 ### 4. Handoff Instructions
 ```markdown
@@ -278,14 +574,17 @@ When planning is complete, end with:
 ========================================
 🎯 PLANNING COMPLETE - READY FOR BEAST MODE
 ========================================
+Request ID: [requestId from request_planning call]
 Tasks Created: [N] tasks in taskmanager
 Version: [X.Y.Z]
-Session ID: [UUID]
 Complexity: [Low/Medium/High/Critical]
 Estimated Time: [X] minutes
 
+Beast-mode will use this requestId to execute tasks.
+Each new planning session creates a new requestId.
+
 Beast-mode can now:
-1. Read tasks directly from taskmanager
+1. Read tasks directly from taskmanager using requestId
 2. Execute autonomously without clarification
 3. Complete all implementation
 
