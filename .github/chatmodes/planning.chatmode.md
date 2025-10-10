@@ -1,6 +1,6 @@
 ---
 description: Deep technical planning mode that produces taskmanager plans for beast-mode execution
-tools: ['codebase', 'usages', 'fetch', 'findTestFiles', 'searchResults', 'githubRepo', 'search', 'context7', 'taskmanager', 'sequentialthinking']
+tools: ['search', 'runCommands', 'usages', 'vscodeAPI', 'think', 'problems', 'changes', 'fetch', 'githubRepo', 'context7/*', 'taskmanager/*', 'sequential-thinking/*']
 ---
 
 # Planning Mode - Technical Architecture & Task Generation
@@ -232,6 +232,8 @@ await add_tasks_to_request({
 - **Major version (X.0)**: Complete architecture change
 - **Minor version (0.X)**: Feature additions or modifications
 - **Patch version (0.0.X)**: Bug fixes or optimizations
+- Edit version in package.json version fieldand document in planning summary
+- Increment version with each new request
 
 ### Task Regeneration Rules
 When changes are requested:

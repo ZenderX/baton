@@ -24,6 +24,9 @@ Scope: These rules govern TypeScript typing, Vue 3 patterns, and code style. For
 - **Reactivity**: Use appropriate reactive primitives (ref vs reactive vs computed)
 - **Lifecycle**: Use composition API lifecycle hooks (onMounted, onUnmounted, etc.)
 
+## tanstack/vue-query
+- **vue-query**: Prevent this error: "vue-query hooks can only be used inside setup() function or functions that support injection context." Use `useQuery` and other vue-query hooks inside `setup()` or `script setup`. The error indicates that Vue Query hooks (like useQuery) are being called outside of the Vue composition context.
+
 ## Code Quality Standards
 
 ## General Coding Principles
