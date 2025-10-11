@@ -232,8 +232,6 @@ await add_tasks_to_request({
 - **Major version (X.0)**: Complete architecture change
 - **Minor version (0.X)**: Feature additions or modifications
 - **Patch version (0.0.X)**: Bug fixes or optimizations
-- Edit version in package.json version fieldand document in planning summary
-- Increment version with each new request
 
 ### Task Regeneration Rules
 When changes are requested:
