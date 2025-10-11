@@ -3,77 +3,335 @@ description: TypeScript and Vue 3 coding standards
 applyTo: "**/*.{ts,tsx,vue}"
 ---
 
-# TypeScript & Vue 3 Coding Standards
+# TYPESCRIPT & VUE 3 CODING STANDARDS
 
-Scope: These rules govern TypeScript typing, Vue 3 patterns, and code style. For architecture, runtime behavior, and integration patterns, follow `project.instructions.md`.
+Language-specific rules for TypeScript and Vue 3. Architecture, state management, and project patterns in `project.instructions.md`.
 
-## TypeScript Requirements
-- **Strict Mode**: No `any` types, no non-null assertions (`!`), no `as unknown` casting
-- **Interface Definitions**: Define proper interfaces for component props and store state
-- **Type Safety**: Use double quotes for strings, template literals for interpolation (TypeScript override for consistency)
-- **Type Imports**: Use `import type` for type-only imports
-- **Error Handling**: Implement proper error checking and type validation
-- **Type-Safe Error Handling**: Handle error states with proper TypeScript type annotations
-- **Naming**: Use intuitive naming conventions and consistent patterns
+---
 
-## Vue 3 Patterns
-- **Composition API**: Always use `<script setup>` syntax
-- **Auto-imports**: Vue APIs (ref, reactive, computed, watch) are auto-imported via unplugin
-- **Props**: Use `defineProps<Interface>()` with `withDefaults()` when needed
-- **Emits**: Use `defineEmits<{ eventName: [payload: Type] }>()`
-- **Reactivity**: Use appropriate reactive primitives (ref vs reactive vs computed)
-- **Lifecycle**: Use composition API lifecycle hooks (onMounted, onUnmounted, etc.)
+## TYPESCRIPT STRICT MODE
+```typescript
+// ✅ ENFORCE
+- NO `any` types
+- NO non-null assertions (`!`)
+- NO `as unknown` casting
+- NO unused parameters (prefix with `_` to ignore)
+- Use `import type` for type-only imports
+- Define interfaces for component props and store state
+- Type all error handling with proper annotations
 
-## tanstack/vue-query
-- **vue-query**: Prevent this error: "vue-query hooks can only be used inside setup() function or functions that support injection context." Use `useQuery` and other vue-query hooks inside `setup()` or `script setup`. The error indicates that Vue Query hooks (like useQuery) are being called outside of the Vue composition context.
+// ❌ FORBIDDEN
+const data: any = fetchData();           // Use proper interface
+const value = obj!.prop;                 // Handle null explicitly
+const user = data as unknown as User;    // Use type guards
+```
 
-## Code Quality Standards
+---
 
-## General Coding Principles
+## VUE 3 COMPOSITION API
 
-### Code Quality Standards
-- **User-Focused**: Prioritize performance, and user experience
-- **Pragmatic Solutions**: Choose simple, maintainable solutions over complex ones
-- **Best Practices**: Optimize for performance, maintainability, readability, and modularity
-- **Component Documentation**: Clear prop interfaces and emit definitions
-- **Latest Versions**: Always use latest stable versions of libraries and frameworks
-- **Completeness**: Generate full code, no placeholders. If unable, explain in comments
-- **Type Completeness**: Be as type-complete as possible, avoid loose typing
-- **Clean Code**: Ensure code is clean, readable, and maintainable
-  - Use consistent naming conventions
-  - Avoid unnecessary complexity and deeply nested structures
-  - Ensure code is modular and reusable where possible
-  - Use modern JavaScript/TypeScript features appropriately
-- **Dead Code Removal**: Remove unused imports, variables, and deprecated features
-- **Security-Conscious**: Always consider authentication and data protection
-- **No Fallbacks**: Remove fallback strategies; implement in separate modules if necessary
-- **Linting**: Always check for and follow existing ESLint, Prettier, or other linter/formatter configurations (.eslintrc, .eslintrc.cjs, .prettierrc, eslint.config.js, etc.)
-- **Team-Oriented**: Write code that other developers can understand and extend
+### Script Setup (REQUIRED)
+```vue
+<script setup lang="ts">
+// ✅ CORRECT: Always use <script setup>
+// Auto-imports: ref, reactive, computed, watch (via unplugin)
 
-## Component Standards
-- **Props Typing**: Always type component props with interfaces
-- **Event Typing**: Type custom events with proper payload types
-- **Slot Typing**: Define slot types when using complex slot patterns
-- **Template Refs**: Type template references properly
+interface Props {
+  title: string;
+  count?: number;
+}
 
-## Testing Standards
-- **Test Typing**: Use proper TypeScript in test files
-- **Mock Typing**: Type mocks and test utilities correctly
-- **Test Data**: Create typed test data and fixtures
-- **Assertion Types**: Use type-safe test assertions
+const props = withDefaults(defineProps<Props>(), {
+  count: 0
+});
 
-### Documentation Standards
-- **File Headers**: Begin EVERY file with a JSDoc comment block explaining its purpose and role
-- **Function Documentation**: Document EVERY function with JSDoc including inputs and outputs
-- **Inline Comments**: Clarify purpose and implementation of non-obvious code segments
-- **External Functions**: Comment external function calls with inputs, outputs, and purpose
+const emit = defineEmits<{
+  update: [value: number];
+  close: [];
+}>();
+</script>
+```
 
-### Error Handling
-- **Error Checking**: Implement comprehensive error checking and type validation
-- **Treat Warnings as Errors**: Address all compiler warnings
-- **Graceful Degradation**: Handle error states with proper user feedback
+### Component Typing
+```typescript
+// Props: defineProps<Interface>() with withDefaults() for optionals
+// Emits: defineEmits<{ eventName: [payload: Type] }>()
+// Template refs: const el = ref<HTMLElement>()
+// Slot typing: defineSlots<{ default(props: { item: T }): any }>()
+```
 
-### String Conventions
-- **Quote Style**: Use double quotes (`"`) for strings consistently across the project
-- **String Building**: Use template literals or `.join()` instead of concatenation
-- **Interpolation**: Prefer template literals for dynamic string content
+### Reactivity Primitives
+```typescript
+// ref: primitives, single values
+const count = ref(0);
+const user = ref<User | null>(null);
+
+// reactive: objects (NEVER reassign entire object)
+const state = reactive({ count: 0, name: "" });
+
+// computed: derived state (memoized)
+const doubled = computed(() => count.value * 2);
+```
+
+### Lifecycle Hooks
+Use Composition API hooks: `onMounted`, `onUnmounted`, `onBeforeMount`, `onUpdated`, `watch`, `watchEffect`
+
+---
+
+## VUE QUERY CONTEXT
+**CRITICAL**: `useQuery` and TanStack hooks MUST be called inside `<script setup>` or functions supporting injection context.
+
+```typescript
+// ✅ CORRECT
+<script setup>
+const query = useQuery({ queryKey: ["users"], queryFn: fetchUsers });
+</script>
+
+// ❌ WRONG: Outside setup context
+const query = useQuery(...); // Error: no injection context
+```
+
+---
+
+## NAMING CONVENTIONS
+```typescript
+// Components: PascalCase
+VButton.vue, AuthForm.vue, DashboardLayout.vue
+
+// Composables: camelCase with "use" prefix
+useAuth.ts, useTheme.ts, useApi.ts
+
+// Stores: camelCase
+auth.ts, theme.ts, uiState.ts
+
+// Utils/Services: camelCase
+authHelpers.ts, LoggerService.ts, apiClient.ts
+
+// Types/Interfaces: PascalCase
+User, ApiResponse, ApiResult
+
+// Constants: SCREAMING_SNAKE_CASE or camelCase
+API_BASE_URL, maxRetries
+
+// Route paths: kebab-case
+/dashboard, /auth-callback, /user-profile
+```
+
+---
+
+## STRING CONVENTIONS
+```typescript
+// Double quotes for strings (project standard)
+const message = "Hello world";
+
+// Template literals for interpolation
+const greeting = `Hello ${name}`;
+
+// Template literals or .join() for building strings
+const path = ["api", "v1", "users"].join("/");
+const url = `${baseUrl}/api/${endpoint}`;
+
+// ❌ AVOID: Concatenation
+const bad = "api" + "/" + "v1" + "/" + "users";
+```
+
+---
+
+## DOCUMENTATION REQUIREMENTS
+
+### File Headers (MANDATORY)
+```typescript
+/**
+ * @fileoverview Composable for managing authentication state and session lifecycle.
+ * Provides reactive auth state, sign-in/sign-out methods, and session refresh.
+ */
+```
+
+### Function Documentation (MANDATORY)
+```typescript
+/**
+ * Fetches user data from the API.
+ * @param userId - The unique identifier for the user
+ * @param options - Optional query configuration
+ * @returns Promise resolving to user data or null if not found
+ * @throws {Error} When network request fails or user is unauthorized
+ */
+async function fetchUser(
+  userId: string,
+  options?: QueryOptions
+): Promise<User | null> {
+  // Implementation
+}
+```
+
+### Inline Comments
+```typescript
+// Clarify non-obvious logic, algorithm choices, workarounds
+// Comment external API calls with inputs/outputs/purpose
+
+// Debounce to prevent excessive validation calls (30s window)
+const debouncedValidate = debounce(validateSession, 30000);
+```
+
+---
+
+## ERROR HANDLING & TYPE VALIDATION
+```typescript
+// Type-safe error handling with proper annotations
+type Result<T> = { success: true; data: T } | { success: false; error: string };
+
+async function fetchData(): Promise<Result<User>> {
+  try {
+    const data = await api.getUser();
+    return { success: true, data };
+  } catch (error) {
+    // Type guard for error handling
+    const message = error instanceof Error ? error.message : "Unknown error";
+    return { success: false, error: message };
+  }
+}
+
+// Handle all error states explicitly
+if (!result.success) {
+  logger.error("Failed to fetch user", { error: result.error });
+  emit("error", result.error);
+  return;
+}
+```
+
+---
+
+## CODE QUALITY ENFORCEMENT
+
+### Type Completeness
+```typescript
+// ✅ Full typing, no loose inference
+interface ComponentProps {
+  items: Array<{ id: string; name: string }>;
+  onSelect: (id: string) => void;
+}
+
+// ❌ Avoid loose typing
+const props: any = {};
+const data = [];  // Type inference too vague
+```
+
+### Dead Code Removal
+- Remove unused imports (ESLint enforces)
+- Remove unused variables/functions
+- Remove deprecated features
+- Remove commented-out code blocks
+
+### Clean Code Principles
+```typescript
+// Avoid deep nesting (max 3 levels)
+// Extract complex conditions to named booleans
+const isEligible = user.verified && user.age >= 18 && !user.banned;
+if (isEligible) { /* ... */ }
+
+// Prefer early returns over nested if/else
+if (!user) return null;
+if (!user.verified) return null;
+return user.profile;
+
+// Use modern features appropriately
+const { name, email } = user;  // Destructuring
+const users = await Promise.all(ids.map(fetchUser));  // Array methods
+```
+
+---
+
+## COMPONENT TYPING STANDARDS
+
+### Props & Emits
+```typescript
+interface ButtonProps {
+  variant?: "primary" | "secondary" | "danger";
+  loading?: boolean;
+  disabled?: boolean;
+}
+
+const props = withDefaults(defineProps<ButtonProps>(), {
+  variant: "primary",
+  loading: false,
+  disabled: false
+});
+
+const emit = defineEmits<{
+  click: [event: MouseEvent];
+  submit: [data: FormData];
+}>();
+```
+
+### Slots
+```typescript
+defineSlots<{
+  default(props: { item: User }): any;
+  header(): any;
+  footer(props: { total: number }): any;
+}>();
+```
+
+### Template Refs
+```typescript
+const inputRef = ref<HTMLInputElement>();
+const componentRef = ref<InstanceType<typeof VButton>>();
+
+onMounted(() => {
+  inputRef.value?.focus();
+});
+```
+
+---
+
+## TEST TYPING
+```typescript
+// Type test data and fixtures
+interface MockUser {
+  id: string;
+  name: string;
+  email: string;
+}
+
+const mockUser: MockUser = {
+  id: "123",
+  name: "Test User",
+  email: "test@example.com"
+};
+
+// Type mocks properly
+const mockFetchUser = vi.fn<[string], Promise<User>>();
+
+// Type-safe assertions
+expect<User>(result).toMatchObject({ id: "123" });
+```
+
+---
+
+## LINTING COMPLIANCE
+- Respect existing ESLint configuration (`eslint.config.js`)
+- Fix all warnings before commit (warnings treated as errors)
+- Run `yarn lint` before PR
+- Use `yarn lint --fix` for auto-fixable issues
+
+---
+
+## ANTI-PATTERNS (AVOID)
+```typescript
+// ❌ Options API (use Composition API)
+export default { data() {}, methods: {} }
+
+// ❌ Mixins (use composables)
+import mixin from "./mixin";
+
+// ❌ any types
+const data: any = fetchData();
+
+// ❌ Non-null assertions
+const value = user!.profile!.name;
+
+// ❌ Prop drilling >2 levels (use store/composable)
+<Parent :data="data">
+  <Child :data="data">
+    <GrandChild :data="data">  <!-- Too deep -->
+```
