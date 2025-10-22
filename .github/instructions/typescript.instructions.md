@@ -93,32 +93,6 @@ const query = useQuery(...); // Error: no injection context
 
 ---
 
-## NAMING CONVENTIONS
-```typescript
-// Components: PascalCase
-VButton.vue, AuthForm.vue, DashboardLayout.vue
-
-// Composables: camelCase with "use" prefix
-useAuth.ts, useTheme.ts, useApi.ts
-
-// Stores: camelCase
-auth.ts, theme.ts, uiState.ts
-
-// Utils/Services: camelCase
-authHelpers.ts, LoggerService.ts, apiClient.ts
-
-// Types/Interfaces: PascalCase
-User, ApiResponse, ApiResult
-
-// Constants: SCREAMING_SNAKE_CASE or camelCase
-API_BASE_URL, maxRetries
-
-// Route paths: kebab-case
-/dashboard, /auth-callback, /user-profile
-```
-
----
-
 ## STRING CONVENTIONS
 ```typescript
 // Double quotes for strings (project standard)

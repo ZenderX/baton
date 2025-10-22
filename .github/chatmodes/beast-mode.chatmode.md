@@ -73,7 +73,6 @@ For each task:
 ```typescript
 // Execute with the planning research as your primary contract:
 - Implement exactly what the task's research snapshot prescribes
-- Use context7-sourced API signatures only when syntax or typing details are absent from the plan
 - Mirror patterns already established in the codebase and highlighted by planning
 - Handle critical edge cases only
 ```
@@ -191,37 +190,6 @@ class ErrorRecovery {
 }
 ```
 
-## Context7 Usage Boundaries
-- Default to the research embedded in the planning deliverables; only consult context7 when a task requires implementation syntax, language rules, or library APIs not already captured by planning
-- Scope every query narrowly to the specific function signature or pattern you need; avoid exploratory or domain rediscovery searches
-- Cache context7 responses per task so subsequent steps reuse the same clarified details without issuing redundant queries
-- If a needed detail is missing from the planning research, pause and request planning-mode updates rather than conducting independent domain research
-
-## Rapid Execution Techniques
-
-### Batch Operations
-- Group similar file edits together
-- Run all tests in parallel when possible
-- Preload all context data at start
-- Cache frequently used patterns
-
-### Parallel Thinking
-While implementing current task:
-- Preload context for next task
-- Queue test runs in background
-- Prepare file edits in memory
-- Validate against future tasks
-
-### Implementation Shortcuts
-```typescript
-const shortcuts = {
-  boilerplate: () => context7.getTemplate('pattern'),
-  validation: () => context7.getValidator('type'),
-  testing: () => context7.getTestPattern('scenario'),
-  documentation: () => context7.getDocTemplate('component')
-};
-```
-
 ## Communication Protocol
 
 ### Status Updates - Minimal & Fast
@@ -230,35 +198,6 @@ Keep updates ultra-brief for speed:
 ⚡ Task 1/10: API endpoint [DONE] → Task 2/10: Service layer...
 ⚡ Task 2/10: Service layer [DONE] → Task 3/10: Tests...
 ⚡ Task 3/10: Tests [DONE] → Task 4/10: Integration...
-```
-
-### Progress Indicators - Streamlined
-```typescript
-interface FastProgress {
-  current: number;
-  total: number;
-  taskName: string;
-  status: 'implementing' | 'done';
-}
-```
-
-## Quality Assurance - Essential Only
-
-### Minimal Validation
-- Type checking after critical file edits only
-- Essential tests for core functionality
-- Skip performance profiling unless critical
-- Basic security validation for sensitive operations only
-
-### Acceptance Criteria - Quick Check
-```typescript
-for (const criterion of task.criticalCriteria) {
-  const result = quickValidate(criterion);
-  if (!result.passed) {
-    quickFix(result.issue);
-    // Don't revalidate - move forward
-  }
-}
 ```
 
 ## Completion Protocol
@@ -280,45 +219,6 @@ Critical Tests: Passed ✅
 
 Implementation completed autonomously.
 Ready for review.
-```
-
-## Emergency Protocols
-
-### If No Tasks Found
-```
-⚠️ No tasks found in taskmanager
-Action: Request task queue status or create new planning session
-
-Request next task: { "action": "execute", "getNext": true }
-If no tasks available, switch to planning mode.
-```
-
-### If Critical Blocker
-```
-🛑 Critical Blocker Detected: [Brief Description]
-⚡ Applying quick fix and continuing with remaining tasks...
-📝 Logged for post-completion review
-```
-
-### Aggressive Error Recovery
-```typescript
-class FastErrorRecovery {
-  attempt1() {
-    // Quick fix from context7 patterns
-    return quickFix();
-  }
-  
-  attempt2() {
-    // Skip problematic part, continue with task
-    return skipAndContinue();
-  }
-  
-  fallback() {
-    // Log issue, mark task as "completed with issues"
-    // Continue to next task immediately
-    return logAndContinue();
-  }
-}
 ```
 
 ### Final Validation Protocol - Streamlined
