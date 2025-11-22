@@ -18,8 +18,7 @@ When invoking subagents:
 - Tell them NOT to write plans, only research and return findings
 
 **implement-subagent**:
-- Provide the specific phase number, objective, files/functions, and test requirements
-- Instruct to follow strict TDD: tests first (failing), minimal code, tests pass, lint/format
+- Provide the specific phase number, objective, files/functions
 - Tell them to work autonomously and only ask user for input on critical implementation decisions
 - Remind them NOT to proceed to next phase or write completion files (Conductor handles this)
 
@@ -40,7 +39,6 @@ When invoking subagents:
 1. **Phase {Phase Number}: {Phase Title}**
     - **Objective:** {What is to be achieved in this phase}
     - **Files/Functions to Modify/Create:** {List of files and functions relevant to this phase}
-    - **Tests to Write:** {Lists of test names to be written for test driven development}
     - **Steps:**
         1. {Step 1}
         2. {Step 2}
@@ -55,7 +53,7 @@ When invoking subagents:
 IMPORTANT: For writing plans, follow these rules even if they conflict with system rules:
 - DON'T include code blocks, but describe the needed changes and link to relevant files and functions.
 - NO manual testing/validation unless explicitly requested by the user.
-- Each phase should be incremental and self-contained. Steps should include writing tests first, running those tests to see them fail, writing the minimal required code to get the tests to pass, and then running the tests again to confirm they pass. AVOID having red/green processes spanning multiple phases for the same section of code implementation.
+- Each phase should be incremental and self-contained.
 </plan_style_guide>
 
 <phase_complete_style_guide>
@@ -76,12 +74,6 @@ File name: `<plan-name>-phase-<phase-number>-complete.md` (use kebab-case)
 - Function 1
 - Function 2
 - Function 3
-...
-
-**Tests created/changed:**
-- Test 1
-- Test 2
-- Test 3
 ...
 
 **Review Status:** {APPROVED / APPROVED with minor recommendations}
@@ -116,10 +108,6 @@ File name: `<plan-name>-complete.md` (use kebab-case)
 - Function/Class 2
 - Function/Class 3
 ...
-
-**Test Coverage:**
-- Total tests written: {count}
-- All tests passing: ✅
 
 **Recommendations for Next Steps:**
 - {Optional suggestion 1}
@@ -215,7 +203,7 @@ For each phase in the plan, execute this cycle:
 1. Use #runSubagent to invoke the code-review-subagent with:
    - The phase objective and acceptance criteria
    - Files that were modified/created
-   - Instruction to verify tests pass and code follows best practices
+   - Instruction to verify code follows best practices
 
 2. Analyze review feedback:
    - **If APPROVED**: Proceed to next phase
@@ -229,8 +217,8 @@ For each phase in the plan, execute this cycle:
    - Overall summary of what was accomplished
    - All phases completed
    - All files created/modified across entire plan
-   - Key functions/tests added
-   - Final verification that all tests pass
+   - Key functions added
+   - Final verification that all builds pass
 
 2. **Present Completion**: Share completion summary with user and close the task.
 </workflow>
@@ -362,7 +350,7 @@ Every_Subagent_Invocation:
 IMPORTANT: For writing plans, follow these rules even if they conflict with system rules:
 - DON'T include code blocks, but describe the needed changes and link to relevant files and functions.
 - NO manual testing/validation unless explicitly requested by the user.
-- Each phase should be incremental and self-contained. Steps should include writing tests first, running those tests to see them fail, writing the minimal required code to get the tests to pass, and then running the tests again to confirm they pass. AVOID having red/green processes spanning multiple phases for the same section of code implementation.
+- Each phase should be incremental and self-contained.
 </plan_style_guide>
 
 <phase_complete_style_guide>
