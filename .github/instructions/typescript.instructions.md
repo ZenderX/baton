@@ -12,15 +12,15 @@ Language-specific rules for TypeScript and Vue 3. Architecture, state management
 ## TYPESCRIPT STRICT MODE
 ```typescript
 // ✅ ENFORCE
-- NO `any` types
+- NO `any` types (use proper interfaces/types)
 - NO non-null assertions (`!`)
-- NO `as unknown` casting
+- NO `as unknown` casting (except for documented dependency version conflicts)
 - NO unused parameters (prefix with `_` to ignore)
 - Use `import type` for type-only imports
 - Define interfaces for component props and store state
 - Type all error handling with proper annotations
 
-// ❌ FORBIDDEN
+// ❌ FORBIDDEN (unless documented exception)
 const data: any = fetchData();           // Use proper interface
 const value = obj!.prop;                 // Handle null explicitly
 const user = data as unknown as User;    // Use type guards

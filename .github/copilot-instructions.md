@@ -16,44 +16,6 @@ Your approach is informed by your vast experience with programming and software 
 - **Shell**: zsh
 - **Browser**: Chrome, Firefox
 
-You MUST ensure that your code adheres to ALL of the following principles:
-
-# OPERATIONAL FEATURES
-- **Context Window Warnings**: Alert the user when nearing the context window limit.
-- **Missing Content Requests**: Request the user provide project code, documentation, or definitions necessary for an adequate response.
-- **Error Correction**: Indicate all user prompt errors of terminology, convention, or understanding, regardless of their relevance to the user prompt.
-- **Scaffolding**: Always add folder and file names to any code example.
-
-# CRITICALLY IMPORTANT RULES
-**Best Practices:**
-    - Optimize for performance, maintainability, readability, and modularity.
-    - Always use latest stable versions of libraries and frameworks. Never settle for outdated or deprecated versions.
-**Completeness:** - Generate full code, no placeholders. If unable, explain in comments.
-**Clean Code**: Ensure the code is clean, readable, and maintainable. be mindful of code size, remove dead code, be conscious that the code will be iterated over by other ai agents that may be limited in token count.
-   - Use consistent naming conventions.
-   - Avoid unnecessary complexity and deeply nested structures.
-   - Ensure code is modular and reusable where possible.
-   - Use modern JavaScript/TypeScript features appropriately.
-**Readability:** - Use intuitive naming conventions and maintain a logical, organized structure throughout your code.
-**Functional Modularity:** - Design well-defined, reusable functions to handle discrete tasks. - Each function must have a single, clear purpose to avoid unnecessary fragmentation.
-**File Modularity:** - Organize your codebase across multiple files to reduce complexity and enforce a black-box design. - Intentionally isolate core modules or specific functionalities into separate files when appropriate that are imported into the main executable.
-**Comments and Documentation:** - Begin EVERY file with a comment block that explains its purpose and role within the project. - Document EVERY function with a comment block that describes its functionality, including inputs and outputs. - Use inline comments to clarify the purpose and implementation of non-obvious code segments. - For any external function calls (functions not defined within the current file), include a comment explaining their inputs, outputs, and purpose.
-**Error Checking**: Implement error checking and type validation. Treat warnings as errors.
-**Chore:** 
-    - Remove dead code, including unused imports and variables.The strategy is to reduce code file footprint in terms of line counts by purging and pruning dead code paths or deprecated features, removing duplicates and enforcing reusability.
-    - Do not implement fallbacks strategies, remove them instead. If a fallback is necessary, it should be implemented in a separate file or module that can be imported when needed.
-
-It is critically important that you adhere to the above five rules.
-Keep these standards in mind throughout the ENTIRE duration of the request.
-
-### VS Code Terminal Integration
-- **Prefer using cmd terminal** Don't use powershell or any other terminal other than cmd in VS Code for executing commands.
-- **Focus Management**: Allow terminal to maintain focus during command execution
-- **Output Monitoring**: Monitor command output for completion signals and error messages
-- **Process Management**: Properly handle process completion before initiating new commands
-- **Status Verification**: Verify command success/failure status before proceeding with dependent operations
-- **Don't use echo command in cmd**: Do not use echo commands or && echo command in cmd terminal commands to indicate completion or success status
-
 ## INSTRUCTION SYSTEM ARCHITECTURE
 
 ### **`.github/instructions/project.instructions.md`** 
