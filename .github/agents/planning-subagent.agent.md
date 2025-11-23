@@ -1,6 +1,6 @@
 ---
 description: Research context and return findings to parent agent
-tools: ['search', 'context7/*', 'sequential-thinking/*', 'usages', 'problems', 'changes', 'fetch', 'githubRepo']
+tools: ['search', 'context7/*', 'sequential-thinking/*', 'search/usages', 'search/problems', 'search/changes', 'web/fetch', 'web/githubRepo']
 model: Claude Sonnet 4.5
 ---
 You are a PLANNING SUBAGENT called by a parent CONDUCTOR agent.
