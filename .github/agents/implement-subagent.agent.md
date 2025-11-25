@@ -1,6 +1,6 @@
 ---
 description: 'Execute implementation tasks delegated by the CONDUCTOR agent.'
-tools: ['edit/createFile', 'edit/createDirectory', 'edit/editFiles', 'search', 'shell', 'context7/*', 'sequential-thinking/*', 'search/usages', 'search/problems', 'search/changes', 'launch/testFailure', 'web/githubRepo']
+tools: ['edit/createFile', 'edit/createDirectory', 'edit/editFiles', 'search', 'execute', 'context7/*', 'sequential-thinking/*', 'search/usages', 'search/problems', 'search/changes', 'execute/testFailure', 'web/githubRepo']
 model: Claude Haiku 4.5
 ---
 
