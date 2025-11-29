@@ -28,8 +28,8 @@ You have three specialized subagents at your disposal:
 | Subagent | Agent Name | Purpose |
 |----------|------------|---------|
 | **Planner** | `planning-subagent` | Research, architecture, and task breakdown |
-| **Implementer** | `implement-subagent` | Code implementation and execution |
-| **Reviewer** | `code-review-subagent` | Code review and quality verification |
+| **Implementer** | `implement-subagent` | Code implementation only (no verification) |
+| **Reviewer** | `code-review-subagent` | Mandatory checks (build, lint, typecheck, test) and quality verification |
 
 ## Delegation Protocol
 
@@ -140,9 +140,11 @@ Based on the code review result:
 - Create git commit for the phase
 
 **If NEEDS_REVISION:**
-- Analyze the specific issues identified
-- Delegate fixes back to `implement-subagent` with the revision requirements
-- Re-run code review after revisions
+- **CRITICAL:** Route the specific issues from code-review-subagent back to implement-subagent
+- Include the exact error messages, failed checks, and fix instructions from the review
+- Delegate fixes to `implement-subagent` with: "Fix the following issues: {paste issues from review}"
+- After implement-subagent completes fixes, re-route to code-review-subagent for verification
+- This cycle continues until all mandatory checks pass
 
 **If FAILED:**
 - Assess if the approach is fundamentally flawed
