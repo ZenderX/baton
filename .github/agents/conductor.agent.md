@@ -85,15 +85,21 @@ For each implementation phase identified by planning:
 2. Provide the phase plan, context, and acceptance criteria
 3. Wait for completion before proceeding to the next phase
 
+**CRITICAL: When planning-subagent was used, you MUST include the full planning output in your delegation to implement-subagent. Do not summarize or omit details - the implement-subagent needs the complete research snapshot to avoid duplicate research and ensure alignment.**
+
+**When skipping planning:** If you delegate directly to implement-subagent without planning, explicitly state "No planning context - research as needed" so the implement-subagent knows to do its own web research for external concepts.
+
 **Delegation Example:**
 ```
 Use the implement-subagent subagent to implement Phase {N}: {phase description}.
+
+**Planning Context (from planning-subagent):**
+{PASTE THE FULL RELEVANT SECTION OF THE PLAN HERE - including research snapshot, assumptions, technical decisions, and any cited references}
 
 Implementation Details:
 - Files to modify: {file list}
 - Key changes: {specific changes}
 - Acceptance criteria: {criteria}
-- Research context: {summary from planning}
 
 When complete, summarize:
 1. What was implemented
@@ -190,10 +196,23 @@ CONDUCTOR Analysis:
 
 CONDUCTOR → planning-subagent:
 "Research and plan a health check endpoint..."
-← Returns: Structured plan with 2 phases
+← Returns: Structured plan with 2 phases, including:
+   - Phase 1: Create health check service
+   - Phase 2: Add API route
+   - Technical decisions: Use async health checks, return JSON status
+   - Files: src/services/health.ts, src/routes/health.ts
 
 CONDUCTOR → implement-subagent (Phase 1):
-"Implement the health check service..."
+"Implement Phase 1: Create health check service.
+
+**Planning Context (from planning-subagent):**
+[Full Phase 1 section from plan including research, technical decisions, 
+file structure, implementation notes, and acceptance criteria]
+
+Implementation Details:
+- Files to modify: src/services/health.ts
+- Key changes: Create HealthCheckService class with async check methods
+- Acceptance criteria: Service returns health status object"
 ← Returns: Implementation complete, 2 files changed
 
 CONDUCTOR → code-review-subagent:
