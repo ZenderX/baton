@@ -328,4 +328,3 @@ fn apply_velocity(time: Res<Time>, mut q: Query<(&mut Transform, &Velocity)>) {
 
 ---
 These standards evolve—propose improvements via PR with justification referencing performance, safety, or clarity gains.
-

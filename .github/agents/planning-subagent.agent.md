@@ -1,7 +1,7 @@
 ---
 description: Research context and return findings to parent agent
-tools: ['search', 'context7/*', 'sequential-thinking/*', 'search/usages', 'search/problems', 'search/changes', 'web/fetch', 'web/githubRepo']
-model: Claude Sonnet 4.5
+tools: ['read/readFile', 'search/codebase', 'search/fileSearch', 'search/listDirectory', 'search/textSearch', 'search/usages', 'web/fetch', 'sequential-thinking/*']
+model: Claude Opus 4.5 (Preview) (copilot)
 ---
 You are a PLANNING SUBAGENT called by a parent CONDUCTOR agent.
 
@@ -163,4 +163,3 @@ Before finalizing plan:
 - [ ] Defined clear acceptance criteria
 - [ ] Documented architecture decisions
 - [ ] Prepared for autonomous beast-mode execution
-
