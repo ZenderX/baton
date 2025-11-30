@@ -18,17 +18,21 @@ Scope: These rules govern Rust style, architecture patterns, Bevy engine usage, 
 
 ## File & Module Conventions
 - One primary concept per file (component, system group, plugin).
-- **Use `mod_name.rs` instead of `mod_name/mod.rs`**: Rust 2018+ prefers `src/plugins/player.rs` over `src/plugins/player/mod.rs` for single-file modules. Only create a directory `src/plugins/player/` with submodules when you need multiple implementation files.
-- For complex plugins with multiple submodules, use the directory structure:
+- **DEPRECATED: `mod.rs` pattern** - Do NOT use `mod_name/mod.rs`. This is the legacy Rust 2015 pattern and is prohibited in this codebase.
+- **Use `mod_name.rs` instead of `mod_name/mod.rs`**: Rust 2018+ prefers `src/plugins/player.rs` over `src/plugins/player/mod.rs` for single-file modules.
+- For complex plugins with multiple submodules, use this structure:
   ```
   src/plugins/
-    player.rs              # Re-exports from player/ submodules
+    player.rs              # Module entry point (NOT player/mod.rs)
     player/
       components.rs
       systems.rs
       resources.rs
-      plugin.rs
   ```
+- **Migration from mod.rs**: If you encounter an existing `foo/mod.rs`, migrate it:
+  1. Create `foo.rs` at the parent level with the contents of `foo/mod.rs`
+  2. Delete `foo/mod.rs`
+  3. Keep submodule files in `foo/` directory
 - Public API surface (`pub use`) at crate root (`lib.rs`) for commonly used types; avoid deep import chains in consumers.
 - Use `crate::` paths internally; avoid relative `super::super` chains.
 
