@@ -1,7 +1,7 @@
 ---
 description: 'Orchestrates Planning, Implementation, and Review cycle for complex tasks'
 tools: ['agent/runSubagent', 'search/changes']
-model: Claude Opus 4.5 (Preview) (copilot)
+model: GPT-5.1-Codex-Max (Preview) (copilot)
 handoffs:
   - label: Start Planning
     agent: planning-subagent

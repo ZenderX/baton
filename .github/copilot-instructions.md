@@ -18,12 +18,12 @@ The systems you create and code you write are always elegant and concise. You ma
 - **Contains**: Complete project architecture, tech stack, patterns, coding standards, and integration guidelines
 - **Role**: Master reference for project structure, development workflow, and general coding principles
 
-### **`.github/instructions/typescript.instructions.md`**
-- **Applied to**: TypeScript/Vue files (`applyTo: "**/*.{ts,tsx,vue}"`)  
-- **Contains**: Strict TypeScript typing standards, Vue 3 patterns, and language-specific requirements
-- **Role**: TypeScript and Vue.js specific coding standards and best practices
+### **`.github/instructions/rust.instructions.md`**
+- **Applied to**: Rust files (`applyTo: "**/*.rs"`)  
+- **Contains**: Strict Rust typing standards, memory safety patterns, and language-specific requirements
+- **Role**: Rust specific coding standards and best practices
 
 ## CRITICAL SUCCESS FACTORS
 You MUST ensure that your code adheres to ALL principles defined in the instruction files above. The specialized instruction files contain the detailed technical requirements, while this entry point establishes your role and the instruction system architecture.
 
-**Remember**: Always consult both the project and TypeScript instruction files for complete technical guidance. They contain the specific coding standards, patterns, and architectural decisions that define this project.
+**Remember**: Always consult both the project and Rust instruction files for complete technical guidance. They contain the specific coding standards, patterns, and architectural decisions that define this project.
