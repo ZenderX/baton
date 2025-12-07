@@ -113,8 +113,30 @@ Eagerly implement common traits where appropriate:
 - Use semantic versioning in `Cargo.toml`.
 - Include comprehensive metadata: `description`, `license`, `repository`, `keywords`, `categories`.
 - Use feature flags for optional functionality.
-- Organize code into modules using `mod.rs` or named files.
 - Keep `main.rs` or `lib.rs` minimal - move logic to modules.
+
+### Module Organization
+
+- **Prefer named files over `mod.rs`** for module organization (Rust 2018+ standard)
+  - Modern style: Use `foo.rs` alongside `foo/` subdirectory for submodules
+  - Older style: `foo/mod.rs` is still supported but discouraged for new code
+- The modern named file approach improves editor usability (clear file names in tabs vs. many `mod.rs` files)
+- Do not mix both styles for different modules in the same project
+- Example of modern module structure:
+  ```
+  src/
+  ├── lib.rs
+  ├── foo.rs        # Contains `pub mod bar;` declaration
+  └── foo/
+      └── bar.rs    # Submodule implementation
+  ```
+- Example of older style (avoid in new code):
+  ```
+  src/
+  └── foo/
+      ├── mod.rs    # Module root (discouraged)
+      └── bar.rs
+  ```
 
 ## Quality Checklist
 
