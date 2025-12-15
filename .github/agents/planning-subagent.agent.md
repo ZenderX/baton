@@ -1,7 +1,7 @@
 ---
 description: Research context and return findings to parent agent
-tools: ['read/readFile', 'search/codebase', 'search/fileSearch', 'search/listDirectory', 'search/textSearch', 'search/usages', 'web/fetch', 'sequential-thinking/*']
-model: Claude Opus 4.5 (Preview) (copilot)
+tools: ['vscode/runCommand', 'read/readFile', 'search/codebase', 'search/fileSearch', 'search/listDirectory', 'search/textSearch', 'search/usages', 'web/fetch', 'sequential-thinking/*']
+model: Claude Haiku 4.5 (copilot)
 ---
 You are a PLANNING SUBAGENT called by a parent CONDUCTOR agent.
 

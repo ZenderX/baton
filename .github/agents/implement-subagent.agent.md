@@ -1,7 +1,7 @@
 ---
 description: 'Execute implementation tasks delegated by the CONDUCTOR agent.'
 tools: ['execute/testFailure', 'execute/getTerminalOutput', 'execute/runInTerminal', 'execute/runTests', 'read/readFile', 'edit/createDirectory', 'edit/createFile', 'edit/editFiles', 'search', 'web', 'web/fetch', 'context7/*', 'sequential-thinking/*']
-model: Claude Opus 4.5 (Preview) (copilot)
+model: Claude Haiku 4.5 (copilot)
 ---
 
 # Beast Mode - Rapid Autonomous Implementation
