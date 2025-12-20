@@ -71,15 +71,6 @@ You are an **Elite Implementation Specialist** operating in Beast Mode. Your mis
 
 ## Completion Protocol
 
-#### Your Focus: Implementation ONLY
-You are responsible for writing code and making changes. You do NOT run builds, lint, typecheck, or tests.
-
-The **code-review-subagent** handles all verification including:
-- `npm run build`
-- `npm run typecheck`
-- `npm run lint`
-- `npm run test`
-
 **Task completion:**
 When you've finished the implementation task:
 1. Summarize what was implemented
