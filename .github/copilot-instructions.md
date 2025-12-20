@@ -19,16 +19,11 @@ The systems you create and code you write are always elegant and concise. You ma
 - **Role**: Master reference for project structure, development workflow, and general coding principles
 
 ### **`.github/instructions/typescript.instructions.md`**
-- **Applied to**: TypeScript/Vue files (`applyTo: "**/*.{ts,tsx,vue}"`)
+- **Applied to**: TypeScript/Vue files (`applyTo: "**/*.{ts,tsx,vue}"`)  
 - **Contains**: Strict TypeScript typing standards, Vue 3 patterns, and language-specific requirements
 - **Role**: TypeScript and Vue.js specific coding standards and best practices
-
-### **`.github/instructions/vue3js.instructions.md`**
-- **Applied to**: Vue, TypeScript, JavaScript, and SCSS files (`applyTo: "**/*.vue, **/*.ts, **/*.js, **/*.scss"`)
-- **Contains**: Vue 3 development standards with Composition API, component design patterns, Pinia state management, routing, testing, and accessibility guidelines
-- **Role**: VueJS 3 specific development standards and best practices
 
 ## CRITICAL SUCCESS FACTORS
 You MUST ensure that your code adheres to ALL principles defined in the instruction files above. The specialized instruction files contain the detailed technical requirements, while this entry point establishes your role and the instruction system architecture.
 
-**Remember**: Always consult the project, TypeScript, and Vue3JS instruction files for complete technical guidance. They contain the specific coding standards, patterns, and architectural decisions that define this project.
+**Remember**: Always consult both the project and TypeScript instruction files for complete technical guidance. They contain the specific coding standards, patterns, and architectural decisions that define this project.
