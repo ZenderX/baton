@@ -18,7 +18,15 @@ Scope: These rules govern Rust style, architecture patterns, Bevy engine usage, 
 
 ## File & Module Conventions
 - One primary concept per file (component, system group, plugin).
-- **Use `mod_name.rs` instead of `mod_name/mod.rs`**: Rust 2018+ prefers `src/plugins/player.rs` over `src/plugins/player/mod.rs` for single-file modules. Only create a directory `src/plugins/player/` with submodules when you need multiple implementation files.
+
+> ⚠️ **`mod.rs` is DEPRECATED** (Rust 2018+)
+> 
+> The `mod.rs` pattern is deprecated. Always prefer the file-based module pattern:
+> - ✅ `src/plugins/player.rs` — **Preferred**
+> - ❌ `src/plugins/player/mod.rs` — **Deprecated, do not use**
+> 
+> Only use a directory structure (`src/plugins/player/`) when you have **multiple submodule files** that need to be organized together.
+
 - For complex plugins with multiple submodules, use the directory structure:
   ```
   src/plugins/
