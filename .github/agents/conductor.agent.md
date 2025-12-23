@@ -1,7 +1,7 @@
 ---
 description: 'Orchestrates Planning, Implementation, and Review cycle for complex tasks'
 tools: ['search/changes', 'agent', 'todo']
-model: Claude Sonnet 4.5 (copilot)
+model: Claude Opus 4.5 (copilot)
 ---
 
 # CONDUCTOR Agent - Multi-Phase Task Orchestrator
