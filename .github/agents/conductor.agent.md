@@ -1,6 +1,6 @@
 ---
 description: 'Orchestrates Planning, Implementation, and Review cycle for complex tasks'
-tools: ['search/changes', 'agent', 'todo']
+tools: ['search/changes', 'agent', 'sequential-thinking/*', 'todo']
 model: Claude Opus 4.5 (copilot)
 ---
 

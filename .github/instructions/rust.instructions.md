@@ -5,7 +5,7 @@ applyTo: "**/*.rs"
 
 # Rust & Bevy Coding Standards
 
-Scope: These rules govern Rust style, architecture patterns, Bevy engine usage, plugin design, multi-target (native + WASM) concerns, safety, performance, and documentation. They complement `project.instructions.md` and language-specific files (e.g., TypeScript for web bindings). All Rust code in `src/` and root-level Rust binaries must adhere to these.
+Scope: These rules govern Rust style, architecture patterns, Bevy engine usage, plugin design, multi-target (native + WASM) concerns, safety, performance, and documentation. All Rust code in `src/` and root-level Rust binaries must adhere to these.
 
 ## Core Principles
 - **Clarity Over Cleverness**: Readability, explicit intent, minimal magic.
@@ -16,7 +16,7 @@ Scope: These rules govern Rust style, architecture patterns, Bevy engine usage, 
 - **No Unsafe by Default**: `unsafe` blocks require a preceding safety comment justifying invariants.
 - **Performance Mindfulness**: Measure before optimizing; prefer algorithmic gains over micro-optimizations.
 
-## File & Module Conventions
+## Plugin & Module Conventions (Mod.rs Avoidance)
 - One primary concept per file (component, system group, plugin).
 
 > ⚠️ **`mod.rs` is DEPRECATED** (Rust 2018+)
