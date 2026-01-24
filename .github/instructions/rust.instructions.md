@@ -5,7 +5,7 @@ applyTo: "**/*.rs"
 
 # Rust & Bevy Coding Standards
 
-Scope: These rules govern Rust style, architecture patterns, Bevy engine usage, plugin design, multi-target (native + WASM) concerns, safety, performance, and documentation. All Rust code in `src/` and root-level Rust binaries must adhere to these.
+Scope: These rules govern Rust style, architecture patterns, Bevy engine usage, plugin design, multi-target (native + WASM) concerns, safety, performance, and documentation. All Rust code must adhere to these.
 
 ## Core Principles
 - **Clarity Over Cleverness**: Readability, explicit intent, minimal magic.
@@ -15,6 +15,7 @@ Scope: These rules govern Rust style, architecture patterns, Bevy engine usage, 
 - **Cross-Target Compatibility**: Minimize `cfg` gating; confine platform-specific code to narrow modules.
 - **No Unsafe by Default**: `unsafe` blocks require a preceding safety comment justifying invariants.
 - **Performance Mindfulness**: Measure before optimizing; prefer algorithmic gains over micro-optimizations.
+- **Treat Warnings as Errors**: Maintain a zero-warning codebase with `cargo clippy -D warnings` and `cargo build -D warnings` including runtime errors.
 
 ## Plugin & Module Conventions (Mod.rs Avoidance)
 - One primary concept per file (component, system group, plugin).
@@ -76,7 +77,7 @@ Scope: These rules govern Rust style, architecture patterns, Bevy engine usage, 
   ));
   ```
 
-## Input Handling (Bevy 0.17)
+## Input Handling
 - **ButtonInput<T>**: Use `Res<ButtonInput<KeyCode>>` instead of deprecated `Input<KeyCode>`.
 - **KeyCode Changes**: Key codes now use descriptive names: `KeyCode::KeyW`, `KeyCode::KeyA`, `KeyCode::KeyS`, `KeyCode::KeyD` (not `KeyCode::W`, etc.).
 - **Mouse Buttons**: Use `ButtonInput<MouseButton>` for mouse input.
@@ -98,9 +99,13 @@ Scope: These rules govern Rust style, architecture patterns, Bevy engine usage, 
 - Derive common traits: `Debug`, `Clone` (when cheap), `Copy` (when trivially copyable), `Reflect` (when using reflection / serialization), `serde::{Serialize, Deserialize}` where persistence required.
 - Avoid inserting many one-off marker components if an enum on a shared component suffices (evaluate cardinality & query patterns).
 - Use queries sparingly inside tight loops; batch work when possible.
-- **Bevy 0.17 Required Components**: Use `app.register_required_components::<ParentComponent, ChildComponent>()` to ensure components are always spawned together. This reduces boilerplate and prevents forgetting component pairs.
-- **Component Bundles**: Prefer individual component insertion with required components over manual bundles in Bevy 0.17+. Use `commands.spawn((ComponentA, ComponentB))` pattern.
+- **Required Components**: Use `app.register_required_components::<ParentComponent, ChildComponent>()` to ensure components are always spawned together. This reduces boilerplate and prevents forgetting component pairs.
+- **Component Bundles**: Prefer individual component insertion with required components over manual bundles. Use `commands.spawn((ComponentA, ComponentB))` pattern.
 - **Spawn Pattern**: Use tuple syntax for spawning: `commands.spawn((Sprite::default(), Transform::default(), CustomComponent))` instead of bundles.
+
+### Entity Hierarchy Management
+- **Detach Children**: Use `detach_all_children()` (not `clear_children`), `detach_children()` (not `remove_children`), `detach_child()` (not `remove_child`).
+- **Entity Index**: Use `Entity::index()` to get the entity index; `Entity::index_u32()` for the raw u32 value.
 
 ## Component Organization
 - **Marker Components**: Use zero-sized types with `#[derive(Component)]` for entity tagging.
@@ -128,6 +133,7 @@ Scope: These rules govern Rust style, architecture patterns, Bevy engine usage, 
 - Use `tracing` integration if advanced spans become necessary (feature gated).
 
 ## Configuration & Features
+- **Feature Collections**: Bevy provides high-level feature collections (`2d`, `3d`, `ui`) to simplify Cargo.toml configuration instead of manually listing individual features.
 - Feature flags control optional subsystems (e.g., `dev-server`). Document each in `Cargo.toml` with comments.
 - Avoid sprawling cfgs in logic; isolate platform specifics:
   ```rust
@@ -154,8 +160,15 @@ Scope: These rules govern Rust style, architecture patterns, Bevy engine usage, 
 - Validate asset presence; log missing assets clearly.
 - **Asset Loading Pattern**: Use `AssetServer` resource to load assets, store `Handle<T>` in resources.
 - **Hot Reloading**: Asset hot-reloading is enabled by default in dev builds; test changes without restart.
+- **RON Serialization**: The `ron` crate is no longer re-exported from `bevy_scene`/`bevy_asset`. Add `ron` as a direct dependency in Cargo.toml.
 
-## Observers & Hooks (Bevy 0.17)
+## Lighting
+- **GlobalAmbientLight (Resource)**: Use `commands.insert_resource(GlobalAmbientLight { color, brightness, .. })` for world-wide ambient lighting.
+- **AmbientLight (Component)**: Use as a component on `Camera` entities to override `GlobalAmbientLight` for that specific camera.
+- **Directional/Point/Spot Lights**: Spawn as entities with the respective light component plus `Transform`.
+- **Built-in Camera Controllers**: Bevy provides `FreeCamera`/`FreeCameraPlugin` for fly cameras and `PanCamera`/`PanCameraPlugin` for 2D pan/zoom, useful for development and debugging.
+
+## Observers & Hooks
 - **Component Hooks**: Use `on_add`, `on_insert`, `on_remove` hooks for component lifecycle management.
 - **Observers**: Use `app.observe()` for entity-targeted event observation (complements global events).
 - **Hook Example**:
@@ -221,9 +234,10 @@ Scope: These rules govern Rust style, architecture patterns, Bevy engine usage, 
 - **Event Readers**: Use `EventReader<T>` system parameter to read events; automatically clears after all systems process.
 - **Event Writers**: Use `EventWriter<T>` to send events; prefer events over direct resource mutation for cross-system communication.
 
-## State Management (Bevy 0.17)
+## State Management
 - **States**: Use `app.init_state::<MyState>()` to register state machines.
 - **State Transitions**: Use `NextState<T>` resource to trigger state changes: `next_state.set(MyState::NewState)`.
+- **State Transition Behavior**: `NextState::set()` triggers `OnEnter`/`OnExit` even when setting the same state. Use `next_state.set_if_neq(new_state)` to skip transitions when already in the target state.
 - **Schedule Triggers**: Systems can run `OnEnter(state)`, `OnExit(state)`, or conditionally with `in_state(state)`.
 - **Sub-States**: Different state types can coexist independently (e.g., `GameState` and `MenuState`).
 - **Example**:
@@ -236,7 +250,7 @@ Scope: These rules govern Rust style, architecture patterns, Bevy engine usage, 
 
 ## Time & Scheduling
 - Use Bevy `Time` resource; avoid `std::time::Instant` directly in WASM context.
-- **Bevy 0.17**: Use `time.delta_secs()` instead of deprecated `time.delta_seconds()`.
+- Use `time.delta_secs()` instead of deprecated `time.delta_seconds()`.
 - Fixed timestep for physics-like consistency; variable update acceptable for visuals.
 - Use `FixedUpdate` schedule for deterministic simulation systems.
 
