@@ -1,6 +1,6 @@
 ---
 description: Research context and return findings to parent agent
-tools: ['read/readFile', 'search/codebase', 'search/fileSearch', 'execute/runInTerminal', 'execute/getTerminalOutput', 'search/listDirectory', 'search/textSearch', 'search/usages', 'web/fetch', 'web/githubRepo']
+tools: ['read/readFile', 'search/codebase', 'search/fileSearch', 'execute/runInTerminal', 'execute/getTerminalOutput', 'search/listDirectory', 'search/textSearch', 'search/usages', 'web/fetch', 'web/githubRepo', 'context7/*']
 model: Claude Opus 4.5 (copilot)
 ---
 You are a PLANNING SUBAGENT called by a parent CONDUCTOR agent.

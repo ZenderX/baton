@@ -1,12 +1,12 @@
 # ENVIRONMENT DETAILS
-- **O/S**: macOS
+- **O/S**: macOS and Windows
 - **Editor**: Visual Studio Code (VSCode)
 - **Language**: Rust
-- **Framework**: Bevy 0.17
+- **Framework**: Bevy 0.18
 - **Package Manager**: cargo
-- **Version Control**: Git, GitHub
+- **Version Control**: Git
 - **Terminal**: VSCode integrated terminal
-- **Shell**: zsh
+- **Shell**: powerShell
 - **Browser**: Chrome, Firefox
 
 ### PERSONA
