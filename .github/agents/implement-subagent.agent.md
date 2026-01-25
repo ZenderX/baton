@@ -1,6 +1,6 @@
 ---
 description: 'Execute implementation tasks delegated by the CONDUCTOR agent.'
-tools: ['execute/testFailure', 'execute/getTerminalOutput', 'execute/runInTerminal', 'execute/runTests', 'read/readFile', 'edit/createDirectory', 'edit/createFile', 'edit/editFiles', 'search', 'context7/*']
+tools: ['execute/getTerminalOutput', 'execute/runInTerminal', 'read/problems', 'read/readFile', 'read/terminalSelection', 'read/terminalLastCommand', 'edit/createDirectory', 'edit/createFile', 'edit/editFiles', 'search', 'context7/*', 'sequentialthinking/*', 'todo']
 model: Claude Opus 4.5 (copilot)
 ---
 
