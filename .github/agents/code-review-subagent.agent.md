@@ -1,6 +1,6 @@
 ---
 description: 'Review code changes from a completed implementation phase.'
-tools: ['execute/testFailure', 'execute/getTerminalOutput', 'execute/runInTerminal', 'execute/runTests', 'read/problems', 'read/readFile', 'read/terminalSelection', 'read/terminalLastCommand', 'search', 'context7/*', 'sequentialthinking/*']
+tools: ['execute/getTerminalOutput', 'execute/awaitTerminal', 'execute/killTerminal', 'execute/runInTerminal', 'execute/testFailure', 'read/terminalSelection', 'read/terminalLastCommand', 'read/problems', 'read/readFile', 'search/changes', 'search/codebase', 'search/fileSearch', 'search/listDirectory', 'search/searchResults', 'search/textSearch', 'search/usages']
 model: Claude Sonnet 4.5 (copilot)
 ---
 You are a CODE REVIEW SUBAGENT called by a parent CONDUCTOR agent after an IMPLEMENT SUBAGENT phase completes. Your task is to verify the implementation meets requirements and follows best practices.

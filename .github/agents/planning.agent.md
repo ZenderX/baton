@@ -1,6 +1,6 @@
 ---
 description: Deep technical planning mode that produces taskmanager plans for beast-mode execution
-tools: ['search', 'execute/getTerminalOutput', 'execute/runInTerminal', 'read/terminalLastCommand', 'read/terminalSelection', 'search/usages', 'vscode/vscodeAPI', 'read/problems', 'search/changes', 'web/fetch', 'web/githubRepo', 'sequentialthinking/*']
+tools: ['search', 'execute/getTerminalOutput', 'execute/runInTerminal', 'read/terminalLastCommand', 'read/terminalSelection', 'search/usages', 'vscode/vscodeAPI', 'read/problems', 'search/changes', 'web/fetch', 'web/githubRepo', 'sequential-thinking/*']
 handoffs:
   - label: Beast!
     agent: implement

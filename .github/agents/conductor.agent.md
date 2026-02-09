@@ -1,6 +1,6 @@
 ---
 description: 'Orchestrates Planning, Implementation, and Review cycle for complex tasks'
-tools: ['sequentialthinking/*', 'agent', 'todo']
+tools: ['read/readFile', 'agent/runSubagent', 'sequential-thinking/sequentialthinking', 'vscode.mermaid-chat-features/renderMermaidDiagram', 'todo']
 model: Claude Opus 4.5 (copilot)
 ---
 
