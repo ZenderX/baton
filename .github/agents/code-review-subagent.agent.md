@@ -1,6 +1,6 @@
 ---
 description: "Review code changes from a completed implementation phase"
-tools: ['execute/testFailure', 'execute/getTerminalOutput', 'execute/runInTerminal', 'execute/runTests', 'read/problems', 'read/readFile', 'read/terminalSelection', 'read/terminalLastCommand', 'search', 'context7/*', 'sequentialthinking/*']
+tools: ['execute/testFailure', 'execute/getTerminalOutput', 'execute/runInTerminal', 'read/problems', 'read/readFile', 'read/terminalSelection', 'read/terminalLastCommand', 'search', 'context7/*', 'sequentialthinking/*']
 model: Claude Sonnet 4.6 (copilot)
 user-invokable: false
 ---
