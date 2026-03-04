@@ -285,8 +285,8 @@ expect<User>(result).toMatchObject({ id: "123" });
 ## LINTING COMPLIANCE
 - Respect existing ESLint configuration (`eslint.config.js`)
 - Fix all warnings before commit (warnings treated as errors)
-- Run `yarn lint` before PR
-- Use `yarn lint --fix` for auto-fixable issues
+- Run `npm run lint` before PR
+- Use `npm run lint -- --fix` for auto-fixable issues
 
 ---
 
