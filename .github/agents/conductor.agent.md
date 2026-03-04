@@ -1,6 +1,6 @@
 ---
 description: "Orchestrates Planning → Implementation → Review lifecycle for complex tasks"
-tools: ['sequentialthinking/*', 'read/readFile', 'agent', 'todo']
+tools: [read/readFile, agent/runSubagent, edit/createDirectory, edit/createFile, edit/editFiles, search/codebase, search/fileSearch, search/listDirectory, search/searchResults, search/textSearch, search/usages, sequentialthinking/sequentialthinking, todo]
 model: Claude Opus 4.6 (copilot)
 agents: ['planning-subagent', 'implement-subagent', 'code-review-subagent']
 ---
@@ -42,7 +42,7 @@ You orchestrate the full development lifecycle — Planning → Implementation �
 Use sequential thinking to break down the problem, identify dependencies, explore solution architectures, and evaluate trade-offs.
 
 ### 2. Context Gathering
-Use context7 and codebase search to understand existing patterns, API signatures, dependencies, and similar implementations.
+Search codebase to understand existing patterns, API signatures, dependencies, and similar implementations.
 
 ### 3. External Research
 When needed, delegate to planning-subagent for comprehensive research. Instruct it to work autonomously.
