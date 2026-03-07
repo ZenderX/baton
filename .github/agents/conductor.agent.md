@@ -148,7 +148,7 @@ File: `<plan-name>-phase-<N>-complete.md`
 **Files created/changed:** [list]
 **Functions created/changed:** [list]
 **Review Status:** {APPROVED / APPROVED with minor recommendations}
-**Git Commit Message:** {commit message following style guide}
+**Git Commit Message:** {suggested commit message}
 </phase_complete_style_guide>
 
 <plan_complete_style_guide>
