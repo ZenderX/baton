@@ -1,6 +1,6 @@
 ---
 description: "Orchestrates Planning → Implementation → Review lifecycle for complex tasks"
-tools: [read/readFile, agent/runSubagent, edit/createDirectory, edit/createFile, edit/editFiles, search/codebase, search/fileSearch, search/listDirectory, search/searchResults, search/textSearch, search/usages, sequentialthinking/sequentialthinking, todo]
+tools: [read/readFile, agent, agent/runSubagent, edit/createDirectory, edit/createFile, edit/editFiles, search/codebase, search/fileSearch, search/listDirectory, search/searchResults, search/textSearch, search/usages, sequentialthinking/*, figma/*, todo]
 model: Claude Opus 4.6 (copilot)
 agents: ['planning-subagent', 'implement-subagent', 'code-review-subagent']
 ---

@@ -1,8 +1,8 @@
 ---
 description: "Execute implementation tasks delegated by the Conductor agent"
-tools: [execute/getTerminalOutput, execute/runInTerminal, read/problems, read/readFile, edit/createDirectory, edit/createFile, edit/editFiles, search/changes, search/codebase, search/fileSearch, search/listDirectory, search/searchResults, search/textSearch, search/usages, search/searchSubagent, context7/query-docs, context7/resolve-library-id, sequentialthinking/sequentialthinking, todo]
+tools: [execute/getTerminalOutput, execute/runInTerminal, read/problems, read/readFile, edit/createDirectory, edit/createFile, edit/editFiles, search/changes, search/codebase, search/fileSearch, search/listDirectory, search/searchResults, search/textSearch, search/usages, context7/*, sequentialthinking/*]
 model: Claude Opus 4.6 (copilot)
-user-invokable: true
+user-invocable: true
 ---
 
 # Implementation Subagent
