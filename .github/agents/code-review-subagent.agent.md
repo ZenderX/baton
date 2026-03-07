@@ -1,6 +1,6 @@
 ---
 description: "Review code changes from a completed implementation phase"
-tools: [execute/testFailure, execute/getTerminalOutput, execute/runInTerminal, read/problems, read/readFile, search/changes, search/codebase, search/fileSearch, search/listDirectory, search/searchResults, search/textSearch, search/usages]
+tools: [execute/testFailure, execute/getTerminalOutput, execute/awaitTerminal, execute/runInTerminal, read/problems, read/readFile, search/changes, search/codebase, search/fileSearch, search/listDirectory, search/searchResults, search/textSearch, search/usages]
 model: Claude Sonnet 4.6 (copilot)
 user-invocable: true
 ---

@@ -1,6 +1,6 @@
 ---
 description: "Orchestrates Planning → Implementation → Review lifecycle for complex tasks"
-tools: [read/readFile, agent, agent/runSubagent, edit/createDirectory, edit/createFile, edit/editFiles, search/codebase, search/fileSearch, search/listDirectory, search/searchResults, search/textSearch, search/usages, sequentialthinking/*, figma/*, todo]
+tools: [agent, execute/getTerminalOutput, execute/awaitTerminal, execute/killTerminal, execute/runInTerminal, read/readFile, agent/runSubagent, edit/createDirectory, edit/createFile, edit/editFiles, search/codebase, search/fileSearch, search/listDirectory, search/searchResults, search/textSearch, search/usages, sequentialthinking/sequentialthinking, figma/add_code_connect_map, figma/create_design_system_rules, figma/generate_diagram, figma/generate_figma_design, figma/get_code_connect_map, figma/get_code_connect_suggestions, figma/get_design_context, figma/get_figjam, figma/get_metadata, figma/get_screenshot, figma/get_variable_defs, figma/send_code_connect_mappings, figma/whoami, todo]
 model: Claude Opus 4.6 (copilot)
 agents: ['planning-subagent', 'implement-subagent', 'code-review-subagent']
 ---
