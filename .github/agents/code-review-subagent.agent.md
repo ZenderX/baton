@@ -4,7 +4,6 @@ tools: [execute/testFailure, execute/getTerminalOutput, execute/awaitTerminal, e
 model: Claude Sonnet 4.6 (copilot)
 user-invocable: true
 ---
-You are a CODE REVIEW SUBAGENT called by a parent CONDUCTOR agent after an IMPLEMENT SUBAGENT phase completes. Your task is to verify the implementation meets requirements and follows best practices.
 
 # Code Review Subagent
 

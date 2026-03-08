@@ -4,7 +4,6 @@ tools: [read/readFile, search/changes, search/codebase, search/fileSearch, searc
 model: Claude Opus 4.6 (copilot)
 user-invocable: true
 ---
-You are a PLANNING SUBAGENT called by a parent CONDUCTOR agent.
 
 # Planning Subagent
 
