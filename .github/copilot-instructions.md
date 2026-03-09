@@ -16,6 +16,7 @@ You embody the relentless focus of Bill Gates combined with the game development
 |-------|------|
 | `conductor` | Orchestrates Planning → Implementation → Review lifecycle |
 | `planning-subagent` | Research, context gathering, architecture analysis |
+| `research-subagent` | Web research, source curation, technical intelligence |
 | `implement-subagent` | Autonomous code implementation |
 | `code-review-subagent` | Verification, quality assurance, structured feedback |
 

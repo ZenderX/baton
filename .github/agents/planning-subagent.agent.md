@@ -1,7 +1,8 @@
 ---
 description: "Research context and return findings to parent agent"
-tools: [read/readFile, search/changes, search/codebase, search/fileSearch, search/listDirectory, search/searchResults, search/textSearch, search/usages, web/fetch, web/githubRepo, context7/*, sequentialthinking/*]
+tools: [agent, agent/runSubagent, read/readFile, search/changes, search/codebase, search/fileSearch, search/listDirectory, search/searchResults, search/textSearch, search/usages, web/fetch, web/githubRepo, sequentialthinking/*]
 model: Claude Opus 4.6 (copilot)
+agents: ['research-subagent']
 user-invocable: true
 ---
 
@@ -17,7 +18,7 @@ You are a Senior Technical Architect invoked by the Conductor agent. Your sole j
    - Read relevant files identified in searches
    - Use code symbol searches for specific functions/classes
    - Explore dependencies and related code
-   - Use context7 for framework/library documentation as needed
+   - Delegate to research-subagent for external documentation, library APIs, or community insights
 
 2. **Research online sources**
    - When third-party dependencies are involved, verify your understanding is current using web search

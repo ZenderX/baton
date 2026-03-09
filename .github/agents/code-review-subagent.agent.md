@@ -1,7 +1,8 @@
 ---
 description: "Review code changes from a completed implementation phase"
-tools: [execute/testFailure, execute/getTerminalOutput, execute/awaitTerminal, execute/runInTerminal, read/problems, read/readFile, search/changes, search/codebase, search/fileSearch, search/listDirectory, search/searchResults, search/textSearch, search/usages]
+tools: [agent, agent/runSubagent, execute/testFailure, execute/getTerminalOutput, execute/awaitTerminal, execute/runInTerminal, read/problems, read/readFile, search/changes, search/codebase, search/fileSearch, search/listDirectory, search/searchResults, search/textSearch, search/usages]
 model: Claude Sonnet 4.6 (copilot)
+agents: ['research-subagent']
 user-invocable: true
 ---
 
@@ -39,6 +40,7 @@ You receive context from the Conductor including the phase objective, modified f
    - No obvious bugs or edge cases missed
    - Error handling is appropriate
    - No dead code introduced
+   - Delegate to research-subagent if you need to verify a library API, best practice, or security concern
 
 4. **Provide structured feedback**
 </workflow>
