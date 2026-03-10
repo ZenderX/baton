@@ -1,6 +1,6 @@
 ---
 description: "Orchestrates Planning → Implementation → Review lifecycle for complex tasks"
-tools: [agent, execute/getTerminalOutput, execute/awaitTerminal, execute/killTerminal, execute/runInTerminal, read/readFile, agent/runSubagent, edit/createDirectory, edit/createFile, edit/editFiles, search/codebase, search/fileSearch, search/listDirectory, search/searchResults, search/textSearch, search/usages, todo]
+tools: [agent, execute/getTerminalOutput, execute/awaitTerminal, execute/killTerminal, execute/runInTerminal, read/readFile, agent/runSubagent, search/codebase, search/fileSearch, search/listDirectory, search/searchResults, search/textSearch, search/usages, sequentialthinking/sequentialthinking, figma/add_code_connect_map, figma/create_design_system_rules, figma/generate_diagram, figma/generate_figma_design, figma/get_code_connect_map, figma/get_code_connect_suggestions, figma/get_design_context, figma/get_figjam, figma/get_metadata, figma/get_screenshot, figma/get_variable_defs, figma/send_code_connect_mappings, figma/whoami, todo]
 model: Claude Opus 4.6 (copilot)
 agents: ['planning-subagent', 'research-subagent', 'implement-subagent', 'code-review-subagent']
 ---
@@ -84,6 +84,13 @@ Create `plans/<task-name>-complete.md` with overall summary, all phases complete
 - Never run git commit, git pull, git merge, or git push
 - Do not provide time estimates
 - Do not implement code — only orchestrate subagents
+
+### ABSOLUTE PROHIBITION — No Direct File Edits
+You are FORBIDDEN from using any file creation or editing tools (create_file, replace_string_in_file, multi_replace_string_in_file, or any edit/* tools). If you find yourself about to edit a file directly:
+1. STOP immediately
+2. Formulate the change as a task specification
+3. Delegate to implement-subagent with the objective and file list
+This is a HARD BLOCK, not a guideline. No exceptions — not for "simple" fixes, not for "quick" changes, not for config files. ALL file modifications go through implement-subagent.
 
 ## Stopping Rules
 Pause and wait for user input at:
