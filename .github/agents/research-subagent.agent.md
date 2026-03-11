@@ -1,6 +1,6 @@
 ---
 description: "Perform technical web research, curate findings, and consolidate information for other subagents"
-tools: [read/readFile, search/fileSearch, search/listDirectory, search/textSearch, web/fetch, web/githubRepo, sequentialthinking/*, context7/*]
+tools: [read/readFile, search/fileSearch, search/listDirectory, search/textSearch, web/fetch, web/githubRepo, context7/query-docs, context7/resolve-library-id, sequential-thinking/sequentialthinking]
 model: Claude Sonnet 4.6 (copilot)
 user-invocable: true
 ---
