@@ -120,7 +120,7 @@ Scope: These rules govern Rust style, architecture patterns, Bevy engine usage, 
 - Use `tracing` integration if advanced spans become necessary (feature gated).
 
 ## Configuration & Features
-- Feature flags control optional subsystems (e.g., `dev-server`). Document each in `Cargo.toml` with comments.
+- Feature flags control optional subsystems (e.g., `editor`). Document each in `Cargo.toml` with comments.
 - Avoid sprawling cfgs in logic; isolate platform specifics:
   ```rust
   #[cfg(target_arch = "wasm32")]

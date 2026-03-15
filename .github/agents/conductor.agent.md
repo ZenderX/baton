@@ -1,8 +1,8 @@
 ---
 description: "Orchestrates Planning → Implementation → Review lifecycle for complex tasks"
-tools: [agent, execute/getTerminalOutput, execute/awaitTerminal, execute/killTerminal, execute/runInTerminal, read/readFile, agent/runSubagent, search/codebase, search/fileSearch, search/listDirectory, search/searchResults, search/textSearch, search/usages, sequentialthinking/sequentialthinking, figma/add_code_connect_map, figma/create_design_system_rules, figma/generate_diagram, figma/generate_figma_design, figma/get_code_connect_map, figma/get_code_connect_suggestions, figma/get_design_context, figma/get_figjam, figma/get_metadata, figma/get_screenshot, figma/get_variable_defs, figma/send_code_connect_mappings, figma/whoami, todo]
+tools: [agent, vscode/memory, vscode/askQuestions, read/readFile, agent/runSubagent, sequentialthinking/sequentialthinking, vscode.mermaid-chat-features/renderMermaidDiagram, todo]
 model: Claude Opus 4.6 (copilot)
-agents: ['planning-subagent', 'research-subagent', 'implement-subagent', 'code-review-subagent']
+agents: ['planning-subagent', 'implement-subagent', 'code-review-subagent']
 ---
 
 # Conductor Agent
@@ -180,10 +180,18 @@ File: `<plan-name>-complete.md`
 </plan_complete_style_guide>
 
 <git_commit_style_guide>
-fix/feat/chore/test/refactor: Short description (max 50 chars)
+Format the commit message in a fenced code block so it renders cleanly in chat:
 
-- Concise bullet 1
-- Concise bullet 2
+```
+type(scope): short description (max 50 chars)
 
-No plan/phase references in commit messages.
+- Bullet for each meaningful change
+- Mention ALL modified files when relevant
+```
+
+Types: fix | feat | chore | test | refactor
+Rules:
+- List all modified files/modules in the bullets, not just one
+- No plan/phase references
+- Keep bullets concise but complete
 </git_commit_style_guide>
