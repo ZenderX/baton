@@ -1,6 +1,6 @@
 ---
 description: "Review code changes from a completed implementation phase"
-tools: [agent, execute/testFailure, read/problems, read/readFile, search/changes, search/codebase, search/fileSearch, search/listDirectory, search/searchResults, search/textSearch, search/searchSubagent, search/usages, browser/openBrowserPage, context7/query-docs, context7/resolve-library-id, sequentialthinking/sequentialthinking]
+tools: [agent, execute/testFailure, execute/getTerminalOutput, execute/awaitTerminal, execute/killTerminal, execute/runInTerminal, read/problems, read/readFile, agent/runSubagent, search/changes, search/codebase, search/fileSearch, search/listDirectory, search/searchResults, search/textSearch, search/searchSubagent, search/usages, browser/openBrowserPage, context7/query-docs, context7/resolve-library-id, sequentialthinking/sequentialthinking]
 model: Claude Sonnet 4.6 (copilot)
 agents: ['research-subagent']
 user-invocable: true
