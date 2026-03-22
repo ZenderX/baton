@@ -1,6 +1,6 @@
 ---
 description: "Research context and return findings to parent agent"
-tools: [agent, read/readFile, search/changes, search/codebase, search/fileSearch, search/listDirectory, search/searchResults, search/textSearch, search/searchSubagent, search/usages, web/fetch, web/githubRepo, context7/query-docs, context7/resolve-library-id, sequentialthinking/sequentialthinking]
+tools: [agent, read/readFile, agent/runSubagent, search/changes, search/codebase, search/fileSearch, search/listDirectory, search/searchResults, search/textSearch, search/searchSubagent, search/usages, web/fetch, web/githubRepo, context7/query-docs, context7/resolve-library-id, sequentialthinking/sequentialthinking]
 model: Claude Opus 4.6 (copilot)
 agents: ['research-subagent']
 user-invocable: true
