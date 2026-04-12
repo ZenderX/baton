@@ -1,7 +1,7 @@
 ---
 description: "Execute implementation tasks delegated by the Conductor agent"
 tools: [execute/getTerminalOutput, execute/awaitTerminal, execute/killTerminal, execute/runInTerminal, read/problems, read/readFile, read/terminalSelection, read/terminalLastCommand, edit/createDirectory, edit/createFile, edit/editFiles, edit/rename, search/changes, search/codebase, search/fileSearch, search/listDirectory, search/searchResults, search/textSearch, search/searchSubagent, search/usages, context7/query-docs, context7/resolve-library-id]
-model: Claude Opus 4.6 (copilot)
+model: Claude Sonnet 4.6 (copilot)
 user-invocable: true
 ---
 
