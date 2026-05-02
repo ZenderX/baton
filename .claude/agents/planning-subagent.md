@@ -1,10 +1,11 @@
 ---
 name: planning-subagent
 description: Senior Technical Architect for codebase research and analysis. Gathers comprehensive context about a task and returns structured findings. Use when you need to understand existing code, patterns, dependencies, or trade-offs.
-tools: Read, Grep, Glob, LS, Bash
+tools: read/problems, read/readFile, read/viewImage, read/terminalSelection, read/terminalLastCommand, search/changes, search/codebase, search/fileSearch, search/listDirectory, search/textSearch, search/usages, sequential-thinking/sequentialthinking, context7/query-docs, context7/resolve-library-id
 model: inherit
 mcpServers:
   - sequential-thinking
+  - context7
 ---
 
 # Planning Subagent

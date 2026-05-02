@@ -1,7 +1,7 @@
 ---
 name: implement-subagent
 description: Autonomous implementation specialist for code generation, refactoring, and file creation. Execute focused implementation tasks with precision. Use after planning is complete and a clear spec exists.
-tools: Read, Write, Edit, Bash, Grep, Glob, LS
+tools: vscode/memory, execute/getTerminalOutput, execute/killTerminal, execute/sendToTerminal, execute/createAndRunTask, execute/runInTerminal, read/readFile, read/terminalLastCommand, edit/createDirectory, edit/createFile, edit/editFiles, edit/rename, search/changes, search/codebase, search/fileSearch, search/listDirectory, search/textSearch, search/usages, context7/query-docs, context7/resolve-library-id
 model: inherit
 mcpServers:
   - context7

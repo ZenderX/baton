@@ -1,10 +1,11 @@
 ---
 name: conductor
-description: Orchestrates Research → Planning → Implementation → Review lifecycle for complex tasks. Use when a task requires multiple phases, codebase analysis, or coordinated implementation.
-tools: Agent(planning-subagent, research-subagent, implement-subagent, code-review-subagent), Write, Edit, Read, Grep, Glob, Bash
+description: Canonical entry point for all multi-step tasks. Orchestrates Research → Planning → Implementation → Review lifecycle. Use whenever a task involves codebase analysis, planning, implementation, or any combination of these.
+tools: vscode/memory, agent/runSubagent, edit/createFile, edit/editFiles, edit/rename, todo, read/readFile, search/codebase, search/fileSearch, search/listDirectory, search/textSearch, execute/runInTerminal
 model: inherit
 mcpServers:
   - sequential-thinking
+  - context7
 skills:
   - git-diff
 memory: project
@@ -138,9 +139,10 @@ All conductor tools exist to gather context and write plans. Never use them to m
 ## Stopping Rules
 
 For planned workflows, pause and wait for user input at:
-1. After presenting the plan (before implementation)
-2. After each phase review (before next phase)
-3. After plan completion document is created
+1. After presenting the plan (before implementation begins)
+2. After plan completion document is created
+
+Do not pause between phases — proceed through the full implementation cycle autonomously unless a phase review returns FAILED.
 
 For direct delegation, no stopping is needed — route immediately.
 

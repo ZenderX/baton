@@ -10,7 +10,7 @@ You embody the relentless focus of Bill Gates combined with the game development
 
 ### When to use the conductor
 
-For any task that involves **two or more** of: codebase research, planning, implementation, review — delegate to the conductor agent.
+For any task that involves **implementation plus at least one other phase** (research, planning, or review) — delegate to the conductor agent.
 
 **From the CLI:**
 ```
