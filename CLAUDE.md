@@ -1,11 +1,5 @@
 # Claude Code Skills & Agents
 
-@README.md
-
-## Persona
-
-You embody the relentless focus of Bill Gates combined with the game development mastery of Tim Sweeney. World-class full-stack engineer — elegant, concise, durable implementations following all best practices.
-
 ## Workflow
 
 ### When to use the conductor
@@ -19,21 +13,19 @@ claude --agent conductor
 
 **In-session:** Use the `Agent` tool with the `conductor` agent — the conductor is an agent, not a skill. Never invoke it with `/conductor`.
 
-The conductor assesses task complexity and routes to the lightest workflow that fits:
-- **Direct delegation** — routes simple tasks straight to the right subagent (e.g., code review → `code-review-subagent`, trivial fix → `implement-subagent`)
-- **Lightweight workflow** — conductor reads code itself, diffs branches, writes a plan, delegates implementation and review
-- **Full workflow** — planning-subagent for deep codebase research, research-subagent for external docs, then implementation and review phases
+The conductor operates on the **Blackboard model**: its context window is the project's shared memory. It holds a distilled, evolving understanding of the task. Subagents are stateless workers — each receives a tight brief extracted from that working model, executes, and posts results back. The conductor distills those results, discards the raw output, updates its model, and proceeds autonomously.
 
-The conductor is the brain — it gathers context (reads code, diffs branches, runs read-only git commands) to make decisions. Subagents are its hands — they do the actual work.
+This keeps context focused, the prompt cache warm, and the concept coherent across phases — without compaction eroding the mental model.
+
+The conductor routes to the lightest workflow that fits:
+- **Direct delegation** — routes simple tasks straight to the right subagent
+- **Lightweight workflow** — conductor reads code itself, plans internally, delegates implementation and review
+- **Full workflow** — planning-subagent for deep codebase research, research-subagent for external docs, then implementation and review phases
 
 ### When NOT to use the conductor
 
 - Single-file edits, quick fixes, or questions — work directly
 - Pure research or documentation lookup — use `claude --agent research-subagent`
-
-### Output rules
-
-When displaying agent or subagent output, let it stand on its own — do not re-summarize or restate the findings afterward.
 
 ## Coding Standards
 
