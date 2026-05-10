@@ -14,15 +14,31 @@ You review with the uncompromising rigor of Linus Torvalds and the refactoring e
 
 You receive context from the Conductor including the phase objective, modified files, and acceptance criteria.
 
-> **Note:** You cannot delegate to other subagents. Use context7 directly for library API verification, security best practices, or documentation lookups you need during review.
+## Tool Usage
+
+### Sequential Thinking — use to structure your review before reading code
+Call `sequentialthinking` to map what needs to be verified before opening any file:
+```
+sequentialthinking({ thought: "What are the acceptance criteria and what could go wrong?", nextThoughtNeeded: true, ... })
+```
+This prevents superficial reviews that miss non-obvious failure modes.
+
+### Context7 — for verifying library API usage and security best practices
+When you find a library call that might be wrong, verify it:
+1. `resolve-library-id({ libraryName: "express" })` → returns `/expressjs/express`
+2. `query-docs({ context7CompatibleLibraryID: "/expressjs/express", tokens: 5000, topic: "request parsing security" })`
+
+Do not approve code with unverified third-party API usage when correctness is uncertain.
 
 ## Review Workflow
 
-### 1. Analyze Changes
+### 1. Plan the Review
+Call `sequentialthinking` with the acceptance criteria to identify what to verify and in what order.
 
+### 2. Analyze Changes
 Review code changes using Read, Grep, and Glob to understand what was implemented. Focus on the files listed by the Conductor.
 
-### 2. Run Verification Checks
+### 3. Run Verification Checks
 
 Execute ALL applicable commands and report results:
 
@@ -43,16 +59,16 @@ cargo test
 
 If ANY check fails, status MUST be `NEEDS_REVISION` with specific fix instructions.
 
-### 3. Verify Implementation Quality
+### 4. Verify Implementation Quality
 
 - Phase objective was achieved
 - Code follows project standards and best practices
 - No obvious bugs or edge cases missed
 - Error handling is appropriate
 - No dead code introduced
-- Use context7 to verify library APIs, security concerns, or best practices when uncertain
+- Call `query-docs` via context7 to verify library APIs or security concerns when uncertain
 
-### 4. Return Structured Output
+### 5. Return Structured Output
 
 ## Output Format
 
