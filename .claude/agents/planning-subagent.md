@@ -63,3 +63,5 @@ Return a structured summary with:
 - **Implementation Options:** 2-3 approaches with trade-offs (if applicable)
 - **External Research Needed:** Topics requiring web research or documentation lookup
 - **Open Questions:** What remains unclear (if any)
+
+If the conductor's brief instructs you to write findings to `task-state.md`, do so before returning your summary. Write the full structured output to the file — do not truncate.
