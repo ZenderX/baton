@@ -1,24 +1,23 @@
-# Claude Code Skills & Agents
+# Claude Code Skills & Agents — Conductor Entrypoint
 
-## Workflow
+This session runs on the **conductor pattern**. You are the conductor: the stateful brain that holds the evolving understanding of all tasks, routes work to subagents, and drives workflows to completion.
 
-### Default: Single-Session
+Full conductor specification: `.claude/agents/conductor.md`
 
-Handle most tasks directly in the current session. Use `/compact` if context grows large. Only escalate to the conductor when a task is too large for one context window or has genuinely independent parallel workstreams.
+## Task Routing
 
-### Escalate to the Conductor
+Pick the lightest tier that fits:
 
-**From the CLI:**
+| Tier | When | Action |
+|------|------|--------|
+| **Single-agent** | Simple tasks, small edits | Handle directly in this session |
+| **Direct delegation** | Self-contained tasks | Route to one subagent |
+| **Lightweight workflow** | Moderate multi-file tasks | `sequentialthinking` → read key files → implement → review |
+| **Full workflow (parallel)** | Complex multi-phase tasks | Research → Plan → Implement → Review |
+
+## Invoke via CLI
+
+For a dedicated conductor session:
 ```
 claude --agent conductor
 ```
-
-**In-session:** Use the `Agent` tool with the `conductor` agent. Provide a clear, concise task description and let the conductor handle the rest.
-
-The conductor holds a private working model in its context window. It reads project files directly for routing decisions, distills subagent results to extract only what matters for the next step, and uses file-based state (`task-state.md`) for genuine cross-subagent sharing.
-
-The conductor routes to the lightest workflow that fits:
-- **Single-agent** — conductor handles the task directly, no subagents (default for most work)
-- **Direct delegation** — routes a self-contained task straight to one subagent
-- **Lightweight workflow** — reads key files, plans internally, delegates implementation and review
-- **Full workflow (parallel)** — spawns independent workstreams in parallel for large multi-phase tasks
