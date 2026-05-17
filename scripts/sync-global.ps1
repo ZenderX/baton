@@ -2,9 +2,9 @@
 .SYNOPSIS
     Syncs .claude and .github from the project repo into the global user home folders.
 .DESCRIPTION
-    Merges project .claude/ into ~/.claude/ (agents, rules, skills subdirs only).
-    Merges project .github/ into ~/.github/ if the project folder exists.
-    Existing files in the destination are overwritten; unrelated files are left untouched.
+    Clean-replaces agents, rules, and skills subdirs in ~/.claude/ from the project.
+    Clean-replaces ~/.github/ from the project .github/ folder if it exists.
+    Each synced subdir is removed then re-copied so deleted source files don't persist.
 .PARAMETER DryRun
     Print what would be copied without making changes.
 #>
@@ -22,7 +22,7 @@ function Sync-Folder {
     param(
         [string]$Source,
         [string]$Destination,
-        [string[]]$SubDirs   # if specified, only sync these subdirs; otherwise sync all files
+        [string[]]$SubDirs   # if specified, clean-replace these subdirs; otherwise clean-replace root
     )
 
     if (-not (Test-Path $Source)) {
@@ -38,6 +38,15 @@ function Sync-Folder {
 
     foreach ($item in $items) {
         $relBase = if ($SubDirs) { Split-Path -Leaf $item } else { '' }
+        $destRoot = if ($relBase) { Join-Path $Destination $relBase } else { $Destination }
+
+        # Clean destination before copying so deleted source files don't persist
+        if ($DryRun) {
+            Write-Host "  WOULD CLEAN $destRoot"
+        } elseif (Test-Path $destRoot) {
+            Remove-Item -Path $destRoot -Recurse -Force
+            Write-Host "  CLEANED  $destRoot"
+        }
 
         Get-ChildItem -Path $item -Recurse -File | ForEach-Object {
             $rel = $_.FullName.Substring($item.Length).TrimStart([IO.Path]::DirectorySeparatorChar, '/')
@@ -72,11 +81,7 @@ Sync-Folder -Source $srcClaude -Destination $destClaude -SubDirs @('agents', 'ru
 # --- .github ---
 $srcGithub  = Join-Path $ProjectRoot '.github'
 $destGithub = Join-Path $UserHome '.github'
-if (Test-Path $srcGithub) {
-    Write-Host "`n[.github] $srcGithub -> $destGithub"
-    Sync-Folder -Source $srcGithub -Destination $destGithub
-} else {
-    Write-Host "`n[.github] No project .github folder found — skipping."
-}
+Write-Host "`n[.github] $srcGithub -> $destGithub"
+Sync-Folder -Source $srcGithub -Destination $destGithub
 
 Write-Host "`nDone$(if ($DryRun) { ' (dry run)' })."
