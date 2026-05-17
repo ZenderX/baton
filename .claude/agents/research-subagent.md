@@ -65,7 +65,7 @@ Call `sequentialthinking` to:
 
 ## Output Contract
 
-Write findings to `research-findings.md` before returning, then return a one-paragraph summary to the conductor. Structure the file as:
+Write findings to `.claude/research-findings.md` before returning, then return a one-paragraph summary to the conductor. Structure the file as:
 
 ```markdown
 # Research Findings: <topic>

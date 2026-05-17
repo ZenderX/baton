@@ -1,14 +1,12 @@
 {
   "mcpServers": {
     "sequential-thinking": {
-      "type": "stdio",
       "command": "cmd",
       "args": ["/c", "npx", "-y", "@modelcontextprotocol/server-sequential-thinking"]
     },
     "context7": {
-      "type": "stdio",
-      "command": "npx",
-      "args": ["-y", "@upstash/context7-mcp"]
+      "command": "cmd",
+      "args": ["/c", "npx", "-y", "@upstash/context7-mcp"]
     }
   }
 }

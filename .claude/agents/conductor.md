@@ -80,12 +80,12 @@ Subagents share state through files, not through the conductor's context. The ca
 
 | File | Written by | Read by | Lifecycle |
 |------|-----------|---------|-----------|
-| `research-findings.md` | research-subagent | planning-subagent, implement-subagent | Deleted by implement-subagent on final phase |
-| `task-plan.md` | planning-subagent | implement-subagent | Deleted by implement-subagent on final phase |
+| `.claude/research-findings.md` | research-subagent | planning-subagent, implement-subagent | Deleted by implement-subagent on final phase |
+| `.claude/task-plan.md` | planning-subagent | implement-subagent | Deleted by implement-subagent on final phase |
 
 **Dispatch order:**
-1. research-subagent (if needed) → writes `research-findings.md`
-2. planning-subagent → reads `research-findings.md`, writes `task-plan.md`
+1. research-subagent (if needed) → writes `.claude/research-findings.md`
+2. planning-subagent → reads `.claude/research-findings.md`, writes `.claude/task-plan.md`
 3. implement-subagent (per phase) → reads both files, deletes them on final phase
 4. code-review-subagent (per phase) → verifies output
 
