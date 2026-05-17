@@ -78,10 +78,4 @@ Write-Host "`n[.claude] $srcClaude -> $destClaude"
 # Only merge known content subdirs; never touch sessions, cache, credentials, etc.
 Sync-Folder -Source $srcClaude -Destination $destClaude -SubDirs @('agents', 'rules', 'skills')
 
-# --- .github ---
-$srcGithub  = Join-Path $ProjectRoot '.github'
-$destGithub = Join-Path $UserHome '.github'
-Write-Host "`n[.github] $srcGithub -> $destGithub"
-Sync-Folder -Source $srcGithub -Destination $destGithub
-
 Write-Host "`nDone$(if ($DryRun) { ' (dry run)' })."
