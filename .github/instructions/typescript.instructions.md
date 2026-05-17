@@ -1,17 +1,16 @@
 ---
-description: TypeScript and Vue 3 coding standards
+description: "TypeScript and Vue 3 coding standards. Apply when writing or reviewing TypeScript, TSX, or Vue files."
 applyTo: "**/*.{ts,tsx,vue}"
 ---
 
-# TYPESCRIPT & VUE 3 CODING STANDARDS
+# TypeScript & Vue 3 Coding Standards
 
 Language-specific rules for TypeScript and Vue 3. Architecture, state management, and project patterns in `project.instructions.md`.
 
----
+## TypeScript Strict Mode
 
-## TYPESCRIPT STRICT MODE
-```typescript
-// ✅ ENFORCE
+### Enforce
+
 - NO `any` types (use proper interfaces/types)
 - NO non-null assertions (`!`)
 - NO `as unknown` casting (except for documented dependency version conflicts)
@@ -20,20 +19,21 @@ Language-specific rules for TypeScript and Vue 3. Architecture, state management
 - Define interfaces for component props and store state
 - Type all error handling with proper annotations
 
-// ❌ FORBIDDEN (unless documented exception)
+### Forbidden (unless documented exception)
+
+```typescript
 const data: any = fetchData();           // Use proper interface
 const value = obj!.prop;                 // Handle null explicitly
 const user = data as unknown as User;    // Use type guards
 ```
 
----
-
-## VUE 3 COMPOSITION API
+## Vue 3 Composition API
 
 ### Script Setup (REQUIRED)
+
 ```vue
 <script setup lang="ts">
-// ✅ CORRECT: Always use <script setup>
+// Always use <script setup>
 // Auto-imports: ref, reactive, computed, watch (via unplugin)
 
 interface Props {
@@ -53,14 +53,14 @@ const emit = defineEmits<{
 ```
 
 ### Component Typing
-```typescript
-// Props: defineProps<Interface>() with withDefaults() for optionals
-// Emits: defineEmits<{ eventName: [payload: Type] }>()
-// Template refs: const el = ref<HTMLElement>()
-// Slot typing: defineSlots<{ default(props: { item: T }): any }>()
-```
+
+- Props: `defineProps<Interface>()` with `withDefaults()` for optionals
+- Emits: `defineEmits<{ eventName: [payload: Type] }>()`
+- Template refs: `const el = ref<HTMLElement>()`
+- Slot typing: `defineSlots<{ default(props: { item: T }): any }>()`
 
 ### Reactivity Primitives
+
 ```typescript
 // ref: primitives, single values
 const count = ref(0);
@@ -74,11 +74,11 @@ const doubled = computed(() => count.value * 2);
 ```
 
 ### Lifecycle Hooks
+
 Use Composition API hooks: `onMounted`, `onUnmounted`, `onBeforeMount`, `onUpdated`, `watch`, `watchEffect`
 
----
+## Vue Query Context
 
-## VUE QUERY CONTEXT
 **CRITICAL**: `useQuery` and TanStack hooks MUST be called inside `<script setup>` or functions supporting injection context.
 
 ```typescript
@@ -91,9 +91,8 @@ const query = useQuery({ queryKey: ["users"], queryFn: fetchUsers });
 const query = useQuery(...); // Error: no injection context
 ```
 
----
+## String Conventions
 
-## STRING CONVENTIONS
 ```typescript
 // Double quotes for strings (project standard)
 const message = "Hello world";
@@ -109,9 +108,7 @@ const url = `${baseUrl}/api/${endpoint}`;
 const bad = "api" + "/" + "v1" + "/" + "users";
 ```
 
----
-
-## DOCUMENTATION REQUIREMENTS
+## Documentation Requirements
 
 ### File Headers (MANDATORY)
 ```typescript
@@ -147,9 +144,8 @@ async function fetchUser(
 const debouncedValidate = debounce(validateSession, 30000);
 ```
 
----
+## Error Handling & Type Validation
 
-## ERROR HANDLING & TYPE VALIDATION
 ```typescript
 // Type-safe error handling with proper annotations
 type Result<T> = { success: true; data: T } | { success: false; error: string };
@@ -159,7 +155,6 @@ async function fetchData(): Promise<Result<User>> {
     const data = await api.getUser();
     return { success: true, data };
   } catch (error) {
-    // Type guard for error handling
     const message = error instanceof Error ? error.message : "Unknown error";
     return { success: false, error: message };
   }
@@ -173,9 +168,7 @@ if (!result.success) {
 }
 ```
 
----
-
-## CODE QUALITY ENFORCEMENT
+## Code Quality Enforcement
 
 ### Type Completeness
 ```typescript
@@ -213,9 +206,7 @@ const { name, email } = user;  // Destructuring
 const users = await Promise.all(ids.map(fetchUser));  // Array methods
 ```
 
----
-
-## COMPONENT TYPING STANDARDS
+## Component Typing Standards
 
 ### Props & Emits
 ```typescript
@@ -256,9 +247,7 @@ onMounted(() => {
 });
 ```
 
----
-
-## TEST TYPING
+## Test Typing
 ```typescript
 // Type test data and fixtures
 interface MockUser {
@@ -280,17 +269,13 @@ const mockFetchUser = vi.fn<[string], Promise<User>>();
 expect<User>(result).toMatchObject({ id: "123" });
 ```
 
----
-
-## LINTING COMPLIANCE
+## Linting Compliance
 - Respect existing ESLint configuration (`eslint.config.js`)
 - Fix all warnings before commit (warnings treated as errors)
 - Run `npm run lint` before PR
 - Use `npm run lint -- --fix` for auto-fixable issues
 
----
-
-## ANTI-PATTERNS (AVOID)
+## Anti-Patterns (Avoid)
 ```typescript
 // ❌ Options API (use Composition API)
 export default { data() {}, methods: {} }

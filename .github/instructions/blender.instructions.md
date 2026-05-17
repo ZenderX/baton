@@ -1,5 +1,5 @@
 ---
-description: "Blender editor integration via bevy_skein conventions and workflow"
+description: "Blender-to-Bevy workflow conventions using bevy_skein 0.5. Apply when writing code that integrates with Blender or uses bevy_skein."
 applyTo: "**/*.rs"
 ---
 
@@ -36,13 +36,13 @@ Scope: Conventions for Blender-to-Bevy workflow using `bevy_skein`. Pure Rust st
 - Default BRP port: **15702**.
 
 ## Blender Workflow
-- Define components in Bevy with proper reflection derives.
-- Run the Bevy app in debug mode to start the BRP server.
-- In Blender: fetch the remote type registry (Edit menu or Skein panel button).
-- Apply components to objects, meshes, materials, lights, bones, or scenes via the Properties panel.
-- Export as standard glTF/glb — Skein data embeds automatically in extras.
-- In Bevy: spawn the scene with standard `SceneRoot` — components are already on entities.
-- Re-fetch registry only when component types change; editing component values does not require re-fetch.
+1. Define components in Bevy with proper reflection derives.
+2. Run the Bevy app in debug mode to start the BRP server.
+3. In Blender: fetch the remote type registry (Edit menu or Skein panel button).
+4. Apply components to objects, meshes, materials, lights, bones, or scenes via the Properties panel.
+5. Export as standard glTF/glb — Skein data embeds automatically in extras.
+6. In Bevy: spawn the scene with standard `SceneRoot` — components are already on entities.
+7. Re-fetch registry only when component types change; editing component values does not require re-fetch.
 
 ## Pitfalls & Rules
 - Mesh and Material components may land on the same entity in Bevy — avoid applying the same component type to both a mesh and its material in Blender.

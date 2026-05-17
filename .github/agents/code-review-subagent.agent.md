@@ -1,8 +1,7 @@
 ---
-description: "Review code changes from a completed implementation phase"
-tools: [agent, execute/testFailure, execute/getTerminalOutput, execute/awaitTerminal, execute/killTerminal, execute/runInTerminal, read/problems, read/readFile, agent/runSubagent, search/changes, search/codebase, search/fileSearch, search/listDirectory, search/searchResults, search/textSearch, search/searchSubagent, search/usages, browser/openBrowserPage, context7/query-docs, context7/resolve-library-id, sequentialthinking/sequentialthinking]
+description: "Review code changes from a completed implementation phase. Verifies the implementation meets requirements, passes all checks, and follows best practices."
+tools: [vscode/memory, execute/getTerminalOutput, execute/killTerminal, execute/runInTerminal, read/getNotebookSummary, read/readFile, search/changes, search/codebase, search/fileSearch, search/listDirectory, search/textSearch, search/usages, sequentialthinking/sequentialthinking, context7/query-docs, context7/resolve-library-id, todo]
 model: Claude Sonnet 4.6 (copilot)
-agents: ['research-subagent']
 user-invocable: true
 ---
 

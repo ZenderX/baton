@@ -1,5 +1,5 @@
 ---
-description: "Rust coding standards and conventions for the project"
+description: "Rust coding standards and conventions. Apply when writing or reviewing Rust files."
 applyTo: "**/*.rs"
 ---
 
@@ -121,7 +121,3 @@ Scope: Pure Rust language standards — style, safety, error handling, testing, 
 - Use `enum` over boolean flags when more than two states are possible.
 - Prefer `match` exhaustiveness — avoid wildcard `_` catch-alls on enums to catch new variant additions.
 - Use `Default` trait for types with natural default state.
-
----
-These standards evolve — propose improvements via PR with justification referencing performance, safety, or clarity gains.
-

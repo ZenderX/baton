@@ -1,5 +1,5 @@
 ---
-description: "Bevy 0.18.1 conventions, patterns, and architecture standards"
+description: "Bevy 0.18.1 ECS conventions, plugin architecture, and gameplay patterns. Apply when writing or reviewing Bevy game code."
 applyTo: "**/*.rs"
 ---
 
@@ -16,7 +16,7 @@ Scope: Bevy engine conventions, ECS architecture, and gameplay patterns. Pure Ru
 ## Plugin Architecture
 - Each gameplay domain gets its own plugin in `src/plugins/`.
 - Simple plugin = single file (`src/plugins/player.rs`) containing a struct that implements `Plugin`.
-- Complex plugin = directory with re-export (`src/plugins/player/` + `src/plugins/player.rs`), following the no-`mod.rs` convention from `rust.instructions.md`.
+- Complex plugin = directory with re-export (`src/plugins/player/` + `src/plugins/player.rs`), following the no-`mod.rs` convention.
 - Plugin `build()` registers: components, resources, events, systems, states, observers.
 - Keep side-effects contained within the plugin — no global mutable statics.
 - Declare plugins in the parent module; document order-sensitive plugins with comments.
@@ -99,6 +99,3 @@ Scope: Bevy engine conventions, ECS architecture, and gameplay patterns. Pure Ru
 - Tests pass (`cargo test`).
 - WASM build compiles if targeting web (`cargo build --target wasm32-unknown-unknown`).
 - Run conditions and ordering constraints reviewed for correctness.
-
----
-These conventions evolve — propose improvements via PR with justification. When Bevy updates, review migration guides and update this file.
