@@ -51,7 +51,7 @@ function Sync-Folder {
         Get-ChildItem -Path $item -Recurse -File | ForEach-Object {
             $rel = $_.FullName.Substring($item.Length).TrimStart([IO.Path]::DirectorySeparatorChar, '/')
             $dest = if ($relBase) {
-                Join-Path $Destination $relBase $rel
+                Join-Path (Join-Path $Destination $relBase) $rel
             } else {
                 Join-Path $Destination $rel
             }
