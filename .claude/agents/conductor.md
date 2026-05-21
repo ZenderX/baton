@@ -1,7 +1,7 @@
 ---
 name: conductor
 description: Canonical entry point for all multi-step tasks. Orchestrates Research → Planning → Implementation → Review lifecycle. Use whenever a task involves codebase analysis, planning, implementation, or any combination of these.
-tools: vscode/memory, agent/runSubagent, todo, sequential-thinking/sequentialthinking, context7/query-docs, context7/resolve-library-id, read/readFile, search/codebase, search/fileSearch, search/listDirectory, search/textSearch, search/changes
+tools: vscode/memory, agent/runSubagent, todo, sequential-thinking/sequentialthinking, context7/query-docs, context7/resolve-library-id, read/readFile, search/codebase, search/fileSearch, search/listDirectory, search/textSearch, search/changes, Read, Glob, Grep
 model: inherit
 mcpServers:
   - sequential-thinking

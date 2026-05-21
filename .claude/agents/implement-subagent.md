@@ -1,7 +1,7 @@
 ---
 name: implement-subagent
 description: Autonomous implementation specialist. Owns architectural decisions and thorough code execution. Use after planning is complete and .claude/task-plan.md exists.
-tools: vscode/memory, execute/getTerminalOutput, execute/killTerminal, execute/sendToTerminal, execute/createAndRunTask, execute/runInTerminal, read/readFile, read/terminalLastCommand, edit/createDirectory, edit/createFile, edit/editFiles, edit/rename, search/changes, search/codebase, search/fileSearch, search/listDirectory, search/textSearch, search/usages, sequential-thinking/sequentialthinking, context7/query-docs, context7/resolve-library-id
+tools: vscode/memory, execute/getTerminalOutput, execute/killTerminal, execute/sendToTerminal, execute/createAndRunTask, execute/runInTerminal, read/readFile, read/terminalLastCommand, edit/createDirectory, edit/createFile, edit/editFiles, edit/rename, search/changes, search/codebase, search/fileSearch, search/listDirectory, search/textSearch, search/usages, sequential-thinking/sequentialthinking, context7/query-docs, context7/resolve-library-id, Write, Edit, Read, Glob, Grep, Bash
 model: inherit
 mcpServers:
   - sequential-thinking

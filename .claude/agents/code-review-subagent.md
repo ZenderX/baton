@@ -1,7 +1,7 @@
 ---
 name: code-review-subagent
 description: Review code changes from a completed implementation phase. Verifies the implementation meets requirements, passes all checks, and follows best practices.
-tools: vscode/memory, execute/getTerminalOutput, execute/killTerminal, execute/sendToTerminal, execute/runInTerminal, read/getNotebookSummary, read/readFile, search/changes, search/codebase, search/fileSearch, search/listDirectory, search/textSearch, search/usages, sequential-thinking/sequentialthinking, context7/query-docs, context7/resolve-library-id, todo
+tools: vscode/memory, execute/getTerminalOutput, execute/killTerminal, execute/sendToTerminal, execute/runInTerminal, read/getNotebookSummary, read/readFile, search/changes, search/codebase, search/fileSearch, search/listDirectory, search/textSearch, search/usages, sequential-thinking/sequentialthinking, context7/query-docs, context7/resolve-library-id, todo, Read, Glob, Grep, Bash
 model: inherit
 mcpServers:
   - sequential-thinking
