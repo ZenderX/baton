@@ -1,14 +1,19 @@
 ---
 name: implement-subagent
 description: Autonomous implementation specialist. Owns architectural decisions and thorough code execution. Use after planning is complete and .claude/task-plan.md exists.
-tools: vscode/memory, execute/getTerminalOutput, execute/killTerminal, execute/sendToTerminal, execute/createAndRunTask, execute/runInTerminal, read/readFile, read/terminalLastCommand, edit/createDirectory, edit/createFile, edit/editFiles, edit/rename, search/changes, search/codebase, search/fileSearch, search/listDirectory, search/textSearch, search/usages, sequential-thinking/sequentialthinking, context7/query-docs, context7/resolve-library-id, Write, Edit, Read, Glob, Grep, Bash
+tools: execute/getTerminalOutput, execute/killTerminal, execute/sendToTerminal, execute/createAndRunTask, execute/runInTerminal, read/readFile, read/terminalLastCommand, edit/createDirectory, edit/createFile, edit/editFiles, edit/rename, search/changes, search/codebase, search/fileSearch, search/listDirectory, search/textSearch, search/usages, sequential-thinking/sequentialthinking, context7/query-docs, context7/resolve-library-id, Write, Edit, Read, Glob, Grep, Bash
 model: inherit
 mcpServers:
   - sequential-thinking
   - context7
 skills:
+  - bevy
+  - rust
   - typescript
+  - vue3
 memory: project
+rules:
+  - coding-rules
 ---
 
 # Implementation Subagent
@@ -74,11 +79,22 @@ Call `sequentialthinking` to reason through trade-offs. These decisions are your
 - Generate complete code with no placeholders — if unable, explain why in a comment
 - Remove dead code: unused imports, variables, and dead code paths
 - Do not reset file changes without explicit instructions
+- Do not implement fallback strategies inline — extract to separate modules if needed
 - Treat warnings as errors
+
+## Code Quality
+
+- Optimize for readability, maintainability, and performance
+- Use latest stable versions of libraries and frameworks
+- Begin every file with a purpose comment block
+- Document every function with inputs, outputs, and purpose
+- Use inline comments for non-obvious logic and external function calls
+- Keep files modular — isolate core functionalities into separate files when appropriate
 
 ## When Finished
 
-1. Summarize what was implemented and the architectural decisions made
+1. Summarize what was implemented
 2. List all files created/modified
-3. Clean up `.claude/task-plan.md` and `.claude/research-findings.md` if the conductor's brief says this is the final phase
-4. Report back to the conductor for review
+3. Report back for the Conductor to review
+
+The Conductor manages phase completion files — focus solely on executing the implementation.
