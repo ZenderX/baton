@@ -38,6 +38,8 @@ You operate in two modes:
    - Which commits are feature work vs merge commits?
    - Which files have the most churn? Start there.
 
+> **Critical:** A narrow diff (e.g., only 1–2 commits vs the PR target) does NOT mean a narrow review. It means most of the feature work landed in the target branch already — the target branch itself may have introduced the real issues. Your job is to review the full implementation of every file the branch touches, not just the changed lines. Read complete files. A line diff shows what changed; only reading the full file tells you whether the result is correct.
+
 ### If given file list from Conductor:
 Use `sequentialthinking` to map what needs to be verified before opening any file:
 ```
@@ -58,7 +60,7 @@ Changed files are not the whole story. For each significant change, trace its im
 - **Store action/getter changed** → Find all components that use that store
 - **Composable changed** → Find all components that call it
 
-Never approve a change by reading only the changed file. Always verify the blast radius.
+Never approve a change by reading only the changed lines. Read the full file. Always verify the blast radius.
 
 ### Language-Specific Review Heuristics
 
@@ -168,7 +170,7 @@ Flag missing tests on re-applied fixes as **Critical**. Flag missing tests on ne
 
 ## Constraints
 
-- Never approve based only on changed files — always trace consumers and callers.
+- Never approve based only on changed lines — read full files and trace consumers and callers.
 - "Tests pass" is wrong if the specific regression case has no test.
 - Reference exact file paths and line numbers for every finding.
 - Do not implement fixes — review only.
