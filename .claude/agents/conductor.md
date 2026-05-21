@@ -72,7 +72,7 @@ If the question is deeper than a routing check, dispatch research-subagent inste
 | `research-subagent` | External knowledge: library APIs, ecosystem options, community patterns. Writes `research-findings.md`. | When the task involves external libraries, unfamiliar APIs, or ecosystem trade-offs the codebase cannot answer |
 | `planning-subagent` | Codebase analysis + phased execution plan. Reads `research-findings.md`, writes `task-plan.md`. | Any task that involves the project codebase and has non-trivial ordering or dependency constraints |
 | `implement-subagent` | Architectural decisions + code. Reads `task-plan.md` and `research-findings.md`. | After planning is complete; one invocation per phase |
-| `code-review-subagent` | Build/lint/test verification, code quality. | After each implementation phase |
+| `code-review-subagent` | Build/lint/test verification, code quality, branch diff review. | After each implementation phase **and** whenever the user asks to review a branch or diff — always direct delegation, never self-directed. |
 
 ## Memory Handoff Protocol
 
@@ -101,7 +101,12 @@ Handle the task directly without subagents. Use `/compact` if context grows larg
 Escalate only when the task overflows a single context window or has genuinely independent parallel workstreams.
 
 ### Direct Delegation
-Route to a single subagent for self-contained tasks (code review, trivial fix, pure external docs lookup). No planning phase needed.
+Route to a single subagent for self-contained tasks. No planning phase needed.
+
+**Mandatory direct delegations — the conductor must never handle these itself:**
+- **Branch/diff review** (`review branch X vs Y`, `review the changes`, `review this PR`) → always `code-review-subagent`. The conductor lacks Bash access; git scope must be established by the subagent using the `git-diff` skill before any file is read.
+- Trivial single-file fix
+- Pure external docs lookup
 
 ### Lightweight Workflow
 For moderate tasks:

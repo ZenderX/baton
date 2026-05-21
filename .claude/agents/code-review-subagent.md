@@ -6,6 +6,8 @@ model: inherit
 mcpServers:
   - sequential-thinking
   - context7
+skills:
+  - git-diff
 ---
 
 # Code Review Subagent
