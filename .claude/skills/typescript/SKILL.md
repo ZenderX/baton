@@ -1,100 +1,74 @@
 ---
 name: typescript
-description: TypeScript and Vue 3 coding standards. Apply when writing or reviewing TypeScript, TSX, or Vue files.
-paths: "**/*.ts, **/*.tsx, **/*.vue"
+description: TypeScript coding standards. Apply when writing or reviewing TypeScript or TSX files.
+paths: "**/*.ts, **/*.tsx"
 ---
 
-# TypeScript & Vue 3 Coding Standards
+# TypeScript Coding Standards
 
-Language-specific rules for TypeScript and Vue 3. Architecture, state management, and project patterns in `project.instructions.md`.
+## Strict Mode — Enforce
 
-## TypeScript Strict Mode
-
-### Enforce
-
-- NO `any` types (use proper interfaces/types)
-- NO non-null assertions (`!`)
-- NO `as unknown` casting (except for documented dependency version conflicts)
-- NO unused parameters (prefix with `_` to ignore)
+- NO `any` types — use proper interfaces or generics
+- NO non-null assertions (`!`) — handle null explicitly
+- NO `as unknown as T` casting — use type guards
+- NO unused parameters — prefix with `_` to suppress
 - Use `import type` for type-only imports
-- Define interfaces for component props and store state
-- Type all error handling with proper annotations
+- Define interfaces for all props, state shapes, and API responses
+- Type all error handling explicitly
 
-### Forbidden (unless documented exception)
+### Forbidden patterns
 
 ```typescript
-const data: any = fetchData();           // Use proper interface
-const value = obj!.prop;                 // Handle null explicitly
-const user = data as unknown as User;    // Use type guards
+const data: any = fetchData();           // define an interface
+const value = obj!.prop;                 // guard: if (obj) ...
+const user = data as unknown as User;    // use a type guard function
 ```
 
-## Vue 3 Composition API
+## Interfaces and Types
 
-### Script Setup (REQUIRED)
+- Prefer `interface` for object shapes that may be extended
+- Use `type` for unions, intersections, and aliases
+- Export types with `export type` — never export `any`
+- Generic constraints: `<T extends SomeBase>` over unconstrained `<T>` where possible
 
-```vue
-<script setup lang="ts">
-// Always use <script setup>
-// Auto-imports: ref, reactive, computed, watch (via unplugin)
+## Type Guards
 
-interface Props {
-  title: string;
-  count?: number;
+```typescript
+function isUser(val: unknown): val is User {
+  return typeof val === "object" && val !== null && "id" in val;
 }
-
-const props = withDefaults(defineProps<Props>(), {
-  count: 0
-});
-
-const emit = defineEmits<{
-  update: [value: number];
-  close: [];
-}>();
-</script>
 ```
 
-### Component Typing
+Use type guards at system boundaries (API responses, user input, `inject()` results).
 
-- Props: `defineProps<Interface>()` with `withDefaults()` for optionals
-- Emits: `defineEmits<{ eventName: [payload: Type] }>()`
-- Template refs: `const el = ref<HTMLElement>()`
-- Slot typing: `defineSlots<{ default(props: { item: T }): any }>()`
-
-### Reactivity Primitives
+## Error Handling
 
 ```typescript
-// ref: primitives, single values
-const count = ref(0);
-const user = ref<User | null>(null);
-
-// reactive: objects (NEVER reassign entire object)
-const state = reactive({ count: 0, name: "" });
-
-// computed: derived state (memoized)
-const doubled = computed(() => count.value * 2);
+try {
+  const result = await fetchData();
+} catch (err: unknown) {
+  if (err instanceof Error) {
+    console.error(err.message);
+  }
+}
 ```
 
-### Lifecycle Hooks
+Never catch as `any`. Always narrow `unknown` before use.
 
-Use Composition API hooks: `onMounted`, `onUnmounted`, `onBeforeMount`, `onUpdated`, `watch`, `watchEffect`
+## Enums and Constants
 
-## Vue Query Context
-
-**CRITICAL**: `useQuery` and TanStack hooks MUST be called inside `<script setup>` or functions supporting injection context.
+- Prefer `const` object + `as const` over `enum` for string values — avoids duplicate declaration footguns
+- If using `enum`, ensure there is only one declaration per name across the codebase; two `enum Foo` in different files with the same name is valid TypeScript but causes silent bugs when the wrong file is imported
 
 ```typescript
-// ✅ CORRECT
-<script setup>
-const query = useQuery({ queryKey: ["users"], queryFn: fetchUsers });
-</script>
-
-// ❌ WRONG: Outside setup context
-const query = useQuery(...); // Error: no injection context
+// Preferred
+const Direction = { Up: "up", Down: "down" } as const;
+type Direction = (typeof Direction)[keyof typeof Direction];
 ```
 
 ## String Conventions
 
 ```typescript
-// Double quotes for strings (project standard)
+// Double quotes (project standard)
 const message = "Hello world";
 ```
