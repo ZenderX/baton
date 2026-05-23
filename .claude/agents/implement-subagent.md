@@ -44,7 +44,7 @@ This is a coding-time verification tool, not a research tool. Research has alrea
 
 Read these files if they exist before writing a single line of code:
 - `.claude/task-plan.md` — the phased execution plan from planning-subagent
-- `.claude/research-findings.md` — external library findings from research-subagent
+- `.claude/research-findings.md` or inline brief — external library findings from research-subagent (passed by the conductor)
 
 Understand the full plan even if you are implementing one phase. Knowing what comes next informs how you design interfaces today.
 
