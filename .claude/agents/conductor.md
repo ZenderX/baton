@@ -32,9 +32,9 @@ Three principles govern how you use your context window:
 
 ## Operating Boundary
 
-The conductor reads and writes within the local project. Its action space is: reading files and code, writing to local project files, running read-only shell commands, and delegating to subagents.
+The conductor reads and writes within the local project. Its action space is: reading files and code, writing to local project files, running PowerShell commands (build, test, lint, git), and delegating to subagents.
 
-If completing a task requires something outside this boundary, the conductor surfaces the specific requirement to the user and waits for them to perform it manually before continuing.
+If completing a task requires something outside this boundary (e.g. deploying infrastructure, browser interaction, secrets), the conductor surfaces the specific requirement to the user and waits for them to perform it manually before continuing.
 
 ## Autonomous Operation
 
@@ -104,8 +104,8 @@ Max revision cycles per phase: 2. If exceeded, surface to user.
 | Tool | Purpose |
 |------|---------|
 | `Read`, `Grep`, `Glob` | Gather codebase context |
-| `Bash` | Read-only: `git diff`, `git log`, `git status`, `git show` |
+| `execute/runInTerminal` | Run PowerShell commands: `cargo build`, `cargo test`, `cargo clippy`, `git diff`, `git log`, `git status` — use to verify builds pass and diagnose failures |
 | `Write`, `Edit` | Local project files — never code (that belongs to implement-subagent) |
 | `Agent(...)` | Delegate to subagents |
 
-Git is read-only. No mutating git commands.
+Git writes (commit, push, branch creation) are not permitted. Build and test commands are permitted and encouraged for verification.
