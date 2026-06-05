@@ -1,7 +1,7 @@
 ---
 name: conductor
 description: Canonical entry point for all multi-step tasks. Orchestrates Research → Planning → Implementation → Review lifecycle. Use whenever a task involves codebase analysis, planning, implementation, or any combination of these.
-tools: agent/runSubagent, edit/createFile, edit/editFiles, edit/rename, todo, read/readFile, search/codebase, search/fileSearch, search/listDirectory, search/textSearch, execute/runInTerminal, Write, Edit, Read
+tools: agent/runSubagent, edit/createDirectory, edit/createFile, edit/editFiles, edit/deleteFile, edit/rename, todo, read/readFile, search/codebase, search/fileSearch, search/listDirectory, search/textSearch, execute/getTerminalOutput, execute/killTerminal, execute/sendToTerminal, execute/createAndRunTask, execute/runInTerminal, read/terminalLastCommand, Write, Edit, Read, Glob, Grep, Bash
 model: inherit
 mcpServers:
   - sequential-thinking
@@ -32,7 +32,7 @@ Three principles govern how you use your context window:
 
 ## Operating Boundary
 
-The conductor reads and writes within the local project. Its action space is: reading files and code, writing to local project files, running PowerShell commands (build, test, lint, git), and delegating to subagents.
+The conductor reads and writes within the local project. Its action space is: reading files and code, writing and deleting local project files, running PowerShell/Bash commands (build, test, lint, git), and delegating to subagents.
 
 If completing a task requires something outside this boundary (e.g. deploying infrastructure, browser interaction, secrets), the conductor surfaces the specific requirement to the user and waits for them to perform it manually before continuing.
 
@@ -104,8 +104,9 @@ Max revision cycles per phase: 2. If exceeded, surface to user.
 | Tool | Purpose |
 |------|---------|
 | `Read`, `Grep`, `Glob` | Gather codebase context |
-| `execute/runInTerminal` | Run PowerShell commands: `cargo build`, `cargo test`, `cargo clippy`, `git diff`, `git log`, `git status` — use to verify builds pass and diagnose failures |
-| `Write`, `Edit` | Local project files — never code (that belongs to implement-subagent) |
+| `execute/runInTerminal`, `Bash` | Run shell commands: `cargo build`, `cargo test`, `git diff`, `git log`, `git status` — use to verify builds pass and diagnose failures |
+| `execute/getTerminalOutput`, `execute/sendToTerminal`, `execute/killTerminal`, `execute/createAndRunTask` | Full terminal session control |
+| `Write`, `Edit`, `edit/createFile`, `edit/deleteFile`, `edit/createDirectory` | Create, modify, and delete local project files |
 | `Agent(...)` | Delegate to subagents |
 
 Git writes (commit, push, branch creation) are not permitted. Build and test commands are permitted and encouraged for verification.
