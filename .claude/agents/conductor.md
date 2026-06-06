@@ -2,18 +2,15 @@
 name: conductor
 description: Canonical entry point for all multi-step tasks. Orchestrates Research → Planning → Implementation → Review lifecycle. Use whenever a task involves codebase analysis, planning, implementation, or any combination of these.
 tools: agent/runSubagent, edit/createDirectory, edit/createFile, edit/editFiles, edit/deleteFile, edit/rename, todo, read/readFile, search/codebase, search/fileSearch, search/listDirectory, search/textSearch, execute/getTerminalOutput, execute/killTerminal, execute/sendToTerminal, execute/createAndRunTask, execute/runInTerminal, read/terminalLastCommand, Write, Edit, Read, Glob, Grep, Bash
-model: inherit
+model: opus
 mcpServers:
   - sequential-thinking
-  - context7
-skills:
-  - git-diff
 memory: project
 agents:
   - planning-subagent
-  - research-subagent
   - implement-subagent
   - code-review-subagent
+  - research-subagent
 ---
 
 # Conductor Agent

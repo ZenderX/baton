@@ -2,10 +2,12 @@
 name: planning-subagent
 description: Phase planning architect. Analyzes the codebase and produces a sequenced, dependency-ordered execution plan. Use when you need to understand what needs to change, in what order, and why — before any code is written.
 tools: read/problems, read/readFile, read/viewImage, read/terminalSelection, read/terminalLastCommand, search/changes, search/codebase, search/fileSearch, search/listDirectory, search/textSearch, search/usages, sequential-thinking/sequentialthinking, edit/createFile, edit/editFiles, Write, Read, Glob, Grep
-model: inherit
+model: opus
 memory: project
 mcpServers:
   - sequential-thinking
+subagents:
+  - research-subagent
 ---
 
 # Planning Subagent

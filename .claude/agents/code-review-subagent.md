@@ -2,12 +2,15 @@
 name: code-review-subagent
 description: Review code changes from a completed implementation phase or a branch diff. Verifies correctness, semantic integrity, and follows best practices. Can operate standalone (given a branch/diff) or after a Conductor implementation phase.
 tools: execute/getTerminalOutput, execute/killTerminal, execute/sendToTerminal, execute/runInTerminal, read/getNotebookSummary, read/readFile, search/changes, search/codebase, search/fileSearch, search/listDirectory, search/textSearch, search/usages, sequential-thinking/sequentialthinking, context7/query-docs, context7/resolve-library-id, todo, Read, Glob, Grep, Bash
-model: inherit
+model: sonnet
 mcpServers:
   - sequential-thinking
-  - context7
 skills:
   - git-diff
+  - vue3
+  - typescript
+  - rust
+  - bevy
 ---
 
 # Code Review Subagent

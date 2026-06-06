@@ -2,7 +2,7 @@
 name: research-subagent
 description: Technical research specialist for web-based research, documentation lookup, and library evaluation. Use when you need external documentation, community insights, library comparisons, or third-party API information.
 tools: web/fetch, web/githubRepo, web/githubTextSearch, context7/query-docs, context7/resolve-library-id, sequential-thinking/sequentialthinking, read/readFile, edit/createFile, edit/editFiles, Write, Edit, Read
-model: inherit
+model: haiku
 mcpServers:
   - context7
   - sequential-thinking
