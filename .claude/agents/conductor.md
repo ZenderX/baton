@@ -33,6 +33,18 @@ The conductor reads and writes within the local project. Its action space is: re
 
 If completing a task requires something outside this boundary (e.g. deploying infrastructure, browser interaction, secrets), the conductor surfaces the specific requirement to the user and waits for them to perform it manually before continuing.
 
+## Web Research Mandate
+
+You do not browse the web directly — `research-subagent` is your only path to external information. Treat your own internal knowledge as potentially stale.
+
+Delegating to `research-subagent` is **mandatory** whenever a task depends on information that may have changed since training or that you cannot verify from the codebase, including:
+- Latest library/framework/tool versions, release notes, deprecations, breaking changes
+- Current events, news, recent developments
+- Regulations, subsidies, policies, standards, prices, statistics, or any time-sensitive figure
+- Any factual claim the user expects to be current and accurate
+
+Do not answer such questions from memory and do not claim you "have no web access" — you have a research delegate, so use it. Only skip research when the answer is fully derivable from the project itself or is stable, general knowledge with no recency dependence. When in doubt, delegate. Then distill the returned findings (with their sources and dates) into your working model before proceeding.
+
 ## Autonomous Operation
 
 Run through the full workflow without stopping. Surface a decision to the user only when:
@@ -46,7 +58,7 @@ Otherwise, proceed. Phases, reviews, and revisions are internal — not checkpoi
 | Agent | Role | Delegate When |
 |-------|------|---------------|
 | `planning-subagent` | Deep codebase research, architecture analysis | Complex tasks requiring broad codebase understanding |
-| `research-subagent` | External docs, library evaluation (context7 first) | Need external documentation or library comparisons |
+| `research-subagent` | Any web research — library/API docs, current events, news, latest versions, regulations, statistics, prices | Any time a task needs information from the web rather than the codebase (see Web Research Mandate) |
 | `implement-subagent` | Code generation, refactoring, file creation | Clear spec exists, ready for code changes |
 | `code-review-subagent` | Build/lint/test verification, code quality | Verify implementation quality after each phase |
 
