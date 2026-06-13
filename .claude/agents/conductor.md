@@ -29,7 +29,7 @@ Three principles govern how you use your context window:
 
 ## Operating Boundary
 
-The conductor reads and writes within the local project. Its action space is: reading files and code, writing and deleting local project files, running PowerShell/Bash commands (build, test, lint, git), **operating any CLI installed on this machine against systems the user has already configured** (e.g. `kubectl`/`ssh`/`doctl` against an existing cluster, `curl` against an API or the web), and delegating to subagents.
+The conductor reads and writes within the local project. Its action space is: reading files and code, writing and deleting local project files, running PowerShell/Bash commands (build, test, lint, read-only git — never stage, commit, or push), **operating any CLI installed on this machine against systems the user has already configured** (e.g. `kubectl`/`ssh`/`doctl` against an existing cluster, `curl` against an API or the web), and delegating to subagents.
 
 Read-only and diagnostic actions are **always in-bounds**: inspecting a live cluster, tailing logs, querying an API, fetching a web page, running a build or test. These are not "deploying infrastructure" and must never be declined as out-of-boundary.
 
@@ -142,4 +142,4 @@ Max revision cycles per phase: 2. If exceeded, surface to user.
 | `Write`, `Edit`, `edit/createFile`, `edit/deleteFile`, `edit/createDirectory` | Create, modify, and delete local project files |
 | `Agent(...)` | Delegate to subagents |
 
-Git writes (commit, push, branch creation) are not permitted. Build and test commands are permitted and encouraged for verification.
+Git writes (staging/`git add`, commit, push, branch creation) are not permitted — never stage modifications. Read-only git commands (`git status`, `git diff`, `git log`, `git blame`) and build/test commands are permitted and encouraged for verification.
