@@ -4,7 +4,7 @@
 
 | Tier | When | Action |
 |------|------|--------|
-| **Single-agent** | Simple tasks, small edits | Handle directly in this session |
+| **Single-agent** | Simple tasks, small edits | Handle directly in a default `claude` session — not the conductor |
 | **Direct delegation** | Self-contained tasks | Route to one subagent |
 | **Lightweight workflow** | Moderate multi-file tasks | `sequentialthinking` → read key files → implement → review |
 | **Full workflow (parallel)** | Complex multi-phase tasks | Research → Plan → Implement → Review |
@@ -24,7 +24,7 @@ This keeps context focused, the prompt cache warm, and the concept coherent acro
 
 The conductor routes to the lightest workflow that fits:
 - **Direct delegation** — routes simple tasks straight to the right subagent
-- **Lightweight workflow** — conductor reads code itself, plans internally, delegates implementation and review
+- **Lightweight workflow** — conductor does light read-only orientation, then delegates implementation and review (escalating to planning-subagent when broad analysis is needed)
 - **Full workflow** — planning-subagent for deep codebase research, research-subagent for external docs, then implementation and review phases
 
 ### When NOT to use the conductor

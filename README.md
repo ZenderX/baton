@@ -72,7 +72,7 @@ Routes tasks to the lightest workflow that fits. Reads project files directly fo
 
 | Tier | When |
 |------|------|
-| **Single-agent** | Default — handles the task directly, no subagents |
+| **Single-agent** | Read-only answers and trivial actions only — anything that investigates or changes code is delegated |
 | **Direct delegation** | One self-contained task routed to a single subagent |
 | **Lightweight** | Reads key files, optional planning-subagent, implement → review |
 | **Full (parallel)** | Independent workstreams spawned in parallel via `run_in_background: true` |
