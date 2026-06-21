@@ -2,7 +2,7 @@
 name: conductor
 description: Canonical entry point for all multi-step tasks. Orchestrates Research → Planning → Implementation → Review lifecycle. Use whenever a task involves codebase analysis, planning, implementation, or any combination of these.
 tools: Read, Grep, Glob, Bash, Write, Edit, TodoWrite, mcp__sequential-thinking__sequentialthinking, Agent(planning-subagent), Agent(implement-subagent), Agent(code-review-subagent), Agent(research-subagent)
-model: sonnet
+model: opus
 mcpServers:
   - sequential-thinking
 memory: project
