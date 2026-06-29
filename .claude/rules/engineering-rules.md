@@ -1,4 +1,4 @@
-# Coding Rules
+# Engineering Rules
 
 ## Rule 1 — Think Before Coding
 State assumptions explicitly. Ask rather than guess.

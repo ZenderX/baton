@@ -1,16 +1,18 @@
 ---
 name: code-review-subagent
 description: Review code changes from a completed implementation phase or a branch diff. Verifies correctness, semantic integrity, and follows best practices. Can operate standalone (given a branch/diff) or after a Conductor implementation phase.
-tools: execute/getTerminalOutput, execute/killTerminal, execute/sendToTerminal, execute/runInTerminal, read/getNotebookSummary, read/readFile, search/changes, search/codebase, search/fileSearch, search/listDirectory, search/textSearch, search/usages, sequential-thinking/sequentialthinking, context7/query-docs, context7/resolve-library-id, todo, Read, Glob, Grep, Bash
+tools: Read, Glob, Grep, Bash, mcp__sequential-thinking__sequentialthinking, mcp__context7__resolve-library-id, mcp__context7__query-docs
 model: sonnet
 mcpServers:
   - sequential-thinking
+  - context7
 skills:
   - git-diff
   - vue3
   - typescript
   - rust
   - bevy
+memory: project
 ---
 
 # Code Review Subagent
@@ -172,6 +174,12 @@ Flag missing tests on re-applied fixes as **Critical**. Flag missing tests on ne
 ```
 
 ---
+
+## Memory Discipline
+
+Save to `.claude/agent-memory/code-review-subagent/`: recurring defect patterns, project-specific quality bars, and what "good" looks like in this codebase — findings that make future reviews faster and more targeted.
+
+**Mechanics:** filename = bare slug (e.g., `vue-reactivity-pitfalls.md`); frontmatter must include `tags: [type/review, topic/<x>, agent/code-review-subagent]` and `metadata.type: review`; cross-link related notes with `[[slug]]`. Full spec: `.claude/agent-memory/_conventions.md`.
 
 ## Constraints
 

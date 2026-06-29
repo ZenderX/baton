@@ -1,7 +1,7 @@
 ---
 name: implement-subagent
 description: Autonomous implementation specialist. Owns architectural decisions and thorough code execution. Use after planning is complete and .claude/task-plan.md exists.
-tools: execute/getTerminalOutput, execute/killTerminal, execute/sendToTerminal, execute/createAndRunTask, execute/runInTerminal, read/readFile, read/terminalLastCommand, edit/createDirectory, edit/createFile, edit/editFiles, edit/deleteFile, edit/rename, search/changes, search/codebase, search/fileSearch, search/listDirectory, search/textSearch, search/usages, sequential-thinking/sequentialthinking, context7/query-docs, context7/resolve-library-id, Write, Edit, Read, Glob, Grep, Bash
+tools: Read, Write, Edit, Glob, Grep, Bash, mcp__sequential-thinking__sequentialthinking, mcp__context7__resolve-library-id, mcp__context7__query-docs
 model: sonnet
 mcpServers:
   - sequential-thinking
@@ -12,8 +12,6 @@ skills:
   - typescript
   - vue3
 memory: project
-rules:
-  - coding-rules
 ---
 
 # Implementation Subagent
@@ -90,6 +88,12 @@ Call `sequentialthinking` to reason through trade-offs. These decisions are your
 - Document every function with inputs, outputs, and purpose
 - Use inline comments for non-obvious logic and external function calls
 - Keep files modular — isolate core functionalities into separate files when appropriate
+
+## Memory Discipline
+
+Save to `.claude/agent-memory/implement-subagent/`: non-obvious implementation decisions, integration gotchas, and why-this-way choices that survive the diff — not fix recipes already visible in the code.
+
+**Mechanics:** filename = bare slug (e.g., `db-connection-pooling.md`); frontmatter must include `tags: [type/implementation, topic/<x>, agent/implement-subagent]` and `metadata.type: implementation`; cross-link related notes with `[[slug]]`. Full spec: `.claude/agent-memory/_conventions.md`.
 
 ## When Finished
 

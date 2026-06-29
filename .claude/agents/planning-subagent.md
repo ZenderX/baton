@@ -1,7 +1,7 @@
 ---
 name: planning-subagent
 description: Phase planning architect. Analyzes the codebase and produces a sequenced, dependency-ordered execution plan. Use when you need to understand what needs to change, in what order, and why — before any code is written.
-tools: read/problems, read/readFile, read/viewImage, read/terminalSelection, read/terminalLastCommand, search/changes, search/codebase, search/fileSearch, search/listDirectory, search/textSearch, search/usages, sequential-thinking/sequentialthinking, edit/createFile, edit/editFiles, Write, Read, Glob, Grep
+tools: Read, Glob, Grep, Write, Edit, mcp__sequential-thinking__sequentialthinking
 model: sonnet
 memory: project
 mcpServers:
@@ -79,3 +79,9 @@ Write the execution plan to `.claude/task-plan.md` before returning, then return
 - Note existing tests and where new ones are needed
 - Stop when you have a complete, unambiguous plan — not 100% certainty about every detail
 - Do not surface questions to the user — if something is unclear, note it in Risks and let implement-subagent decide
+
+## Memory Discipline
+
+Save to `.claude/agent-memory/planning-subagent/`: durable architectural insights, dependency-ordering gotchas, and facts about where logic lives that are not derivable from reading the code. Skip anything already obvious from the diff or file structure.
+
+**Mechanics:** filename = bare slug (e.g., `auth-flow-ordering.md`); frontmatter must include `tags: [type/planning, topic/<x>, agent/planning-subagent]` and `metadata.type: planning`; cross-link related notes with `[[slug]]`. Full spec: `.claude/agent-memory/_conventions.md`.
