@@ -1,9 +1,8 @@
 <#
 .SYNOPSIS
-    Syncs .claude and .github from the project repo into the global user home folders.
+    Syncs .claude from the project repo into the global user home folder.
 .DESCRIPTION
     Clean-replaces agents, rules, and skills subdirs in ~/.claude/ from the project.
-    Clean-replaces ~/.github/ from the project .github/ folder if it exists.
     Each synced subdir is removed then re-copied so deleted source files don't persist.
 .PARAMETER DryRun
     Print what would be copied without making changes.
