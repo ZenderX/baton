@@ -93,7 +93,7 @@ Call `sequentialthinking` to reason through trade-offs. These decisions are your
 
 Save to `.claude/agent-memory/implement-subagent/`: non-obvious implementation decisions, integration gotchas, and why-this-way choices that survive the diff — not fix recipes already visible in the code.
 
-**Mechanics:** bare slug filename (e.g., `db-connection-pooling.md`); tags: `type/implementation`, `topic/<x>`, `agent/implement-subagent`; `metadata.type: implementation`; cross-link with `[[slug]]`.
+**Mechanics:** bare slug filename (e.g., `db-connection-pooling.md`); tags: `type/implementation`, `topic/<x>`, `agent/implement-subagent`; `metadata.type: implementation`; `metadata.updated: <today's date, YYYY-MM-DD>`; cross-link with `[[slug]]`.
 
 ## When Finished
 

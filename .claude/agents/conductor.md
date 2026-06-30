@@ -127,7 +127,7 @@ After each subagent completes:
 
 Save to `.claude/agent-memory/conductor/`: cross-cutting insights that span multiple subagent outputs — architectural decisions made at the workflow level, patterns in how tasks recur, and why certain orchestration choices were made.
 
-**Mechanics:** bare slug filename (e.g., `auth-refactor-sequencing.md`); tags: `type/project`, `topic/<x>`, `agent/conductor`; `metadata.type: project`; cross-link with `[[slug]]`.
+**Mechanics:** bare slug filename (e.g., `auth-refactor-sequencing.md`); tags: `type/<kind>`, `topic/<x>`, `agent/conductor` (where `<kind>` matches the note's type: `user`/`feedback`/`project`/`reference`); `metadata.type: <kind>`; `metadata.updated: <today's date, YYYY-MM-DD>`; cross-link with `[[slug]]`.
 
 **Vault stewardship:** As the only agent with visibility across all subagent outputs, you own cross-cutting vault quality. Periodically run `pwsh scripts/memory-lint.ps1` (or invoke the `memory-review` skill) to surface broken links, orphans, and stale research. After multi-subagent workflows, cross-link related notes across agent folders — your vantage makes you the natural hub connector.
 

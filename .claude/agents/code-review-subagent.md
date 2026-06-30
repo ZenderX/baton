@@ -179,7 +179,7 @@ Flag missing tests on re-applied fixes as **Critical**. Flag missing tests on ne
 
 Save to `.claude/agent-memory/code-review-subagent/`: recurring defect patterns, project-specific quality bars, and what "good" looks like in this codebase — findings that make future reviews faster and more targeted.
 
-**Mechanics:** bare slug filename (e.g., `vue-reactivity-pitfalls.md`); tags: `type/review`, `topic/<x>`, `agent/code-review-subagent`; `metadata.type: review`; cross-link with `[[slug]]`.
+**Mechanics:** bare slug filename (e.g., `vue-reactivity-pitfalls.md`); tags: `type/review`, `topic/<x>`, `agent/code-review-subagent`; `metadata.type: review`; `metadata.updated: <today's date, YYYY-MM-DD>`; cross-link with `[[slug]]`.
 
 ## Constraints
 
