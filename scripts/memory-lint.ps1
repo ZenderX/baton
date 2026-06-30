@@ -339,6 +339,14 @@ foreach ($f in $allMdFiles) {
             # Unparseable date — MISSING-UPDATED already covers this case.
         }
     }
+
+    # --- Dirty check: optional metadata.dirty flag (non-blocking WARN; -Fix does not touch this) ---
+    $metaDirty = Get-NestedYamlValue $yaml 'metadata' 'dirty'
+    if ($metaDirty) {
+        $metaDirtyReason = Get-NestedYamlValue $yaml 'metadata' 'dirty_reason'
+        $reasonStr = if ($metaDirtyReason) { $metaDirtyReason } else { 'no reason recorded' }
+        $warnings.Add("DIRTY (since $metaDirty): $rel — flagged by memory-subagent; re-evaluate and re-link (reason: $reasonStr)")
+    }
 }
 
 # --- Orphan check: memory notes with no inbound AND no outbound wikilinks ---

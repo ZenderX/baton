@@ -41,6 +41,7 @@ For each flagged item, classify:
 |------|----------------|
 | `ORPHAN` | Check whether the note has value; if yes, cross-link to a related note or MEMORY.md; if not, prune with link-survival rule |
 | `STALE` | Read note; verify claim against current repo state; update body + `metadata.updated`, or prune |
+| `DIRTY` | Read note → verify against current repo state → re-link outbound links → clear the dirty flag (remove `dirty`/`dirty_reason` frontmatter keys and banner); or escalate if the content cannot be verified |
 | `MISSING-TAG` | Add missing tags; classify correctly |
 | `MISSING-UPDATED` | Set `metadata.updated` to today if the content is still accurate; otherwise prune |
 | `DUPLICATE-BASENAME` | Keep the more recent or more specific note (Rule 7); tombstone or delete the other |
@@ -57,6 +58,14 @@ git log --oneline -10
 
 If the memory is accurate: update `metadata.updated` to today.
 If it's outdated: update the body OR prune with the link-survival rule below.
+
+**Clearing a dirty flag:** When a note's claims are verified (or updated) and its outbound links are confirmed accurate, remove both the `dirty` and `dirty_reason` keys from the `metadata` block and remove the banner line from the top of the body:
+
+```
+> ⚠️ **DIRTY (since <YYYY-MM-DD>):** may be stale — re-evaluate against current state and re-link before relying on this. Reason: <reason>.
+```
+
+Update `metadata.updated` to today. Never clear without verifying.
 
 ### 4. Reconcile Contradictions
 
