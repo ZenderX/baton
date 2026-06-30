@@ -1,62 +1,39 @@
-# Claude Code Skills & Agents
+# Claude Code Agent Pattern Lab
 
-An isolated repository for developing and refining Claude Code agent patterns. The `.claude/` folder is the deployable artifact — copy it into any project to get the full workflow.
+An isolated lab for developing Claude Code agent patterns. `.claude/` is the deployable artifact — deploy it to any project via `sync-global.ps1`.
 
-## Purpose
+---
 
-Agent patterns are iterated here, in isolation from any specific codebase. When a pattern is stable, the `.claude/` folder (and optionally `CLAUDE.md`) is deployed to target projects. This separation keeps pattern development clean and prevents project-specific concerns from polluting the agent definitions.
+## Deploying (sync global)
 
-## Structure
-
-```
-Skills/
-├── CLAUDE.md                       # Workflow instructions (deployed with .claude/)
-├── .mcp.json                       # MCP server configuration (deploy as needed)
-└── .claude/
-    ├── agents/
-    │   ├── conductor.md            # Orchestrator — routes tasks to the right workflow tier
-    │   ├── planning-subagent.md    # Codebase research & architecture analysis
-    │   ├── research-subagent.md    # External-only research (no codebase involvement)
-    │   ├── implement-subagent.md   # Code generation & refactoring
-    │   └── code-review-subagent.md # Build/lint/test verification & quality review
-    └── skills/
-        ├── typescript/
-        │   └── SKILL.md            # TypeScript & Vue 3 coding standards
-        └── git-diff/
-            └── SKILL.md            # Structured git branch comparison
+```powershell
+pwsh scripts/sync-global.ps1
 ```
 
-## Deployment
+Clean-copies `.claude/{agents,rules,skills}` into `~/.claude/`. Each synced subdir is removed then re-copied, so deleted files don't persist in the destination.
 
-Copy `.claude/` and `CLAUDE.md` into the root of any target project:
+Run this after editing any agent, rule, or skill.
 
-```bash
-cp -r /absolute/path/to/baton/.claude /path/to/target-project/
-cp /absolute/path/to/baton/CLAUDE.md /path/to/target-project/
+**Does NOT sync:** `agent-memory/` (project-local vault) or `settings.json`.
+
+```powershell
+pwsh scripts/sync-global.ps1 -DryRun   # preview without applying
 ```
 
-Deploy `.mcp.json` only if the target project does not already have one, or merge the server entries manually.
+---
 
-## Usage
-
-**Most tasks — run directly:**
-
-```bash
-claude
-```
-
-Use the default session. Only escalate to the conductor when a task overflows a single context window or has genuinely independent parallel workstreams.
-
-**Complex or multi-phase tasks:**
+## Running
 
 ```bash
 claude --agent conductor
 ```
 
-**Direct subagent invocation:**
+The conductor is the **top-level agent** for all orchestrated work. It is invoked directly via the CLI — nothing spawns it from a default session.
+
+Direct subagent runs are fine for one-off tasks:
 
 ```bash
-claude --agent implement-subagent
+claude --agent research-subagent
 claude --agent planning-subagent
 ```
 
@@ -64,77 +41,104 @@ claude --agent planning-subagent
 
 ## Agents
 
-### Conductor
-
-Routes tasks to the lightest workflow that fits. Reads project files directly for routing decisions. Runs autonomously — surfaces decisions to the user only when a genuine architectural choice requires their input.
-
-**Workflow tiers (lightest first):**
-
-| Tier | When |
-|------|------|
-| **Single-agent** | Read-only answers and trivial actions only — anything that investigates or changes code is delegated |
-| **Direct delegation** | One self-contained task routed to a single subagent |
-| **Lightweight** | Reads key files, optional planning-subagent, implement → review |
-| **Full (parallel)** | Independent workstreams spawned in parallel via `run_in_background: true` |
-
-**Key design decisions:**
-- Reads project files directly — avoids a distillation layer for routing decisions
-- Delegates only large-output operations (test runs, log processing) to subagents
-- All file mutations go through subagents; conductor is read-only on project files
-- Cross-subagent state sharing via `task-state.md` on disk, not through the conductor's context
-
-### Planning Subagent
-
-Codebase researcher and architect. Searches files, reads code, analyzes patterns, and returns a structured findings report. Handles library documentation via Context7 — no separate research-subagent call needed for library questions.
-
-**MCP:** sequential-thinking, context7
-
-### Research Subagent
-
-External-only research: documentation, library evaluation, ecosystem comparisons, web sources. Invoke only when the task has no codebase involvement. For mixed tasks (codebase + library docs), planning-subagent covers both.
-
-**MCP:** context7, sequential-thinking
-
-### Implement Subagent
-
-Autonomous code writer. Executes implementation tasks from the conductor's brief, mirrors existing codebase patterns, verifies builds pass, and reports back. Has the TypeScript skill preloaded.
-
-**MCP:** context7, sequential-thinking  
-**Skills:** typescript
-
-### Code Review Subagent
-
-Invoked after each implementation phase. Runs the full verification suite (`build`, `type-check`, `lint`, `test`) and reviews code quality. Returns a structured verdict — `APPROVED`, `NEEDS_REVISION`, or `FAILED` — with specific file/line references. Never applies fixes.
-
-**MCP:** sequential-thinking, context7
+| Agent | Role |
+|-------|------|
+| **conductor** | Orchestrator. Blackboard model — holds the evolving task model, delegates to specialists in isolated contexts, distills results, proceeds autonomously. Entrypoint for Research → Planning → Implementation → Review. |
+| **planning-subagent** | Codebase analyst and architect. Reads the project, decomposes work, and produces a sequenced `task-plan.md`. Uses sequential-thinking. |
+| **research-subagent** | External research only (no codebase access). Covers library docs, API reference, web facts, latest versions. Uses context7 + sequential-thinking. |
+| **implement-subagent** | Autonomous code writer. Owns architectural decisions within each phase. Reads `task-plan.md`, implements, verifies. Uses context7 + sequential-thinking. Skills: bevy, rust, typescript, vue3. |
+| **code-review-subagent** | Post-implementation review. Verifies correctness, semantic integrity, and best practices. Returns `APPROVED`, `NEEDS_REVISION`, or `FAILED`. Never applies fixes. Uses context7 + sequential-thinking. Skills: git-diff, vue3, typescript, rust, bevy. |
 
 ---
 
 ## Skills
 
-### TypeScript
+Skills in `.claude/skills/` are loaded by subagents that declare them:
 
-Applied automatically to `**/*.ts`, `**/*.tsx`, `**/*.vue` files. Enforces strict TypeScript, Vue 3 `<script setup lang="ts">`, and project conventions.
+| Skill | Purpose |
+|-------|---------|
+| `bevy` | Bevy game engine patterns |
+| `blender` | Blender scripting conventions |
+| `git-diff` | Structured branch comparison |
+| `memory-review` | Vault accuracy review procedure |
+| `rust` | Rust coding standards |
+| `typescript` | TypeScript / Vue 3 coding standards |
+| `vue3` | Vue 3 component patterns |
 
-Invoke manually with `/typescript`.
+---
 
-### Git Diff
+## Memory (Obsidian vault)
 
-Structured branch comparison — commit log, file stats, scope assessment. Used by the conductor when assessing change scope.
+`.claude/agent-memory/` is a per-subagent memory vault browsable in Obsidian. Each subagent folder (`conductor/`, `implement-subagent/`, …) holds topic-slug notes with YAML frontmatter and wikilinks.
 
-Invoke with `/git-diff`.
+**Quick setup:** Install [Obsidian](https://obsidian.md), then **Open → Open folder as vault** and select `.claude/agent-memory/`. Open **Graph View** and enable **Filters → Tags** to see `type/*`, `topic/*`, and `agent/*` tag hubs connect notes across agent folders.
+
+### Opening & Configuring in Obsidian
+
+A step-by-step setup. Wikilinks resolve vault-wide across all subfolders, so cross-agent `[[links]]` connect in the graph.
+
+#### 1. Open the folder as a vault
+1. Install Obsidian (https://obsidian.md), then **Open → Open folder as vault**.
+2. Select `.claude/agent-memory/` (the folder itself — not the repo root, not a subagent folder). Each subagent folder (`conductor/`, `planning-subagent/`, …) becomes a group within the one vault.
+3. Obsidian writes a config folder at `.claude/agent-memory/.obsidian/`. If you don't want per-user UI state committed, add this to the repo's `.gitignore`:
+   ```
+   .claude/agent-memory/.obsidian/
+   ```
+
+#### 2. Files & Links settings  (Settings → Files and links)
+- **New link format:** `Shortest path when possible` — bare `[[topic-slug]]` resolves because filenames are unique vault-wide.
+- **Use Wikilinks:** ON (the double-bracket link style, not Markdown links).
+- **Default location for new notes:** `In the folder specified below` → set to the agent folder you're writing for (or leave default; the conductor/subagents set paths themselves).
+- **Detect all file extensions:** optional.
+
+#### 3. Graph View  (left ribbon "Graph view", or ⌘/Ctrl-G)
+Open **Graph settings** (the gear / the collapsible panels on the left of the graph), then:
+- **Filters → Tags: ON** — your `type/*`, `topic/*`, `agent/*` tags become **hub nodes**. The `topic/*` tags are the cross-cutting connectors that link subjects *across* agent folders — this is the "subject relation" view.
+- **Filters → Orphans:** toggle on/off to spot notes with no links (the linter also flags these).
+- **Filters → Existing files only:** ON hides unresolved "ghost" nodes; turn OFF to also see forward-links to not-yet-written notes.
+- **Groups → New group** (color-codes nodes; first match wins, so list specific queries above broad ones):
+  | Query | Effect |
+  |-------|--------|
+  | `path:conductor` | one color per agent folder (add one per folder) |
+  | `tag:#type/research` | one color per memory type |
+  | `tag:#topic/memory` | spotlight a subject cluster across folders |
+- **Display:** raise "Link thickness" / "Text fade threshold" to taste; the MEMORY.md index notes naturally appear as hubs.
+
+#### 4. Properties & Tags panes
+- Open the **Tags** core plugin pane (right sidebar) to browse the `type/ topic/ agent/` taxonomy and click a tag to filter.
+- The **Properties** view renders `tags`, `aliases`, `metadata.*` per note (Obsidian 1.4+).
+
+#### 5. Optional plugins (not required — `scripts/memory-lint.ps1` already does this deterministically)
+- *Find Unlinked Files* — orphan + broken-link report.
+- *Broken Links* — sidebar panel of unresolved links.
+
+> Note: memory is **project-local** by design (`sync-global.ps1` doesn't sync `agent-memory/`). Each project where you run the conductor gets its own `agent-memory/` vault — open each separately.
+
+**Tooling:**
+- `pwsh scripts/memory-lint.ps1` — deterministic linter: broken links, missing tags, stale research, MEMORY.md mismatches. Exits non-zero on integrity errors.
+- `.claude/skills/memory-review/` — judgment skill for accuracy review against current repo state. Run monthly or after major changes.
+
+Memory is project-local — `sync-global.ps1` does not sync it.
+
+---
+
+## Git Hygiene
+
+Agents never mutate git state. Enforced by three layers:
+
+1. **Rule** — `.claude/rules/git-hygiene.md` instructs all agents to treat git as read-only.
+2. **Deny list** — `permissions.deny` in `settings.json` hard-blocks mutating commands.
+3. **Hook** — `.claude/hooks/block-git-writes.ps1` PreToolUse hook provides a cross-platform backstop.
+
+Read-only git (`status`, `diff`, `log`, `blame`, `show`, `branch` listing) is fully allowed.
 
 ---
 
 ## MCP Servers
 
-Configured in `.mcp.json`.
+Configured in `.mcp.json`. Verify connections inside a session with `/mcp`.
 
-| Server | Transport | Purpose |
-|--------|-----------|---------|
-| `sequential-thinking` | stdio (`npx`) | Structured reasoning for planning and decomposition |
-| `context7` | HTTP | Up-to-date library and framework documentation |
-
-The `sequential-thinking` server requires Node.js and installs automatically via `npx`. The `context7` server is a remote HTTP endpoint — no local installation needed.
-
-Verify servers are connected inside a session with `/mcp`.
+| Server | Purpose |
+|--------|---------|
+| `sequential-thinking` | Structured reasoning for planning and decomposition |
+| `context7` | Up-to-date library and framework documentation |

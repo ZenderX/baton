@@ -84,4 +84,4 @@ Write the execution plan to `.claude/task-plan.md` before returning, then return
 
 Save to `.claude/agent-memory/planning-subagent/`: durable architectural insights, dependency-ordering gotchas, and facts about where logic lives that are not derivable from reading the code. Skip anything already obvious from the diff or file structure.
 
-**Mechanics:** filename = bare slug (e.g., `auth-flow-ordering.md`); frontmatter must include `tags: [type/planning, topic/<x>, agent/planning-subagent]` and `metadata.type: planning`; cross-link related notes with `[[slug]]`. Full spec: `.claude/agent-memory/_conventions.md`.
+**Mechanics:** bare slug filename (e.g., `auth-flow-ordering.md`); tags: `type/planning`, `topic/<x>`, `agent/planning-subagent`; `metadata.type: planning`; cross-link with `[[slug]]`.

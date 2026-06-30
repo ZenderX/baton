@@ -112,7 +112,7 @@ Return findings directly in your response to the invoker. Do not write to any fi
 
 Save to `.claude/agent-memory/research-subagent/`: durable external findings — library quirks, version facts, API behaviors — with source URL and retrieval date. Mark recency-sensitive facts by adding `decaying` to `tags:`; the linter flags them when stale.
 
-**Mechanics:** filename = bare slug (e.g., `obsidian-alias-resolution.md`); frontmatter must include `tags: [type/research, topic/<x>, agent/research-subagent]` and `metadata.type: research`; cross-link related notes with `[[slug]]`. Full spec: `.claude/agent-memory/_conventions.md`.
+**Mechanics:** bare slug filename (e.g., `obsidian-alias-resolution.md`); tags: `type/research`, `topic/<x>`, `agent/research-subagent`; `metadata.type: research`; cross-link with `[[slug]]`.
 
 ## Constraints
 
