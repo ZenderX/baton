@@ -18,20 +18,13 @@
       "Bash(git rm:*)",
       "Bash(git mv:*)",
       "Bash(git commit-tree:*)",
-      "Bash(git update-ref:*)"
-    ]
-  },
-  "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "pwsh -NoProfile -File \"$CLAUDE_PROJECT_DIR/.claude/hooks/block-git-writes.ps1\""
-          }
-        ]
-      }
+      "Bash(git update-ref:*)",
+      "Bash(git branch:*)",
+      "Bash(git tag:*)",
+      "Bash(git stash:*)",
+      "Bash(git worktree:*)",
+      "Bash(git remote:*)",
+      "Bash(git notes:*)"
     ]
   }
 }
