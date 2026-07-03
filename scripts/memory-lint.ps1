@@ -37,6 +37,12 @@ $TypePrefixPattern = '^(' + ($KnownPrefixes -join '|') + ')_(.+)$'
 # Metadata types that are subject to staleness checks.
 [string[]]$DecayingTypes = @('research')
 
+# Canonical topic/* vocabulary (see memory-write skill's Topic Selection section).
+# Non-canonical topics are a WARN, not a gate-blocking error.
+[string[]]$CanonicalTopics = @(
+    'agent-design', 'memory-system', 'enforcement', 'tooling', 'collaboration'
+)
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -284,6 +290,14 @@ foreach ($f in $allMdFiles) {
     if (-not $hasTypeTag)  { $warnings.Add("MISSING-TAG type/*: $rel") }
     if (-not $hasTopicTag) { $warnings.Add("MISSING-TAG topic/*: $rel") }
     if (-not $hasAgentTag) { $warnings.Add("MISSING-TAG agent/*: $rel") }
+
+    # --- Canonical topic vocabulary check ---
+    foreach ($topicTag in ($tags | Where-Object { $_ -match '^topic/' })) {
+        $topicName = $topicTag -replace '^topic/', ''
+        if ($topicName -notin $CanonicalTopics) {
+            $warnings.Add("TOPIC-UNKNOWN: $rel uses topic/$topicName not in canonical list")
+        }
+    }
 
     # --- Normalize inline tags [a, b] to list form (-Fix) ---
     if ($Fix -and @($tags).Count -gt 0 -and $yaml -match '(?m)^tags:\s*\[([^\]]+)\]') {

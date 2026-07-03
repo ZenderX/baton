@@ -45,6 +45,7 @@ For each flagged item, classify:
 | `MISSING-TAG` | Add missing tags; classify correctly |
 | `MISSING-UPDATED` | Set `metadata.updated` to today if the content is still accurate; otherwise prune |
 | `DUPLICATE-BASENAME` | Keep the more recent or more specific note (Rule 7); tombstone or delete the other |
+| `TOPIC-UNKNOWN` | Retag to a canonical topic/* from memory-write's Topic Selection table; if the topic is genuinely new, confirm with the user before minting it |
 
 ### 3. Verify Against Repo State
 

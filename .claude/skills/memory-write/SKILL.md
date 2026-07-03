@@ -39,6 +39,27 @@ metadata:
 | `implementation` | `type/implementation` | Non-obvious implementation decisions, integration gotchas |
 | `research` | `type/research` | External library findings, version facts (add `decaying` tag; linter flags when stale) |
 | `review` | `type/review` | Recurring defect patterns, project-specific quality bars |
+| `hub` | `type/hub` | Topic hub note; links to all notes sharing its topic; lives in `topics/`, authored `agent/conductor` |
+
+## Topic Selection
+
+Reuse an existing topic before minting a new one. Grep current usage first:
+
+```bash
+grep -rh "topic/" .claude/agent-memory --include="*.md" | sort -u
+```
+
+Canonical vocabulary — one topic tag per note, chosen by primary subject:
+
+| Topic | Tag | Use when |
+|-------|-----|----------|
+| Agent design | `topic/agent-design` | Agent/subagent architecture, conductor patterns, prompts |
+| Memory system | `topic/memory-system` | The memory vault, skills, linter, propagation |
+| Enforcement | `topic/enforcement` | Permissions, deny-lists, hooks, hard guardrails |
+| Tooling | `topic/tooling` | Scripts, CLIs, build/sync tooling, repo mechanics |
+| Collaboration | `topic/collaboration` | User preferences, working style, workflow |
+
+Only mint a new `topic/<x>` if the note genuinely does not fit any of the above — check with the user if unsure.
 
 ## Body Structure
 
@@ -62,7 +83,7 @@ name: db-pooling
 description: Connection pool must stay below 20 — exceeded limit caused prod OOM in March.
 tags:
   - type/feedback
-  - topic/database
+  - topic/tooling
   - agent/implement-subagent
 metadata:
   type: feedback

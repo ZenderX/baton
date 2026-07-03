@@ -63,6 +63,14 @@ Before removing a note that has inbound links:
 
 Never hard-delete a note with inbound links without doing one of these first — broken links become `BROKEN-LINK` integrity errors that gate the linter.
 
+## Topic Hubs
+
+Every note links to its topic hub in `topics/`, and the hub links back to all its members — this star topology is what produces round, colorized clusters in the graph view.
+
+- When writing a new note, add a line at the end of its body pointing to its hub: `Topic hub: [[agent-design]]`.
+- Add the new note to that hub's bulleted member list (`[[wikilinks]]`) in `topics/`.
+- If the topic is new (not yet in the canonical list or no hub exists for it), create the hub note per the `memory-write` skill's `type/hub` schema and add it to `topics/MEMORY.md`.
+
 ## Constraints
 
 - Target must be a note basename — not a file path, not a heading anchor.
