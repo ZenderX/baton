@@ -63,13 +63,12 @@ Before removing a note that has inbound links:
 
 Never hard-delete a note with inbound links without doing one of these first — broken links become `BROKEN-LINK` integrity errors that gate the linter.
 
-## Topic Hubs
+## Topic Clustering
 
-Every note links to its topic hub in `topics/`, and the hub links back to all its members — this star topology is what produces round, colorized clusters in the graph view.
+There are no hub files — clustering is emergent. Same-topic notes wikilink each other directly, and each `topic/<x>` tag renders as its own node in the graph view (tag nodes are enabled), naturally pulling same-topic notes toward it.
 
-- When writing a new note, add a line at the end of its body pointing to its hub: `Topic hub: [[agent-design]]`.
-- Add the new note to that hub's bulleted member list (`[[wikilinks]]`) in `topics/`.
-- If the topic is new (not yet in the canonical list or no hub exists for it), create the hub note per the `memory-write` skill's `type/hub` schema and add it to `topics/MEMORY.md`.
+- When writing or updating a note, check its `topic/*` tag and add a `[[wikilink]]` to (or from) at least one other note sharing that topic.
+- A well-chosen topic tag plus one same-topic link is enough to keep a note connected to its cluster — no star topology or dedicated hub note required.
 
 ## Constraints
 

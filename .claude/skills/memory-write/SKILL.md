@@ -39,27 +39,16 @@ metadata:
 | `implementation` | `type/implementation` | Non-obvious implementation decisions, integration gotchas |
 | `research` | `type/research` | External library findings, version facts (add `decaying` tag; linter flags when stale) |
 | `review` | `type/review` | Recurring defect patterns, project-specific quality bars |
-| `hub` | `type/hub` | Topic hub note; links to all notes sharing its topic; lives in `topics/`, authored `agent/conductor` |
 
 ## Topic Selection
 
-Reuse an existing topic before minting a new one. Grep current usage first:
+Topics are dynamic, not a fixed vocabulary. Before tagging, survey what's already in use:
 
 ```bash
 grep -rh "topic/" .claude/agent-memory --include="*.md" | sort -u
 ```
 
-Canonical vocabulary — one topic tag per note, chosen by primary subject:
-
-| Topic | Tag | Use when |
-|-------|-----|----------|
-| Agent design | `topic/agent-design` | Agent/subagent architecture, conductor patterns, prompts |
-| Memory system | `topic/memory-system` | The memory vault, skills, linter, propagation |
-| Enforcement | `topic/enforcement` | Permissions, deny-lists, hooks, hard guardrails |
-| Tooling | `topic/tooling` | Scripts, CLIs, build/sync tooling, repo mechanics |
-| Collaboration | `topic/collaboration` | User preferences, working style, workflow |
-
-Only mint a new `topic/<x>` if the note genuinely does not fit any of the above — check with the user if unsure.
+Reuse an existing `topic/<x>` when one reasonably fits. Mint a new `topic/<x>` only when none does — one topic tag per note. Don't agonize over the perfect fit: the `memory-subagent` reconciles the taxonomy after each task (merging synonyms, cross-linking same-topic notes), so a reasonable choice now is enough.
 
 ## Body Structure
 

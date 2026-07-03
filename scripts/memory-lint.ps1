@@ -37,12 +37,6 @@ $TypePrefixPattern = '^(' + ($KnownPrefixes -join '|') + ')_(.+)$'
 # Metadata types that are subject to staleness checks.
 [string[]]$DecayingTypes = @('research')
 
-# Canonical topic/* vocabulary (see memory-write skill's Topic Selection section).
-# Non-canonical topics are a WARN, not a gate-blocking error.
-[string[]]$CanonicalTopics = @(
-    'agent-design', 'memory-system', 'enforcement', 'tooling', 'collaboration'
-)
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -179,6 +173,10 @@ $fixes         = [System.Collections.Generic.List[string]]::new()
 $integrityErrs = [System.Collections.Generic.List[string]]::new()
 $warnings      = [System.Collections.Generic.List[string]]::new()
 
+# Dynamic topic/* usage: topic name -> list of notes (rel paths) using it.
+# Topics are emergent (no canonical list) — this only tracks fragmentation, not validity.
+$topicNotes = @{}
+
 # ---------------------------------------------------------------------------
 # Phase A: Rename type_slug.md -> slug.md (-Fix only; report-only otherwise)
 # ---------------------------------------------------------------------------
@@ -291,12 +289,13 @@ foreach ($f in $allMdFiles) {
     if (-not $hasTopicTag) { $warnings.Add("MISSING-TAG topic/*: $rel") }
     if (-not $hasAgentTag) { $warnings.Add("MISSING-TAG agent/*: $rel") }
 
-    # --- Canonical topic vocabulary check ---
+    # --- Track topic/* usage for the fragmentation check (below the main loop) ---
     foreach ($topicTag in ($tags | Where-Object { $_ -match '^topic/' })) {
         $topicName = $topicTag -replace '^topic/', ''
-        if ($topicName -notin $CanonicalTopics) {
-            $warnings.Add("TOPIC-UNKNOWN: $rel uses topic/$topicName not in canonical list")
+        if (-not $topicNotes.ContainsKey($topicName)) {
+            $topicNotes[$topicName] = [System.Collections.Generic.List[string]]::new()
         }
+        $topicNotes[$topicName].Add($rel)
     }
 
     # --- Normalize inline tags [a, b] to list form (-Fix) ---
@@ -371,6 +370,16 @@ foreach ($note in $memoryNotes) {
     $hasIn  = $inbound.ContainsKey($bn)  -and $inbound[$bn].Count  -gt 0
     if (-not $hasOut -and -not $hasIn) {
         $warnings.Add("ORPHAN (no [[links]] in or out): $rel")
+    }
+}
+
+# --- Topic fragmentation check: a topic used by exactly one note, only meaningful ---
+# --- once the vault has more than one distinct topic to potentially consolidate into. ---
+if ($topicNotes.Keys.Count -gt 1) {
+    foreach ($entry in $topicNotes.GetEnumerator()) {
+        if ($entry.Value.Count -eq 1) {
+            $warnings.Add("TOPIC-SINGLETON: topic/$($entry.Key) used by only one note ($($entry.Value[0])) — consider reusing an existing topic or cross-linking")
+        }
     }
 }
 
