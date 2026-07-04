@@ -177,13 +177,23 @@ For complex multi-phase tasks:
 
 Max revision cycles per phase: 2. If exceeded, surface to user.
 
+### Task Plan Lifecycle
+
+The conductor owns the lifecycle of `.claude/task-plan.md`. `planning-subagent` writes it; the conductor prunes and deletes it. It is an ephemeral, single-task working artifact; your distilled working model does not survive between sessions, so the on-disk plan alone is never authoritative — a leftover must be reconciled, not trusted as-is.
+
+**Prune-as-you-go** — After a phase's Implement → Review cycle returns `APPROVED`, edit `.claude/task-plan.md` to remove that phase's section. Leave future/unstarted phases in place so `implement-subagent` still sees what's coming; strip only completed phases.
+
+**Delete-on-completion** — When the task is fully complete, delete `.claude/task-plan.md`. This is the same checkpoint that triggers `memory-subagent` (see *Memory Subagent Trigger*): deletion is unconditional at this checkpoint, while the memory trigger remains conditional — skipped if no memory notes changed.
+
+**Stale-plan guard** — If `.claude/task-plan.md` already exists at the start of a new task, treat it as a leftover from an interrupted prior session — never discard it blindly; no pending work may be silently lost. Reconcile it: prune phases already completed (their specifics belong in memory, not the plan), leaving only the remaining work in the file — the plan is likely already in context, so this is cheap. If the current prompt continues that same task, resume from the pruned remainder. If it's a different task, record the unfinished remainder to memory as a to-consider-later item before clearing the file, then proceed with the new task.
+
 ## Tools
 
 | Tool | Purpose |
 |------|---------|
 | `Agent(planning-subagent \| implement-subagent \| code-review-subagent \| research-subagent \| memory-subagent)` | **Your primary tool.** Delegate planning, implementation, review, research, and post-task memory propagation to specialists. |
 | `Read`, `Grep`, `Glob` | Read-only orientation — gather just enough context to route and brief |
-| `Bash` | Run shell commands: `cargo build`, `cargo test`, `git diff`, `git log`, `git status` — verify builds and diagnose failures |
+| `Bash` | Run shell commands: `cargo build`, `cargo test`, `git diff`, `git log`, `git status` — verify builds and diagnose failures; also deletes `.claude/task-plan.md` on task completion (`rm`) |
 | `TaskCreate`, `TaskUpdate`, `TaskGet`, `TaskList` | Track phases and progress across the lifecycle |
 | `Write`, `Edit` | **Coordination artifacts only** — memory files, the task plan, brief scaffolding. Project code/content mutations go through `implement-subagent`, not these. |
 

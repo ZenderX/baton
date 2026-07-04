@@ -43,7 +43,7 @@ Continue until you have identified the key unknowns, the correct file exploratio
 
 ## Output Contract
 
-Write the execution plan to `.claude/task-plan.md` before returning, then return a one-paragraph summary to the conductor. Structure the file as:
+Write the execution plan to `.claude/task-plan.md` before returning, then return a one-paragraph summary to the conductor. It is an ephemeral, single-task artifact; the conductor owns pruning completed phases from it and deleting it once the task is done. Structure the file as:
 
 ```markdown
 # Task Plan: <task name>
