@@ -136,12 +136,15 @@ function Merge-JsonRepoAuthoritative {
 # Registers each server defined in the repo's .mcp.json into Claude Code's
 # user scope via `claude mcp add-json`, rather than writing ~/.claude.json
 # directly (it bundles OAuth/session/trust state and scripted writes to it
-# have documented corruption issues - see anthropics/claude-code#29056). The
-# CLI does its own safe read-merge-write and re-running is idempotent (it
-# updates the existing entry). Note: a project .mcp.json with a same-named
-# server shadows the user-scope entry entirely (precedence: local > project >
-# user), so this registration is a fallback baseline, not the active config,
-# whenever a project-level .mcp.json is also present.
+# have documented corruption issues - see anthropics/claude-code#29056).
+# `add-json` is NOT idempotent: it has no --force/update flag and exits 1 if
+# a same-name entry already exists in user scope. To make re-runs idempotent,
+# this function removes any existing user-scope entry first, then adds it
+# fresh (remove exits 1 when absent, which is expected and ignored). Note: a
+# project .mcp.json with a same-named server shadows the user-scope entry
+# entirely (precedence: local > project > user), so this registration is a
+# fallback baseline, not the active config, whenever a project-level
+# .mcp.json is also present.
 function Sync-McpServers {
     param(
         [string]$Source
@@ -170,9 +173,15 @@ function Sync-McpServers {
         $cmdDisplay = "claude mcp add-json $name '$serverJson' --scope user"
 
         if ($DryRun) {
+            Write-Host "  WOULD RUN  claude mcp remove $name --scope user"
             Write-Host "  WOULD RUN  $cmdDisplay"
             continue
         }
+
+        # add-json errors (exit 1) if a same-name user-scope entry already exists and
+        # offers no --force/update flag, so remove any existing one first to make
+        # re-runs idempotent. remove exits 1 when absent - intentionally ignored.
+        & claude mcp remove $name --scope user 2>&1 | Out-Null
 
         try {
             $output = & claude mcp add-json $name $serverJson --scope user 2>&1
