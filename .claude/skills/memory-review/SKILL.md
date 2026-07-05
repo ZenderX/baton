@@ -33,6 +33,8 @@ pwsh scripts/memory-lint.ps1 -Fix
 
 Then re-run in report mode and confirm exit 0 before proceeding.
 
+Note: `-Fix` also regenerates `.obsidian/graph.json`'s topic color groups automatically (one deterministic color per `topic/*` tag in use, ordered ahead of the static `type/*` fallback colors) — graph colorization requires no manual edits.
+
 ### 2. Triage the Linter Report
 
 For each flagged item, classify:
@@ -47,7 +49,15 @@ For each flagged item, classify:
 | `DUPLICATE-BASENAME` | Keep the more recent or more specific note (Rule 7); tombstone or delete the other |
 | `TOPIC-SINGLETON` | Judge: merge into an established topic (retag + cross-link) if it's a synonym/fragment; keep if genuinely emerging — then add a same-topic link when a second note arrives |
 
-### 3. Verify Against Repo State
+### 3. Fix Categorization
+
+The linter only checks that `type/*` and `topic/*` tags are *present* — it cannot judge whether they're *correct*. For every note flagged during triage, or otherwise touched during this review, verify categorization by reading the note:
+
+- **Type:** confirm `metadata.type`, the `type/*` tag, and the note's actual content all agree. If a note tagged `type/research` is really recording feedback (or vice versa), retag it — update the `type/*` tag and `metadata.type` together, and adjust `description` if it no longer matches the corrected type.
+- **Topic:** confirm the `topic/*` tag actually describes the content. If it's a synonym or near-duplicate of an established topic (e.g. `topic/state-mgmt` vs an existing `topic/state-management`), retag to the established topic rather than letting the taxonomy fragment — topics are emergent, so there's no fixed list to validate against, only consistency with what's already in use (see `TOPIC-SINGLETON` above).
+- After any retag, update `metadata.updated` to today.
+
+### 4. Verify Against Repo State
 
 For each note flagged as stale or any note whose claim seems load-bearing, verify it reflects current reality:
 
@@ -68,20 +78,20 @@ If it's outdated: update the body OR prune with the link-survival rule below.
 
 Update `metadata.updated` to today. Never clear without verifying.
 
-### 4. Reconcile Contradictions
+### 5. Reconcile Contradictions
 
 If two notes make conflicting claims about the same topic (Rule 7 — surface conflicts, don't average):
 1. Determine which is more recent or more battle-tested (check `metadata.updated`, git log).
 2. Keep the authoritative note; update it to acknowledge the resolved conflict.
 3. Tombstone the superseded note.
 
-### 5. Connect Orphans
+### 6. Connect Orphans
 
 Before pruning an orphan, check if it is genuinely valueless or just disconnected:
 - If valuable: add a `[[wikilink]]` from a related note, or add it to the folder's MEMORY.md.
 - If not valuable: prune with the link-survival rule.
 
-### 6. Prune with Link Survival
+### 7. Prune with Link Survival
 
 **Never hard-delete a note that has inbound `[[wikilinks]]` without doing one of these first:**
 
@@ -110,11 +120,11 @@ To find inbound links before pruning:
 grep -r "\[\[<slug>\]\]" .claude/agent-memory/
 ```
 
-### 7. Update MEMORY.md
+### 8. Update MEMORY.md
 
 After any note is added, renamed, or removed: update the folder's `MEMORY.md` to reflect the current state. The linter's `FILE-NOT-INDEXED` check will catch any missed entries on the next run.
 
-### 8. Final Lint
+### 9. Final Lint
 
 Run the linter once more to confirm the vault is clean:
 

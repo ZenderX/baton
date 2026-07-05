@@ -9,6 +9,9 @@
       - Rewrites the folder's MEMORY.md path links to match renamed files
       - Adds metadata.updated if absent from a note's metadata block
       - Normalizes tags from inline [a, b] form to YAML list form
+      - Regenerates .obsidian/graph.json colorGroups: one deterministic color per
+        topic/* tag in use (ordered first, matching Obsidian's first-match-wins
+        semantics), followed by the static type/* fallback groups
 
     All checks are idempotent: re-running -Fix on a clean vault produces zero changes.
 .PARAMETER Fix
@@ -36,6 +39,22 @@ $TypePrefixPattern = '^(' + ($KnownPrefixes -join '|') + ')_(.+)$'
 
 # Metadata types that are subject to staleness checks.
 [string[]]$DecayingTypes = @('research')
+
+# Static type-based graph.json colorGroups (fallback for notes without a topic/* tag).
+# Order matches the vault's existing graph.json layout. Obsidian colorGroups are
+# first-match-wins, so these must always be appended AFTER dynamic topic groups
+# (Phase E), never before.
+$StaticTypeColorGroups = @(
+    [PSCustomObject]@{ query = 'tag:#type/user';           color = [PSCustomObject]@{ a = 1; rgb = 15057019 } }
+    [PSCustomObject]@{ query = 'tag:#type/feedback';       color = [PSCustomObject]@{ a = 1; rgb = 14707829 } }
+    [PSCustomObject]@{ query = 'tag:#type/project';        color = [PSCustomObject]@{ a = 1; rgb = 6402031 } }
+    [PSCustomObject]@{ query = 'tag:#type/reference';      color = [PSCustomObject]@{ a = 1; rgb = 5682882 } }
+    [PSCustomObject]@{ query = 'tag:#type/planning';       color = [PSCustomObject]@{ a = 1; rgb = 13007069 } }
+    [PSCustomObject]@{ query = 'tag:#type/implementation'; color = [PSCustomObject]@{ a = 1; rgb = 10011513 } }
+    [PSCustomObject]@{ query = 'tag:#type/research';       color = [PSCustomObject]@{ a = 1; rgb = 13736550 } }
+    [PSCustomObject]@{ query = 'tag:#type/review';         color = [PSCustomObject]@{ a = 1; rgb = 12472390 } }
+    [PSCustomObject]@{ query = 'tag:#type/tombstone';      color = [PSCustomObject]@{ a = 1; rgb = 6054768 } }
+)
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -126,6 +145,70 @@ function Get-MemoryIndexLinks([string]$content) {
     $ms = [regex]::Matches($content, '\[[^\]]+\]\(([^)]+\.md)\)')
     if ($ms.Count -eq 0) { return @() }
     return @($ms | ForEach-Object { $_.Groups[1].Value.Trim() } | Select-Object -Unique)
+}
+
+function ConvertTo-RgbFromHsl([double]$Hue, [double]$Saturation, [double]$Lightness) {
+    <#
+    .SYNOPSIS Converts HSL (hue 0-359 degrees; saturation/lightness 0-1) to RGB.
+    .OUTPUTS Hashtable @{ R = <0-255>; G = <0-255>; B = <0-255> }
+    #>
+    $c      = (1 - [Math]::Abs(2 * $Lightness - 1)) * $Saturation
+    $hPrime = $Hue / 60.0
+    $x      = $c * (1 - [Math]::Abs(($hPrime % 2) - 1))
+    $m      = $Lightness - ($c / 2)
+
+    switch ([int][Math]::Floor($hPrime)) {
+        0       { $r1, $g1, $b1 = $c, $x, 0 }
+        1       { $r1, $g1, $b1 = $x, $c, 0 }
+        2       { $r1, $g1, $b1 = 0, $c, $x }
+        3       { $r1, $g1, $b1 = 0, $x, $c }
+        4       { $r1, $g1, $b1 = $x, 0, $c }
+        default { $r1, $g1, $b1 = $c, 0, $x }
+    }
+
+    return @{
+        R = [int][Math]::Round(($r1 + $m) * 255)
+        G = [int][Math]::Round(($g1 + $m) * 255)
+        B = [int][Math]::Round(($b1 + $m) * 255)
+    }
+}
+
+function Get-DeterministicTopicColor([string]$TopicName) {
+    <#
+    .SYNOPSIS Derives a stable graph.json color for a topic name: MD5(name) -> hue -> HSL -> packed RGB int.
+    MD5 is used (not .NET string GetHashCode(), which is randomized per process) so the same
+    topic name always yields the same color across runs and machines.
+    .OUTPUTS [PSCustomObject] shaped like graph.json's color object: { a = 1; rgb = <int> }
+    #>
+    $md5 = [System.Security.Cryptography.MD5]::Create()
+    try {
+        $hashBytes = $md5.ComputeHash([System.Text.Encoding]::UTF8.GetBytes($TopicName))
+    } finally {
+        $md5.Dispose()
+    }
+    # First two hash bytes -> hue in [0, 359]. ~65% saturation / 55% lightness keeps colors
+    # vivid but readable against the vault's dark graph background.
+    $hue    = ([int]$hashBytes[0] * 256 + [int]$hashBytes[1]) % 360
+    $rgb    = ConvertTo-RgbFromHsl -Hue $hue -Saturation 0.65 -Lightness 0.55
+    $packed = ($rgb.R * 65536) + ($rgb.G * 256) + $rgb.B
+    return [PSCustomObject]@{ a = 1; rgb = $packed }
+}
+
+function Test-ColorGroupsEqual($Current, $Expected) {
+    <#
+    .SYNOPSIS Structural (not string) comparison of two colorGroups arrays: same length,
+    same query + color.a + color.rgb per entry, in the same order.
+    #>
+    $c = @($Current)
+    $e = @($Expected)
+    if ($c.Count -ne $e.Count) { return $false }
+    for ($i = 0; $i -lt $e.Count; $i++) {
+        if ($null -eq $c[$i]) { return $false }
+        if ($c[$i].query -ne $e[$i].query) { return $false }
+        if ($c[$i].color.a -ne $e[$i].color.a) { return $false }
+        if ($c[$i].color.rgb -ne $e[$i].color.rgb) { return $false }
+    }
+    return $true
 }
 
 function Build-BasenameMap([System.IO.FileInfo[]]$files) {
@@ -412,6 +495,64 @@ foreach ($folder in $agentFolders) {
     foreach ($note in $folderNotes) {
         if ($note.Name -notin $indexedFiles) {
             $integrityErrs.Add("FILE-NOT-INDEXED: $rel/$($note.Name) missing from MEMORY.md")
+        }
+    }
+}
+
+# ---------------------------------------------------------------------------
+# Phase E: Graph colorGroups sync (topic-aware graph colorization)
+# ---------------------------------------------------------------------------
+# Obsidian colorGroups are first-match-wins, so dynamic topic/* groups (derived from
+# $topicNotes, built in Phase C) must precede the static type/* fallback groups.
+$graphJsonPath = Join-Path $VaultRoot '.obsidian' 'graph.json'
+
+if (-not (Test-Path $graphJsonPath)) {
+    $warnings.Add("GRAPH-MISSING: .obsidian/graph.json not found; skipping colorGroups sync")
+} else {
+    $graphObj = $null
+    try {
+        $graphObj = (Get-Content -Path $graphJsonPath -Raw -Encoding utf8) | ConvertFrom-Json
+    } catch {
+        $warnings.Add("GRAPH-INVALID: .obsidian/graph.json is not valid JSON; skipping colorGroups sync")
+    }
+
+    if ($graphObj) {
+        # Ordinal sort so topic ordering is identical across locales/machines.
+        $topicNames = [string[]]$topicNotes.Keys
+        [Array]::Sort($topicNames, [StringComparer]::Ordinal)
+
+        $expectedColorGroups = [System.Collections.Generic.List[object]]::new()
+        foreach ($topicName in $topicNames) {
+            $expectedColorGroups.Add([PSCustomObject]@{
+                query = "tag:#topic/$topicName"
+                color = Get-DeterministicTopicColor $topicName
+            })
+        }
+        foreach ($staticGroup in $StaticTypeColorGroups) { $expectedColorGroups.Add($staticGroup) }
+
+        # Guard property access: StrictMode throws PropertyNotFoundException if valid JSON
+        # simply lacks a colorGroups key. Treat "key absent" as empty (flows into GRAPH-DESYNC/-Fix).
+        $hasColorGroupsProp = $graphObj.PSObject.Properties.Name -contains 'colorGroups'
+        $currentColorGroups = if ($hasColorGroupsProp) { @($graphObj.colorGroups) } else { @() }
+
+        if (-not (Test-ColorGroupsEqual $currentColorGroups $expectedColorGroups)) {
+            if ($Fix) {
+                # Direct assignment throws under StrictMode when the key is absent, but when
+                # it IS present, Add-Member -Force would relocate it to the end of the property
+                # list (needless key-order churn). Only fall back to Add-Member when absent.
+                if ($hasColorGroupsProp) {
+                    $graphObj.colorGroups = $expectedColorGroups.ToArray()
+                } else {
+                    $graphObj | Add-Member -MemberType NoteProperty -Name 'colorGroups' -Value $expectedColorGroups.ToArray() -Force
+                }
+                # Trailing newline preserves the hand-authored-file convention; comparison
+                # above is structural, so this does not affect idempotency.
+                $newJson = ($graphObj | ConvertTo-Json -Depth 10) + "`n"
+                Set-Content -Path $graphJsonPath -Value $newJson -Encoding utf8NoBOM -NoNewline
+                $fixes.Add("GRAPH-SYNC: regenerated colorGroups ($($topicNames.Count) topic group(s) + $($StaticTypeColorGroups.Count) type group(s))")
+            } else {
+                $warnings.Add("GRAPH-DESYNC: graph.json colorGroups out of sync with vault topics (run -Fix to regenerate)")
+            }
         }
     }
 }
