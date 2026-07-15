@@ -84,4 +84,4 @@ Write the execution plan to `.claude/task-plan.md` before returning, then return
 
 Save to `.claude/agent-memory/planning-subagent/`: durable architectural insights, dependency-ordering gotchas, and facts about where logic lives that are not derivable from reading the code. Skip anything already obvious from the diff or file structure.
 
-**Mechanics:** bare slug filename (e.g., `auth-flow-ordering.md`); tags: `type/planning`, `topic/<x>`, `agent/planning-subagent`; `metadata.type: planning`; `metadata.updated: <today's date, YYYY-MM-DD>`; cross-link with `[[slug]]`. Write via the `memory-write` skill; link via the `obsidian-links` skill.
+**Mechanics:** bare slug filename (e.g., `auth-flow-ordering.md`); tags: `type/planning`, `topic/<x>`, `agent/planning-subagent`; `metadata.type: planning`; `metadata.updated: <today's date, YYYY-MM-DD>`; cross-link with `[[slug]]`. Follow the `memory-write` skill's conventions (`.claude/skills/memory-write/SKILL.md`, or `~/.claude/skills/` when running outside this repo); same for linking, per `obsidian-links`.
