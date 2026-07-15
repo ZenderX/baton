@@ -93,6 +93,23 @@ $GraphPreserveKeys = @(
     'scale', 'close', 'textFadeMultiplier', 'nodeSizeMultiplier'
 )
 
+function ConvertTo-Hashtable {
+    param([Parameter(ValueFromPipeline)]$InputObject)
+    process {
+        if ($null -eq $InputObject) { return $null }
+        if ($InputObject -is [System.Collections.IEnumerable] -and $InputObject -isnot [string]) {
+            $col = @(); foreach ($i in $InputObject) { $col += ConvertTo-Hashtable $i }
+            return ,$col
+        }
+        if ($InputObject -is [PSCustomObject]) {
+            $h = @{}
+            foreach ($p in $InputObject.PSObject.Properties) { $h[$p.Name] = ConvertTo-Hashtable $p.Value }
+            return $h
+        }
+        return $InputObject
+    }
+}
+
 function Merge-JsonRepoAuthoritative {
     param(
         [string]$Source,
@@ -106,11 +123,11 @@ function Merge-JsonRepoAuthoritative {
     }
 
     # Repo copy is authoritative, including deletions: start from it as-is.
-    $merged = Get-Content -Raw -Path $Source | ConvertFrom-Json -AsHashtable
+    $merged = Get-Content -Raw -Path $Source | ConvertFrom-Json | ConvertTo-Hashtable
 
     # Carry over only the preserve-listed machine-local keys from the deployed copy.
     if (Test-Path $Destination) {
-        $deployed = Get-Content -Raw -Path $Destination | ConvertFrom-Json -AsHashtable
+        $deployed = Get-Content -Raw -Path $Destination | ConvertFrom-Json | ConvertTo-Hashtable
         foreach ($key in $PreserveKeys) {
             if ($deployed.ContainsKey($key)) {
                 $merged[$key] = $deployed[$key]
@@ -160,7 +177,7 @@ function Sync-McpServers {
         return $true
     }
 
-    $config = Get-Content -Raw -Path $Source | ConvertFrom-Json -AsHashtable
+    $config = Get-Content -Raw -Path $Source | ConvertFrom-Json | ConvertTo-Hashtable
     $servers = $config['mcpServers']
     if (-not $servers -or $servers.Count -eq 0) {
         Write-Host "  SKIP  $Source (no mcpServers defined)"
@@ -184,8 +201,24 @@ function Sync-McpServers {
         & claude mcp remove $name --scope user 2>&1 | Out-Null
 
         try {
-            $output = & claude mcp add-json $name $serverJson --scope user 2>&1
-            $exitCode = $LASTEXITCODE
+            # PS5.1 strips inner quotes from JSON when passing to native executables.
+            # ProcessStartInfo lets us set the raw command line directly, bypassing that.
+            # The JSON argument must also be wrapped in double-quotes with inner quotes
+            # escaped as \" so Windows CRT argument parsing keeps them intact.
+            $claudeExe = (Get-Command 'claude' -ErrorAction Stop).Source
+
+            $escapedJson = '"' + $serverJson.Replace('"', '\"') + '"'
+            $psi = [System.Diagnostics.ProcessStartInfo]::new($claudeExe)
+            $psi.Arguments = "mcp add-json $name $escapedJson --scope user"
+            $psi.RedirectStandardOutput = $true
+            $psi.RedirectStandardError  = $true
+            $psi.UseShellExecute = $false
+            $proc = [System.Diagnostics.Process]::Start($psi)
+            $stdout = $proc.StandardOutput.ReadToEnd()
+            $stderr = $proc.StandardError.ReadToEnd()
+            $proc.WaitForExit()
+            $output = ($stdout + $stderr).Trim() -split "`n"
+            $exitCode = $proc.ExitCode
         } catch {
             $output = $_.Exception.Message
             $exitCode = 1
