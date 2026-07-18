@@ -1,0 +1,8 @@
+{
+  "name": "conductor-core",
+  "description": "Conductor orchestrator + 5 subagents (planning, research, implement, code-review, memory) with their preloaded skills and MCP servers.",
+  "author": {
+    "name": "Z3nder",
+    "email": "7001657+ZenderX@users.noreply.github.com"
+  }
+}

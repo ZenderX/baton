@@ -122,13 +122,96 @@ Memory is project-local — `sync-global.ps1` does not sync it.
 
 ---
 
+## Installing via the Plugin Marketplace (for friends)
+
+This repo also ships as a private Claude Code plugin marketplace (`.claude-plugin/marketplace.json`, name `skills-marketplace`), so friends can install the conductor pattern and domain skills without cloning and running `sync-global.ps1` themselves.
+
+**Prerequisite:** the rules-delivery hook (below) is a `pwsh` script, so friends need **PowerShell 7** installed — https://aka.ms/pwsh.
+
+**Add the marketplace, then install plugins:**
+
+```
+/plugin marketplace add <owner>/<repo>
+/plugin install conductor-core@skills-marketplace
+/plugin install bevy@skills-marketplace
+/plugin install blender@skills-marketplace
+/plugin install rust@skills-marketplace
+/plugin install typescript@skills-marketplace
+/plugin install vue3@skills-marketplace
+```
+
+(`<owner>/<repo>` is this repository's GitHub path; a local checkout path also works with `/plugin marketplace add /absolute/path/to/baton`.)
+
+Plugin entries in `marketplace.json` omit `version` — git-source plugins float with the repo, so every commit is a new version. Refresh installed plugins after upstream changes with:
+
+```
+/plugin marketplace update skills-marketplace
+```
+
+**Plugins shipped:**
+
+| Plugin | Contents |
+|--------|----------|
+| `conductor-core` | conductor + 5 subagents, their 8 preloaded skills (incl. `git-diff`), the `SessionStart` rules-delivery hook, and `.mcp.json` (`sequential-thinking`, `context7`) |
+| `bevy` | Bevy skill — standalone, no agents |
+| `blender` | Blender (bevy_skein) skill — standalone, no agents |
+| `rust` | Rust skill — standalone, no agents |
+| `typescript` | TypeScript skill — standalone, no agents |
+| `vue3` | Vue 3 skill — standalone, no agents |
+
+Which plugins are enabled lives in `enabledPlugins` in your own `settings.json` — this is machine-local config, the same preserve-listed key `sync-global.ps1` already carries across resyncs on this machine (see [Deploying](#deploying-sync-global)), so installing plugins here doesn't interact with that script at all.
+
+**Running the conductor** once `conductor-core` is installed is the same top-level invocation as above: `claude --agent conductor`. If a project- or user-level agent of the same name shadows the plugin's, scope it explicitly: `claude --agent conductor-core:conductor`.
+
+**Rules still apply, but travel differently.** Plugins can't carry `.claude/rules/` or `CLAUDE.md` directly, so `conductor-core` ships a `SessionStart` hook that emits `.claude/rules/engineering-rules.md` and `.claude/rules/git-hygiene.md` as injected context on every session start — friends get the same rules with no extra setup, provided PowerShell 7 (above) is present.
+
+**Permissions can't ship in a plugin either** — a plugin's own `settings.json` only supports `agent`/`subagentStatusLine` keys, not `permissions.deny`. Friends who want the deterministic git-mutation guard (not just the advisory rule) need to add this block to their own `~/.claude/settings.json` (or a project `settings.json`) themselves — copied verbatim from this repo's `.claude/settings.json`:
+
+```json
+{
+  "permissions": {
+    "deny": [
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(git pull:*)",
+      "Bash(git fetch:*)",
+      "Bash(git reset:*)",
+      "Bash(git restore:*)",
+      "Bash(git checkout:*)",
+      "Bash(git switch:*)",
+      "Bash(git rebase:*)",
+      "Bash(git merge:*)",
+      "Bash(git cherry-pick:*)",
+      "Bash(git revert:*)",
+      "Bash(git clean:*)",
+      "Bash(git rm:*)",
+      "Bash(git mv:*)",
+      "Bash(git commit-tree:*)",
+      "Bash(git update-ref:*)",
+      "Bash(git branch:*)",
+      "Bash(git tag:*)",
+      "Bash(git stash:*)",
+      "Bash(git worktree:*)",
+      "Bash(git remote:*)",
+      "Bash(git notes:*)"
+    ]
+  }
+}
+```
+
+**Sending memory back upstream.** Friends running the conductor from a plain plugin install (no local `.claude-plugin/marketplace.json` + `scripts/sync-global.ps1` — i.e. not this canonical workbench) aren't able to promote memory notes into agent/skill/rule files directly. Instead, candidate promotions accumulate locally in `~/.claude/agent-memory/promotion-queue/` (mechanics documented in `.claude/skills/memory-review/SKILL.md`). Send those upstream by opening an issue or PR against this repo — the workbench drains the queue on its next memory review.
+
+---
+
 ## Git Hygiene
 
-Agents never mutate git state. Enforced by three layers:
+Agents never mutate git state. Enforced by two layers:
 
 1. **Rule** — `.claude/rules/git-hygiene.md` instructs all agents to treat git as read-only.
 2. **Deny list** — `permissions.deny` in `settings.json` hard-blocks mutating commands.
-3. **Hook** — `.claude/hooks/block-git-writes.ps1` PreToolUse hook provides a cross-platform backstop.
+
+There is no PreToolUse hook backstop — a prior `.claude/hooks/block-git-writes.ps1` hook was removed; the deny list is the sole deterministic enforcement layer, backed by the advisory rule.
 
 Read-only git (`status`, `diff`, `log`, `blame`, `show`, `branch` listing) is fully allowed.
 

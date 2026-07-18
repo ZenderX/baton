@@ -1,0 +1,40 @@
+{
+  "name": "skills-marketplace",
+  "owner": {
+    "name": "Z3nder",
+    "email": "7001657+ZenderX@users.noreply.github.com"
+  },
+  "description": "Private marketplace for the conductor/subagent orchestration pattern and its domain skills (Bevy, Rust, TypeScript, Vue3, Blender).",
+  "plugins": [
+    {
+      "name": "conductor-core",
+      "source": "./plugins/conductor-core",
+      "description": "Conductor orchestrator + 5 subagents (planning, research, implement, code-review, memory) with their preloaded skills and MCP servers."
+    },
+    {
+      "name": "bevy",
+      "source": "./plugins/bevy",
+      "description": "Bevy 0.18.1 ECS conventions, plugin architecture, and gameplay patterns. Apply when writing or reviewing Bevy game code."
+    },
+    {
+      "name": "blender",
+      "source": "./plugins/blender",
+      "description": "Blender-to-Bevy workflow conventions using bevy_skein 0.5. Apply when writing code that integrates with Blender or uses bevy_skein."
+    },
+    {
+      "name": "rust",
+      "source": "./plugins/rust",
+      "description": "Rust coding standards and conventions. Apply when writing or reviewing Rust files."
+    },
+    {
+      "name": "typescript",
+      "source": "./plugins/typescript",
+      "description": "TypeScript coding standards. Apply when writing or reviewing TypeScript or TSX files."
+    },
+    {
+      "name": "vue3",
+      "source": "./plugins/vue3",
+      "description": "Vue 3 coding standards with Composition API, Pinia, and TypeScript. Apply when writing or reviewing .vue files and Vue-related composables."
+    }
+  ]
+}
