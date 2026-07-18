@@ -124,7 +124,19 @@ grep -r "\[\[<slug>\]\]" .claude/agent-memory/
 
 After any note is added, renamed, or removed: update the folder's `MEMORY.md` to reflect the current state. The linter's `FILE-NOT-INDEXED` check will catch any missed entries on the next run.
 
-### 9. Final Lint
+### 9. Promote Durable Memories (workbench only)
+
+Some memories outgrow the vault: a note that encodes durable, *generalizable* behavior — a user directive that applies in every project, a recurring operating tactic, an engineering lesson — belongs in an agent definition, skill, or rule, where it is loaded deterministically instead of recalled probabilistically. Project-specific facts, decaying research, and recurring-judgment heuristics (review bars, implementation gotchas) stay in the vault — that is what agent memory is for.
+
+For each note touched during review, ask: *would every future session in every project need this?* If yes, it is a promotion candidate.
+
+**Workbench guard — promotion may only edit files in the canonical workbench repo** (the repo that `scripts/sync-global.ps1` deploys FROM — identifiable by that script's presence alongside repo-authoritative `.claude/{agents,rules,skills}`). Agent/skill/rule files elsewhere are deployed copies; editing them forks the canonical source and would require reverse-centralization. In any other project, do NOT edit instruction files — instead record a `promotion-candidate` memory note (tag it `promotion-candidate`, name the target file) and surface it to the user to carry back to the workbench.
+
+After promoting in the workbench:
+1. Annotate the source note: add a line `**Promoted to `<target-file>` on <YYYY-MM-DD>**` and slim any body text now duplicated by the instruction — the note keeps the *why*/provenance, the instruction carries the behavior. Never leave the full text in both places (drift risk).
+2. Remind the human to run `pwsh scripts/sync-global.ps1` so the promoted instruction actually deploys.
+
+### 10. Final Lint
 
 Run the linter once more to confirm the vault is clean:
 
@@ -160,3 +172,4 @@ Return a change summary:
 - Never overwrite a note's body based solely on the linter output — verify against repo state first.
 - When uncertain whether a memory is stale, update `metadata.updated` and add a note in the body rather than pruning.
 - Do not prune a note merely because it is old; prune when it is inaccurate or superseded.
+- Never promote a memory into agent/skill/rule files outside the canonical workbench repo — flag a `promotion-candidate` note instead.

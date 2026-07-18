@@ -50,3 +50,8 @@ If you think a convention is harmful, surface it. Don't fork silently.
 "Completed" is wrong if anything was skipped silently.
 "Tests pass" is wrong if any were skipped.
 Default to surfacing uncertainty, not hiding it.
+
+## Rule 13 — A tool failing under your harness is not a broken tool
+If a script/CLI crashes only when YOU spawn it, say so plainly and move on.
+Never declare the user's tooling broken, and never rewrite it in another
+language to route around your own execution problem without explicit approval.
