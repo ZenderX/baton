@@ -127,14 +127,45 @@ The MEMORY.md is the always-loaded index — never write full memory content the
 
 ## Clearing a Dirty Flag
 
-If the note you are rewriting was previously flagged dirty, clear both artifacts once you have verified the content against current repo state:
+If the note you are rewriting was previously flagged dirty, clear both artifacts once you have verified the content against current repo state. This is the inverse of the flagging operation in `memory-subagent` §3 — same two regions of the file, both edits reversed in the same pass.
+
+Before (a correctly dirty-flagged note):
+
+```yaml
+---
+name: some-note
+metadata:
+  type: project
+  updated: 2026-07-20
+  dirty: 2026-07-26
+  dirty_reason: "neighbor [[changed-slug]] changed on 2026-07-26"
+---
+> ⚠️ **DIRTY (since 2026-07-26):** may be stale — re-evaluate against current state and re-link before relying on this. Reason: neighbor [[changed-slug]] changed on 2026-07-26.
+
+Existing body text, now re-verified.
+```
+
+After (both `dirty` keys removed from `metadata:`, the banner line removed from the body, `updated` bumped — the closing `---` is untouched throughout):
+
+```yaml
+---
+name: some-note
+metadata:
+  type: project
+  updated: 2026-07-26
+---
+
+Existing body text, now re-verified.
+```
+
+Steps:
 
 1. Remove `dirty: <date>` and `dirty_reason: "..."` from the `metadata` block.
 2. Remove the banner line from the top of the body:
    `> ⚠️ **DIRTY (since <YYYY-MM-DD>):** may be stale — re-evaluate against current state and re-link before relying on this. Reason: <reason>.`
 3. Update `metadata.updated` to today.
 
-Never clear a dirty flag without actually verifying the note's claims reflect current state.
+Never clear a dirty flag without actually verifying the note's claims reflect current state. Never leave the banner line inside the `metadata:` block or half-removed — both artifacts come out together, or neither does.
 
 ## Constraints
 

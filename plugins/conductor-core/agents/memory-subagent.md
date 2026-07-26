@@ -29,7 +29,7 @@ Run the linter every invocation, before anything else:
 pwsh scripts/memory-lint.ps1
 ```
 
-It is read-only — detects and reports, never moves, creates, or deletes. If it reports zero `STRAY-LOCATION` lines (or legacy `CONFLICT-UNRESOLVED`/`CONFLICT-INDEXED` tripwires — pre-2026-07-26 artifacts, no longer produced), there's nothing to do here; proceed to step 1. Otherwise, integrate each one by hand — moving a handful of files is well within Bash/Read/Edit's means, and safer than dormant automation:
+It is read-only — detects and reports, never moves, creates, or deletes. If it reports zero `STRAY-LOCATION` lines, there's nothing to do here; proceed to step 1. Otherwise, integrate each one by hand — moving a handful of files is well within Bash/Read/Edit's means, and safer than dormant automation:
 
 - Read the stray note. Check whether a canonical note with the same slug already exists in its `conductor-core-<agent-name>/` folder (roster derived from `plugins/conductor-core/agents/*.md` frontmatter, `memory: project` only, never hardcoded).
 - **Collision (canonical exists):** canonical always wins. Read both, distill only genuinely new content into canonical, and mark it dirty (reason: "distilled from stray `<path>`"). If they genuinely contradict, canonical still keeps the file — record the superseded claim as a dated correction line plus `supersedes:` per `memory-write`'s invalidate-don't-delete rule. Never judge contradiction by embedding similarity (near chance) — read both, decide.
@@ -66,22 +66,66 @@ For each neighbor in the blast radius:
 
 - **Skip** if the neighbor is itself one of the changed notes (changed notes are the fresh source of truth — never flag them).
 - **Skip** if the note already has `metadata.dirty` in its frontmatter (idempotent — do not re-flag or update the date).
-- **Otherwise**, apply two edits to the neighbor file:
+- **Otherwise**, apply two edits to the neighbor file **in the same pass**: add two keys to `metadata:`, AND insert a banner line as the first line of the body. Both edits land in different regions of the file — see the depiction below before touching anything.
 
-**Frontmatter addition** (inside the `metadata:` block, after `updated:`):
+**The two edits, shown together on the same file.** This is the whole point: the closing `---` must be visible *between* the frontmatter edit and the banner edit in one frame, so it's unambiguous which side of the delimiter each one belongs on.
+
+Before (an untouched neighbor note):
 
 ```yaml
-  dirty: <today-YYYY-MM-DD>
-  dirty_reason: "neighbor [[<changed-slug>]] changed on <today-YYYY-MM-DD>"
+---
+name: some-neighbor-note
+description: ...
+tags:
+  - type/project
+  - topic/x
+  - agent/y
+metadata:
+  type: project
+  updated: 2026-07-20
+---
+
+Existing body text starts here, untouched.
 ```
 
-**Body banner** (insert as the very first line after the closing `---` of frontmatter):
+After (both edits applied — frontmatter gets two new keys, the closing `---` is unchanged and stays the last line of frontmatter, and the banner becomes the first line of the BODY, immediately after that closing `---`, no blank line in between):
 
-```
-> ⚠️ **DIRTY (since <YYYY-MM-DD>):** may be stale — re-evaluate against current state and re-link before relying on this. Reason: <reason>.
+```yaml
+---
+name: some-neighbor-note
+description: ...
+tags:
+  - type/project
+  - topic/x
+  - agent/y
+metadata:
+  type: project
+  updated: 2026-07-20
+  dirty: 2026-07-26
+  dirty_reason: "neighbor [[changed-slug]] changed on 2026-07-26"
+---
+> ⚠️ **DIRTY (since 2026-07-26):** may be stale — re-evaluate against current state and re-link before relying on this. Reason: neighbor [[changed-slug]] changed on 2026-07-26.
+
+Existing body text starts here, untouched.
 ```
 
-Where `<reason>` matches the `dirty_reason` value.
+**Never do this** (banner text landed inside the `metadata:` block, before the closing `---` — this is invalid YAML and is exactly the failure mode this section exists to prevent):
+
+```yaml
+---
+name: some-neighbor-note
+metadata:
+  type: project
+  updated: 2026-07-20
+  dirty: 2026-07-26
+
+> ⚠️ **DIRTY (since 2026-07-26):** may be stale — ...
+---
+
+Existing body text starts here, untouched.
+```
+
+`dirty_reason` is **never optional** — it must always be a non-empty string, and its text must match the banner's `Reason:` clause verbatim. In this workflow it is always mechanically derivable (`neighbor [[<changed-slug>]] changed on <today-YYYY-MM-DD>`), so there is no legitimate case where it should be blank or omitted. If a specific neighbor slug is ever genuinely unavailable, still write a non-empty generic reason (e.g. `"flagged during memory propagation pass on <today-YYYY-MM-DD>; specific trigger not recorded"`) rather than dropping the key — the linter's `DIRTY-MISSING-REASON` check treats an absent or empty value as a defect to report, every time.
 
 ### 4. Topic Stewardship
 

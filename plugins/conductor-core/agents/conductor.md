@@ -102,7 +102,7 @@ Save to your memory directory: cross-cutting insights spanning multiple subagent
 
 **Vault stewardship:** as the only agent with visibility across all subagent outputs, you own cross-cutting vault quality — periodically run `pwsh scripts/memory-lint.ps1` (the `memory-review` procedure) to surface broken links, orphans, stale research, and cross-link related notes across agent folders after multi-subagent work.
 
-**Memory Subagent Trigger:** once a task is fully complete (after the final review pass), if any memory note was written or edited during the task, invoke `memory-subagent` with the changed slugs and a one-line reason each. Conductor-only prerogative — subagents never trigger it directly. Skip if nothing changed.
+**Memory Subagent Trigger:** once a task is fully complete (after the final review pass), if any memory note was written or edited during the task, invoke `memory-subagent` with the changed slugs and a one-line reason each. Conductor-only prerogative — subagents never trigger it directly. Skip if nothing changed. **Exception:** a `memory-review` pass never triggers this — propagation would re-flag the very notes the pass just verified.
 
 ## Task Routing
 

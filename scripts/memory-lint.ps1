@@ -7,6 +7,9 @@
     Fix mode (-Fix): applies safe, deterministic auto-repairs:
       - Renames <type>_<slug>.md -> <slug>.md (anchored to known type-prefix list only)
       - Rewrites the folder's MEMORY.md path links to match renamed files
+      - Relocates a dirty banner line misplaced inside the frontmatter block back to the
+        body (see DIRTY-BANNER-IN-FRONTMATTER below) — the frontmatter/body split is
+        purely mechanical, so this repair is fully deterministic
       - Adds metadata.updated if absent from a note's metadata block
       - Normalizes tags from inline [a, b] form to YAML list form
       - Regenerates .obsidian/graph.json colorGroups: one deterministic color per
@@ -22,18 +25,23 @@
       - EXPIRED: metadata.expires is in the past
       - STALE-ORPHAN: metadata.updated older than -OrphanStaleDays AND zero inbound links
         (the two-factor combination; age alone is not flagged this way)
-      - NAME-MISMATCH: name: frontmatter disagrees with the filename (skips *.conflict.md —
-        see CONFLICT-UNRESOLVED, which owns that file and names the correct remedy)
+      - NAME-MISMATCH: name: frontmatter disagrees with the filename
       - TYPE-MISMATCH: metadata.type disagrees with the type/* tag
       - BROKEN-LINK-NAME: a [[wikilink]] target matches no note's declared name: field
         (gate-blocking, like BROKEN-LINK)
-      - CONFLICT-UNRESOLVED / CONFLICT-INDEXED: legacy tripwires only. As of 2026-07-26,
-        the former memory-consolidate.ps1's no-clobber transport no longer produces
-        *.conflict.md files — a colliding stray is left at its original path and reported
-        STRAY-LOCATION for memory-subagent step 0 to resolve by precedence (canonical wins)
-        instead. These checks now only catch a pre-existing artifact or a regression that
-        reintroduces one (gate-blocking; take precedence over FILE-NOT-INDEXED/NAME-MISMATCH,
-        which skip these files entirely). Remedy: distill into the canonical note, then delete.
+      - DIRTY-BANNER-IN-FRONTMATTER: the dirty banner line (inserted by memory-subagent
+        §3) landed before the frontmatter's closing --- instead of after it, corrupting
+        the YAML block (gate-blocking, like BROKEN-LINK; -Fix relocates it deterministically,
+        preserving the file's original CRLF/LF convention). Scope boundary: detection relies
+        on Get-FrontmatterBlock finding a closing ---; a note missing the closing delimiter
+        entirely returns an empty block and this check does not fire — no other check in this
+        script catches a missing closing delimiter either, so this is a known gap, not a bug.
+        -Fix also warns (MULTIPLE-DIRTY-BANNERS) if more than one stranded banner is found in
+        a single frontmatter block; only the last is kept, and the collapse is reported rather
+        than silent.
+      - DIRTY-MISSING-REASON: metadata.dirty is set but metadata.dirty_reason is absent or
+        empty (warning; never auto-fixed — inventing a reason is a judgment call, not a
+        mechanical repair)
       - STRAY-LOCATION: a note living outside the canonical folder structure — either a
         nested .claude directory anywhere beneath the vault root (the doubled-path
         signature: an older folder-move bug intermittently handed agents
@@ -85,6 +93,16 @@ $TypePrefixPattern = '^(' + ($KnownPrefixes -join '|') + ')_(.+)$'
 # Metadata types that are subject to staleness checks.
 [string[]]$DecayingTypes = @('research')
 
+# Dirty banner line, as inserted by memory-subagent §3 / cleared by memory-write's
+# "Clearing a Dirty Flag". Matched by both DIRTY-BANNER-IN-FRONTMATTER (detects it stranded
+# inside the YAML block, which corrupts frontmatter) and the -Fix relocation repair.
+# Deliberately tolerant of the date and the free-text reason varying — only the fixed
+# emoji/bold-DIRTY/since-date prefix is anchored, matching the byte-identical banner text
+# specified across memory-subagent, memory-write, and memory-review. No line anchors here:
+# the pattern is matched both against a single split line (Repair-DirtyBannerPlacement) and
+# as a substring test against the whole frontmatter blob (the Phase A2 detection below).
+$DirtyBannerLinePattern = '>\s*⚠️\s*\*\*DIRTY \(since \d{4}-\d{2}-\d{2}\):\*\*'
+
 # Static type-based graph.json colorGroups (fallback for notes without a topic/* tag).
 # Order matches the vault's existing graph.json layout. Obsidian colorGroups are
 # first-match-wins, so these must always be appended AFTER dynamic topic groups
@@ -108,12 +126,33 @@ $StaticTypeColorGroups = @(
 function Get-FrontmatterBlock([string]$content) {
     <#
     .SYNOPSIS Returns the raw YAML between the opening --- delimiters, or empty string.
+    Scope boundary: requires both an opening AND a closing ---. A note missing the closing
+    delimiter entirely returns '' here, so DIRTY-BANNER-IN-FRONTMATTER (and every other check
+    fed by this helper) silently does not fire on that file — a known gap, not a bug; see the
+    DIRTY-BANNER-IN-FRONTMATTER entry in this script's .DESCRIPTION for the full rationale.
     #>
     $m = [regex]::Match($content,
         '^---\r?\n([\s\S]*?)\r?\n---',
         [System.Text.RegularExpressions.RegexOptions]::Singleline)
     if ($m.Success) { return $m.Groups[1].Value }
     return ''
+}
+
+function Get-DominantEol([string]$content) {
+    <#
+    .SYNOPSIS Detects whether $content's dominant line-ending convention is CRLF or LF, by
+    counting CRLF pairs against standalone (non-CRLF) LFs. Used by Repair-DirtyBannerPlacement
+    so its reconstructed frontmatter/banner region is rebuilt using the SAME convention as the
+    rest of the file, instead of a hardcoded "`n" — a hardcoded choice would leave a CRLF-authored
+    note with a mixed-EOL file (LF in the repaired region, CRLF in the untouched body), which is
+    silently surprising in a git diff and outside this script's "safe, deterministic" bar.
+    .OUTPUTS [string] "`r`n" or "`n". Defaults to "`n" when the content has no CRLF pairs at all
+    (includes the no-line-breaks-whatsoever case).
+    #>
+    $crlfCount = ([regex]::Matches($content, "`r`n")).Count
+    $lfCount   = ([regex]::Matches($content, "(?<!`r)`n")).Count
+    if ($crlfCount -gt 0 -and $crlfCount -ge $lfCount) { return "`r`n" }
+    return "`n"
 }
 
 function Get-BodyText([string]$content) {
@@ -190,6 +229,53 @@ function Get-Wikilinks([string]$body) {
     $ms = [regex]::Matches($text, '\[\[([^\]|#\r\n]+)(?:\|[^\]]*)?\]\]')
     if ($ms.Count -eq 0) { return @() }
     return @($ms | ForEach-Object { $_.Groups[1].Value.Trim() } | Select-Object -Unique)
+}
+
+function Repair-DirtyBannerPlacement([string]$content, [string]$yaml, [string]$bannerPattern) {
+    <#
+    .SYNOPSIS Given a note's raw content and a frontmatter block containing a dirty banner
+    line stranded inside it, returns the repaired full file content: the banner line is
+    removed from the YAML block (along with one immediately-preceding blank line, the stray
+    gap the misplaced banner typically left behind) and re-inserted as the first line of the
+    body, immediately after the closing ---, matching the depiction in memory-subagent §3.
+    The reconstructed frontmatter/delimiter/banner region is rebuilt using $content's own
+    dominant EOL convention (see Get-DominantEol) rather than a hardcoded LF, so a CRLF-authored
+    note comes out fully CRLF instead of a mixed-EOL file — the untouched body already uses
+    that same convention, so this keeps the whole file on exactly one.
+    .OUTPUTS [PSCustomObject] { Content = <corrected full file content>;
+    BannerCount = <int, number of stranded banner lines found> }. BannerCount lets the caller
+    (Phase A2) warn when more than one banner was trapped in a single frontmatter block — only
+    the last match is kept as the relocated banner and any earlier ones are discarded, so a
+    count > 1 signals a silent-data-loss anomaly the caller should surface rather than repair.
+    #>
+    $eol        = Get-DominantEol $content
+    $yamlLines  = $yaml -split '\r?\n'
+    $cleanLines = [System.Collections.Generic.List[string]]::new()
+    $bannerLine  = $null
+    $bannerCount = 0
+    foreach ($line in $yamlLines) {
+        if ($line -match $bannerPattern) {
+            $bannerCount++
+            $bannerLine = $line.Trim()
+            if ($cleanLines.Count -gt 0 -and $cleanLines[$cleanLines.Count - 1].Trim() -eq '') {
+                $cleanLines.RemoveAt($cleanLines.Count - 1)
+            }
+            continue
+        }
+        $cleanLines.Add($line)
+    }
+    # Trim any trailing blank lines left in the frontmatter block after banner removal.
+    while ($cleanLines.Count -gt 0 -and $cleanLines[$cleanLines.Count - 1].Trim() -eq '') {
+        $cleanLines.RemoveAt($cleanLines.Count - 1)
+    }
+    $cleanYaml = ($cleanLines -join $eol)
+
+    # Drop leading blank lines from the original body — the banner supplies its own
+    # separator (a blank line after it), so we don't want a double gap.
+    $bodyText = (Get-BodyText $content) -replace '^(\r?\n)+', ''
+
+    $repaired = "---$eol$cleanYaml$eol---$eol$bannerLine$eol$eol$bodyText"
+    return [PSCustomObject]@{ Content = $repaired; BannerCount = $bannerCount }
 }
 
 function Get-MemoryIndexLinks([string]$content) {
@@ -449,6 +535,32 @@ if ($Fix) {
 }
 
 # ---------------------------------------------------------------------------
+# Phase A2: DIRTY-BANNER-IN-FRONTMATTER detection/relocation (gate-blocking)
+# ---------------------------------------------------------------------------
+# The dirty banner (inserted by memory-subagent §3) must live in the BODY, as the first
+# line after frontmatter's closing ---. If it instead landed inside the metadata: block,
+# the YAML is corrupted (a blockquote line inside a mapping is not valid YAML). This runs
+# as its own phase, before Phase C builds the wikilink graph, so that in -Fix mode the
+# relocated content — not the pre-repair corrupted content — is what Phase C actually sees.
+foreach ($note in ($memoryNotes | Sort-Object FullName)) {
+    $content = Get-Content -LiteralPath $note.FullName -Raw -Encoding utf8
+    $yaml    = Get-FrontmatterBlock $content
+    if ($yaml -notmatch $DirtyBannerLinePattern) { continue }
+
+    $rel = "$($note.Directory.Name)/$($note.Name)"
+    if ($Fix) {
+        $repairResult = Repair-DirtyBannerPlacement -content $content -yaml $yaml -bannerPattern $DirtyBannerLinePattern
+        Set-Content -Path $note.FullName -Value $repairResult.Content -Encoding utf8NoBOM -NoNewline
+        $fixes.Add("RELOCATED-DIRTY-BANNER: $rel")
+        if ($repairResult.BannerCount -gt 1) {
+            $warnings.Add("MULTIPLE-DIRTY-BANNERS: $rel — found $($repairResult.BannerCount) stranded dirty banner lines in one frontmatter block; only the last was kept, earlier one(s) were discarded (investigate manually)")
+        }
+    } else {
+        $integrityErrs.Add("DIRTY-BANNER-IN-FRONTMATTER: $rel — dirty banner text found inside the frontmatter block, corrupting YAML (run -Fix to relocate it to the body)")
+    }
+}
+
+# ---------------------------------------------------------------------------
 # Phase B: Duplicate basename detection (vault-wide integrity)
 # ---------------------------------------------------------------------------
 foreach ($entry in $basenameMap.GetEnumerator()) {
@@ -456,23 +568,6 @@ foreach ($entry in $basenameMap.GetEnumerator()) {
         $paths = $entry.Value -join ', '
         $integrityErrs.Add("DUPLICATE-BASENAME '[$($entry.Key)]' is ambiguous: $paths")
     }
-}
-
-# ---------------------------------------------------------------------------
-# Phase B2: Legacy conflict files (*.conflict.md) — gate-blocking, checked first
-# ---------------------------------------------------------------------------
-# As of 2026-07-26, memory-consolidate.ps1's no-clobber transport no longer creates
-# .conflict.md files: a colliding stray is left at its original path and reported PENDING
-# for memory-subagent step 0.5a to resolve by precedence (canonical wins), never renamed
-# into a competing artifact. This check is now a legacy tripwire only — it catches a
-# .conflict.md left over from before that change, or a regression that reintroduces one.
-# Flag it explicitly and up front so the generic per-note checks below (NAME-MISMATCH,
-# FILE-NOT-INDEXED) never run on these files and suggest the wrong remedy (renaming/indexing
-# a duplicate instead of distilling it away).
-$conflictNotes = @($memoryNotes | Where-Object { $_.Name -like '*.conflict.md' })
-foreach ($note in $conflictNotes) {
-    $rel = "$($note.Directory.Name)/$($note.Name)"
-    $integrityErrs.Add("CONFLICT-UNRESOLVED (legacy artifact, no longer produced by current tooling): $rel — distill its content into the canonical note, then delete this file")
 }
 
 # ---------------------------------------------------------------------------
@@ -537,15 +632,9 @@ foreach ($f in $allMdFiles) {
     $rel  = "$($f.Directory.Name)/$($f.Name)"
 
     # --- name: frontmatter must match the filename (memory-write schema invariant) ---
-    # Skipped for *.conflict.md: its name: field legitimately matches the CANONICAL note
-    # it collided with, not its own .conflict.md filename. CONFLICT-UNRESOLVED (Phase B2)
-    # already owns this file and names the correct remedy — flagging NAME-MISMATCH too
-    # would misdirect toward renaming instead of merging.
-    if ($f.Name -notlike '*.conflict.md') {
-        $nameField = Get-ScalarYamlValue $yaml 'name'
-        if ($nameField -and $nameField.ToLower() -ne $f.BaseName.ToLower()) {
-            $warnings.Add("NAME-MISMATCH: $rel declares name: '$nameField' but filename is '$($f.BaseName)'")
-        }
+    $nameField = Get-ScalarYamlValue $yaml 'name'
+    if ($nameField -and $nameField.ToLower() -ne $f.BaseName.ToLower()) {
+        $warnings.Add("NAME-MISMATCH: $rel declares name: '$nameField' but filename is '$($f.BaseName)'")
     }
 
     # --- Required tags ---
@@ -670,8 +759,18 @@ foreach ($f in $allMdFiles) {
     $metaDirty = Get-NestedYamlValue $yaml 'metadata' 'dirty'
     if ($metaDirty) {
         $metaDirtyReason = Get-NestedYamlValue $yaml 'metadata' 'dirty_reason'
-        $reasonStr = if ($metaDirtyReason) { $metaDirtyReason } else { 'no reason recorded' }
+        # Strip surrounding quotes before the emptiness check — dirty_reason is typically
+        # quoted (it contains a wikilink and punctuation), and Get-NestedYamlValue does not
+        # strip quotes the way Get-ScalarYamlValue does.
+        $reasonNormalized = if ($metaDirtyReason) { $metaDirtyReason.Trim().Trim('"').Trim("'") } else { $null }
+        $reasonStr = if ($reasonNormalized) { $reasonNormalized } else { 'no reason recorded' }
         $warnings.Add("DIRTY (since $metaDirty): $rel — flagged by memory-subagent; re-evaluate and re-link (reason: $reasonStr)")
+        if ([string]::IsNullOrWhiteSpace($reasonNormalized)) {
+            # Never auto-fixed: inventing a reason is a judgment call, and a fabricated
+            # reason is worse than an honest gap (see memory-subagent §3 / this script's
+            # .DESCRIPTION for why -Fix deliberately does not touch this).
+            $warnings.Add("DIRTY-MISSING-REASON: $rel — metadata.dirty is set but metadata.dirty_reason is absent or empty")
+        }
     }
 }
 
@@ -739,24 +838,16 @@ foreach ($folder in $agentFolders) {
     $folderNotes  = @(Get-ChildItem -Path $folder.FullName -Filter '*.md' -File |
                       Where-Object { $_.Name -ne 'MEMORY.md' })
 
-    # Every path in the index must resolve to a real file in this folder. A *.conflict.md
-    # target is a distinct defect from a dead link (the file DOES exist) — CONFLICT-INDEXED
-    # flags it separately: an index entry is a promise of a resolved, canonical note, and a
-    # conflict file is neither.
+    # Every path in the index must resolve to a real file in this folder.
     foreach ($linked in $indexedFiles) {
         $expectedPath = Join-Path $folder.FullName $linked
         if (-not (Test-Path $expectedPath)) {
             $integrityErrs.Add("INDEX-DEAD-LINK: $rel/MEMORY.md -> '$linked' (file not found)")
-        } elseif ($linked -like '*.conflict.md') {
-            $integrityErrs.Add("CONFLICT-INDEXED (legacy artifact, no longer produced by current tooling): $rel/MEMORY.md -> '$linked' — distill its content into the canonical note, then delete it and this index entry")
         }
     }
 
-    # Every note file in the folder must appear in the index — except *.conflict.md, which
-    # CONFLICT-UNRESOLVED (Phase B2) already owns; indexing one would cement the duplicate
-    # rather than merge it away, so FILE-NOT-INDEXED intentionally never fires for these.
+    # Every note file in the folder must appear in the index.
     foreach ($note in $folderNotes) {
-        if ($note.Name -like '*.conflict.md') { continue }
         if ($note.Name -notin $indexedFiles) {
             $integrityErrs.Add("FILE-NOT-INDEXED: $rel/$($note.Name) missing from MEMORY.md")
         }

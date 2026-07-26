@@ -90,13 +90,38 @@ git log --oneline -10
 If the memory is accurate: update `metadata.updated` to today.
 If it's outdated: update the body OR prune with the link-survival rule below.
 
-**Clearing a dirty flag:** When a note's claims are verified (or updated) and its outbound links are confirmed accurate, remove both the `dirty` and `dirty_reason` keys from the `metadata` block and remove the banner line from the top of the body:
+**Clearing a dirty flag:** When a note's claims are verified (or updated) and its outbound links are confirmed accurate, remove both the `dirty` and `dirty_reason` keys from the `metadata` block and remove the banner line from the top of the body. Both edits reverse in the same pass — the closing `---` itself is never touched:
 
-```
-> ⚠️ **DIRTY (since <YYYY-MM-DD>):** may be stale — re-evaluate against current state and re-link before relying on this. Reason: <reason>.
+Before:
+
+```yaml
+---
+name: some-note
+metadata:
+  type: project
+  updated: 2026-07-20
+  dirty: 2026-07-26
+  dirty_reason: "neighbor [[changed-slug]] changed on 2026-07-26"
+---
+> ⚠️ **DIRTY (since 2026-07-26):** may be stale — re-evaluate against current state and re-link before relying on this. Reason: neighbor [[changed-slug]] changed on 2026-07-26.
+
+Existing body text, now re-verified.
 ```
 
-Update `metadata.updated` to today. Never clear without verifying.
+After:
+
+```yaml
+---
+name: some-note
+metadata:
+  type: project
+  updated: 2026-07-26
+---
+
+Existing body text, now re-verified.
+```
+
+Update `metadata.updated` to today. Never clear without verifying. Never leave the banner line inside the `metadata:` block — that is invalid YAML, not a partially-cleared flag.
 
 ### 6. Reconcile Contradictions
 
@@ -166,6 +191,8 @@ pwsh scripts/memory-lint.ps1
 
 Expected output: `OK  Vault is clean.` with exit code 0.
 
+**Do not trigger `memory-subagent` after this pass.** Propagation would dirty-flag the very notes this review just verified, converting a clean vault back into noise for the next reviewer. If specific notes were left genuinely unverified, flag those individually in the summary rather than propagating wholesale.
+
 ## Output Format
 
 Return a change summary:
@@ -184,6 +211,7 @@ Return a change summary:
 - Reconciled: kept <file-A> over <file-B> (Rule 7); <file-B> tombstoned
 
 **Vault status:** Clean / <N> items deferred for human judgment
+**Propagation:** Suppressed — see step 11 (`memory-subagent` not triggered after a review pass)
 **Deferred:** <any items needing human input and why>
 ```
 
@@ -194,3 +222,4 @@ Return a change summary:
 - When uncertain whether a memory is stale, update `metadata.updated` and add a note in the body rather than pruning.
 - Do not prune a note merely because it is old; prune when it is inaccurate or superseded.
 - Never promote a memory into agent/skill/rule files outside the canonical workbench repo — write a promotion-queue file (`~/.claude/agent-memory/promotion-queue/<slug>.md`) instead, for the workbench to drain on its next review (step 1).
+- Never invoke `memory-subagent` at the end of a `memory-review` pass — state the suppression and reason explicitly in the summary (see step 11).
