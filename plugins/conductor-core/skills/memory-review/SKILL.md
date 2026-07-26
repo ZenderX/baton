@@ -27,7 +27,7 @@ Read every file in `~/.claude/agent-memory/promotion-queue/`. If the directory d
 For each queued file:
 1. Read its proposed instruction text, target file, source project (name/path), date, and provenance note-slug.
 2. Judge the proposal:
-   - **Accept:** make the canonical edit to the named target under `.claude/{agents,rules,skills}` in this workbench; if the source project is locally reachable, annotate the source note per the promotion-annotation convention in step 10.
+   - **Accept:** make the canonical edit to the named target under `plugins/conductor-core/agents/`, `plugins/<plugin>/skills/<skill>/SKILL.md`, or the `operating-standards` skill (`plugins/conductor-core/skills/operating-standards/SKILL.md`) for a rule, in this workbench; if the source project is locally reachable, annotate the source note per the promotion-annotation convention in step 10.
    - **Reject:** make no edit; record the reason in the review summary.
 3. Delete the queue file once resolved, whether accepted or rejected.
 
@@ -143,11 +143,11 @@ Some memories outgrow the vault: a note that encodes durable, *generalizable* be
 
 For each note touched during review, ask: *would every future session in every project need this?* If yes, it is a promotion candidate.
 
-**Workbench guard — promotion may only edit files in the canonical workbench repo.** Workbench identity is marker-based, not path-based: a repo is the canonical workbench when its root contains **both** `.claude-plugin/marketplace.json` **and** `scripts/sync-global.ps1`. This works identically across machines and OSes because no path is ever hardcoded — check for the two files' presence, not a specific filesystem location. Agent/skill/rule files elsewhere are deployed copies; editing them forks the canonical source and would require reverse-centralization. In any other project, do NOT edit instruction files — instead write a file to the machine-global queue `~/.claude/agent-memory/promotion-queue/<slug>.md` containing: the proposed instruction text, the target file (e.g. `.claude/agents/implement-subagent.md`), the source project (repo name/path), the date, and provenance (the note-slug that prompted the promotion). The workbench drains this queue automatically in step 1 on its next review — no need to surface it to the user separately.
+**Workbench guard — promotion may only edit files in the canonical workbench repo.** Workbench identity is marker-based, not path-based: a repo is the canonical workbench when its root contains **both** `.claude-plugin/marketplace.json` **and** `scripts/sync-global.ps1`. This works identically across machines and OSes because no path is ever hardcoded — check for the two files' presence, not a specific filesystem location. Agent, skill, and operating-rule content elsewhere are consumer-installed plugin copies (obtained via `/plugin marketplace add` + `/plugin install`, not deployed by any script); editing them forks the canonical source and would require reverse-centralization. In any other project, do NOT edit instruction files — instead write a file to the machine-global queue `~/.claude/agent-memory/promotion-queue/<slug>.md` containing: the proposed instruction text, the target file (e.g. `plugins/conductor-core/agents/implement-subagent.md`), the source project (repo name/path), the date, and provenance (the note-slug that prompted the promotion). The workbench drains this queue automatically in step 1 on its next review — no need to surface it to the user separately.
 
 After promoting in the workbench:
 1. Annotate the source note: add a line `**Promoted to `<target-file>` on <YYYY-MM-DD>**` and slim any body text now duplicated by the instruction — the note keeps the *why*/provenance, the instruction carries the behavior. Never leave the full text in both places (drift risk).
-2. Remind the human to run `pwsh scripts/sync-global.ps1` so the promoted instruction actually deploys.
+2. Note for the human: there is no build or sync step for agents/skills — the change is live in the next session in this workbench (the repo dogfoods its own plugin via `.claude/settings.json`), and reaches other machines once the commit is published and consumers run `/plugin marketplace update`.
 
 ### 11. Final Lint
 

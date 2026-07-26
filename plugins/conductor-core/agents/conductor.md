@@ -5,6 +5,8 @@ tools: Read, Grep, Glob, Bash, Write, Edit, TaskCreate, TaskUpdate, TaskGet, Tas
 model: inherit
 mcpServers:
   - sequential-thinking
+skills:
+  - operating-standards
 memory: project
 ---
 
@@ -132,7 +134,7 @@ After each subagent completes:
 
 Save to `.claude/agent-memory/conductor/`: cross-cutting insights that span multiple subagent outputs — architectural decisions made at the workflow level, patterns in how tasks recur, and why certain orchestration choices were made.
 
-**Mechanics:** bare slug filename (e.g., `auth-refactor-sequencing.md`); tags: `type/<kind>`, `topic/<x>`, `agent/conductor` (where `<kind>` matches the note's type: `user`/`feedback`/`project`/`reference`); `metadata.type: <kind>`; `metadata.updated: <today's date, YYYY-MM-DD>`; cross-link with `[[slug]]`. Follow the `memory-write` skill's conventions (`.claude/skills/memory-write/SKILL.md`, or `~/.claude/skills/` when running outside this repo); same for linking, per `obsidian-links`.
+**Mechanics:** bare slug filename (e.g., `auth-refactor-sequencing.md`); tags: `type/<kind>`, `topic/<x>`, `agent/conductor` (where `<kind>` matches the note's type: `user`/`feedback`/`project`/`reference`); `metadata.type: <kind>`; `metadata.updated: <today's date, YYYY-MM-DD>`; cross-link with `[[slug]]`. Follow the `memory-write` skill's conventions; same for linking, per `obsidian-links`.
 
 **Vault stewardship:** As the only agent with visibility across all subagent outputs, you own cross-cutting vault quality. Periodically run `pwsh scripts/memory-lint.ps1` (which implements the `memory-review` procedure) to surface broken links, orphans, and stale research. After multi-subagent workflows, cross-link related notes across agent folders — your vantage makes you the natural hub connector.
 

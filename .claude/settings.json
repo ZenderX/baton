@@ -1,4 +1,15 @@
 {
+  "extraKnownMarketplaces": {
+    "skills-marketplace": {
+      "source": {
+        "source": "directory",
+        "path": "."
+      }
+    }
+  },
+  "enabledPlugins": {
+    "conductor-core@skills-marketplace": true
+  },
   "permissions": {
     "deny": [
       "Bash(git add:*)",

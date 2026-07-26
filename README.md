@@ -3,14 +3,14 @@
 A Claude Code agent ecosystem: an orchestrator (the **conductor**) that delegates codebase work to specialist subagents, each with persistent per-project memory and a self-improvement loop that promotes durable lessons back into the agents' own instructions.
 
 This repo is both:
-- **The canonical workbench** — where the conductor, subagents, skills, and rules are authored (`.claude/`).
-- **A plugin marketplace** (`skills-marketplace`) — the same content, packaged for distribution so anyone can install the pattern without cloning this repo.
+- **The canonical workbench** — where the conductor, subagents, and skills are authored directly in place (`plugins/`).
+- **A plugin marketplace** (`skills-marketplace`) — the same content, installable by anyone via `/plugin` with no clone required.
 
 ---
 
 ## Quick Start (for consumers)
 
-**Prerequisites:** [Claude Code](https://docs.claude.com/en/docs/claude-code), and **PowerShell 7** (https://aka.ms/pwsh) — the rules-delivery hook (below) is a `pwsh` script.
+**Prerequisite:** [Claude Code](https://docs.claude.com/en/docs/claude-code). Nothing else — no PowerShell, no build step. (PowerShell is only needed by the maintainer scripts in this workbench, covered below.)
 
 **Add the marketplace, then install plugins:**
 
@@ -36,12 +36,14 @@ Plugin entries in `marketplace.json` omit `version` — git-source plugins float
 
 | Plugin | Contents |
 |--------|----------|
-| `conductor-core` | conductor + 5 subagents, their 8 preloaded skills (incl. `git-diff`), the `SessionStart` rules-delivery hook, and `.mcp.json` (`sequential-thinking`, `context7`) |
+| `conductor-core` | conductor + 5 subagents (6 agents total), their 5 preloaded skills (`git-diff`, `memory-review`, `memory-write`, `obsidian-links`, `operating-standards`), and `.mcp.json` (`sequential-thinking`, `context7`). 0 hooks. |
 | `bevy` | Bevy skill — standalone, no agents |
 | `blender` | Blender (bevy_skein) skill — standalone, no agents |
 | `rust` | Rust skill — standalone, no agents |
 | `typescript` | TypeScript skill — standalone, no agents |
 | `vue3` | Vue 3 skill — standalone, no agents |
+
+Install the language plugins relevant to what you work on alongside `conductor-core` — see [Skills](#skills) below for why.
 
 **Run the conductor** — the top-level entrypoint for all orchestrated work:
 
@@ -96,35 +98,35 @@ The **conductor** is a blackboard orchestrator: it holds the evolving task model
 
 | Agent | Role | Model | Skills preloaded |
 |-------|------|-------|-------------------|
-| **conductor** | Orchestrator. Holds the shared task model, delegates to specialists, distills results, proceeds autonomously. Entrypoint for Research → Planning → Implementation → Review. | inherit | — |
-| **planning-subagent** | Codebase analyst and architect. Reads the project, decomposes work, produces a sequenced `task-plan.md`. | sonnet | — |
-| **research-subagent** | External research only (no codebase access). Library docs, API reference, web facts, latest versions. | sonnet | — |
-| **implement-subagent** | Autonomous code writer. Owns architectural decisions within each phase. Reads `task-plan.md`, implements, verifies. | sonnet | bevy, rust, typescript, vue3 |
-| **code-review-subagent** | Post-implementation review. Verifies correctness, semantic integrity, best practices. Returns `APPROVED`, `NEEDS_REVISION`, or `FAILED`. Never applies fixes. | sonnet | git-diff, vue3, typescript, rust, bevy |
-| **memory-subagent** | Post-task dirty propagator and topic steward. Flags 1-hop neighbor memories stale after any memory write, reconciles the emergent `topic/*` taxonomy. Conductor-only trigger — subagents never invoke it directly. | haiku | memory-write, obsidian-links |
+| **conductor** | Orchestrator. Holds the shared task model, delegates to specialists, distills results, proceeds autonomously. Entrypoint for Research → Planning → Implementation → Review. | inherit | operating-standards |
+| **planning-subagent** | Codebase analyst and architect. Reads the project, decomposes work, produces a sequenced `task-plan.md`. | sonnet | operating-standards |
+| **research-subagent** | External research only (no codebase access). Library docs, API reference, web facts, latest versions. | sonnet | operating-standards |
+| **implement-subagent** | Autonomous code writer. Owns architectural decisions within each phase. Reads `task-plan.md`, implements, verifies. | sonnet | operating-standards, bevy, rust, typescript, vue3 |
+| **code-review-subagent** | Post-implementation review. Verifies correctness, semantic integrity, best practices. Returns `APPROVED`, `NEEDS_REVISION`, or `FAILED`. Never applies fixes. | sonnet | operating-standards, git-diff, vue3, typescript, rust, bevy |
+| **memory-subagent** | Post-task dirty propagator and topic steward. Flags 1-hop neighbor memories stale after any memory write, reconciles the emergent `topic/*` taxonomy. Conductor-only trigger — subagents never invoke it directly. | haiku | operating-standards, memory-write, obsidian-links |
 
 ### Skills
 
-Skills in `.claude/skills/` encode domain conventions and procedures. Agents declare the ones they need in their `skills:` frontmatter list — the full skill content is **preloaded** (injected at agent start), not fetched on demand.
+Skills are authored in `plugins/<plugin>/skills/` and declared by name in an agent's `skills:` frontmatter list — the full skill content is **preloaded** (injected at agent start), not fetched on demand. Skills from every *installed and enabled* plugin merge into one namespace before an agent's `skills:` list resolves, so each skill exists exactly once, in its own plugin.
 
-| Skill | Purpose |
-|-------|---------|
-| `bevy` | Bevy game engine patterns |
-| `blender` | Blender-to-Bevy (bevy_skein) integration conventions |
-| `git-diff` | Structured branch comparison |
-| `memory-review` | Vault accuracy review procedure |
-| `memory-write` | Memory note-writing conventions — schema, type selection, dirty-flag clearing |
-| `obsidian-links` | Wikilink conventions for connecting memory notes |
-| `rust` | Rust coding standards |
-| `typescript` | TypeScript coding standards |
-| `vue3` | Vue 3 component patterns |
+| Skill | Plugin | Purpose |
+|-------|--------|---------|
+| `git-diff` | conductor-core | Structured branch comparison |
+| `memory-review` | conductor-core | Vault accuracy review procedure |
+| `memory-write` | conductor-core | Memory note-writing conventions — schema, type selection, dirty-flag clearing |
+| `obsidian-links` | conductor-core | Wikilink conventions for connecting memory notes |
+| `operating-standards` | conductor-core | Engineering Rules 1–13 and Git Hygiene Rules G1–G3 — mandatory for every agent |
+| `bevy` | bevy | Bevy game engine patterns |
+| `blender` | blender | Blender-to-Bevy (bevy_skein) integration conventions |
+| `rust` | rust | Rust coding standards |
+| `typescript` | typescript | TypeScript coding standards |
+| `vue3` | vue3 | Vue 3 component patterns |
 
-### Rules
+**Consequence for consumers:** `implement-subagent` and `code-review-subagent` declare `bevy`, `rust`, `typescript`, and `vue3` in their `skills:` list, but those skills ship in their own standalone plugins, not in `conductor-core`. Install whichever language plugins match what you write (e.g. `rust` if you write Rust) alongside `conductor-core`. If a listed skill's plugin isn't installed, it simply isn't preloaded that session — nothing breaks.
 
-`.claude/rules/engineering-rules.md` and `.claude/rules/git-hygiene.md` are the standing instructions every agent operates under. They travel two ways:
+### How rules travel
 
-- **Locally** — `sync-global.ps1` clean-copies `.claude/rules/` into `~/.claude/rules/` alongside agents and skills.
-- **To plugin consumers** — `conductor-core` ships a `SessionStart` hook (`hooks/emit-rules.ps1`) that emits both rules files as injected context on every session start, so friends get the same rules with no extra setup (PowerShell 7 required — see Quick Start).
+Engineering Rules 1–13 and Git Hygiene Rules G1–G3 travel as a single preloaded skill, `operating-standards`, shipped by `conductor-core`. Every one of the six agents declares it in `skills:` frontmatter (see the table above), so the rules are injected into every agent's context at session start with zero extra setup — no `SessionStart` hook, no PowerShell, no separate rules directory to keep in sync. Install `conductor-core` and you have them, workbench or consumer alike.
 
 ### The learning loop
 
@@ -142,7 +144,7 @@ memory-review skill audits the vault (monthly, or on trigger)
    ▼
    ├─ in the canonical workbench (marker files: .claude-plugin/marketplace.json
    │  AND scripts/sync-global.ps1 both present) ─▶ promote: edit the canonical
-   │  agent/rule/skill file directly under .claude/{agents,rules,skills}
+   │  agent/skill file directly under plugins/<plugin>/{agents,skills}
    │      └─▶ next commit + `/plugin marketplace update` redistributes to consumers
    │
    └─ anywhere else (plain plugin install, no local marketplace) ─▶ queue the
@@ -157,32 +159,46 @@ Workbench identity is checked by file presence, never by path, so the same logic
 
 ## Maintainer Guide (this workbench)
 
-If you're editing agents, rules, or skills directly in this repo, three scripts under `scripts/` keep the deployed and distributable copies in sync with the canonical `.claude/` source.
+Agents and skills are authored **directly in place** under `plugins/<plugin>/{agents,skills}/` — there is no build/generate step. Edit a file, and the next session that loads the plugin picks it up immediately.
 
-### `sync-global.ps1` — deploy to your machine
+This workbench dogfoods its own plugin: `.claude/settings.json` registers a marketplace named `skills-marketplace` pointing at the relative path `.` (`extraKnownMarketplaces`) and enables `conductor-core@skills-marketplace` (`enabledPlugins`). Because the marketplace source is this repo's own root, editing `plugins/conductor-core/agents/*.md` (or any skill under it) takes effect in this workbench's next session with no deploy step.
+
+Two scripts under `scripts/` remain, for narrower jobs than before:
+
+### `sync-global.ps1` — deploy settings.json to your machine
 
 ```powershell
 pwsh scripts/sync-global.ps1
 pwsh scripts/sync-global.ps1 -DryRun   # preview without applying
 ```
 
-Run this after editing any agent, rule, or skill. It:
-- Clean-replaces `agents/`, `rules/`, and `skills/` under `~/.claude/` (each subdir is removed then re-copied, so deleted source files don't persist).
-- **Does** sync `settings.json` — a repo-authoritative merge: the repo copy wins on everything, including deletions, except a small preserve-list of machine-local keys (`model`, `tui`, `enabledPlugins`) that survive from the deployed copy.
-- Merges `.claude/agent-memory/.obsidian/graph.json` the same way (repo wins on colorGroups/search/display; a preserve-list of machine-local view-state keys — force-layout tuning, zoom, panel collapse — survives).
-- Registers each server in `.mcp.json` into Claude Code's user scope via `claude mcp add-json`.
-- **Does NOT sync** `agent-memory/` (the memory vault is project-local by design).
+With agents and skills now authored in `plugins/` and installed as plugins, this script's only remaining job is syncing `.claude/settings.json` into `~/.claude/settings.json`:
+- Repo-authoritative merge — the repo copy wins on everything, including deletions, except a small preserve-list of machine-local keys that survive from the deployed copy: `model`, `tui`, `enabledPlugins`, and `extraKnownMarketplaces` (the last is preserved because this repo's own settings.json registers its marketplace with the *relative* path `.`, which only resolves from this repo's own directory — the deployed/global value must win here instead).
+- **Does not** register MCP servers — those now travel inside `plugins/conductor-core/.mcp.json`, delivered by the plugin itself.
+- **Does not** touch `agent-memory/` (including `.obsidian/`) — the memory vault is project-local by design and entirely out of this script's scope now.
 
-### `build-plugins.ps1` — regenerate distributable plugins
+### `clean-global.ps1` — migrating a machine from the old sync-global to plugins
+
+Plugin agents have the **lowest** name-resolution priority, so a `~/.claude/{agents,rules,skills}` copy left behind by an older version of `sync-global.ps1` (or a manual/zip copy) silently shadows the same-named `conductor-core` plugin agent forever — you'd install the plugin and still get the stale local copy. `clean-global.ps1` removes exactly that shadowing content, and nothing else:
 
 ```powershell
-pwsh scripts/build-plugins.ps1
-pwsh scripts/build-plugins.ps1 -DryRun
+/plugin marketplace add <owner>/<repo>
+/plugin install conductor-core@skills-marketplace
+# ...install any other wanted plugins...
+
+pwsh scripts/clean-global.ps1 -DryRun   # preview first
+pwsh scripts/clean-global.ps1           # then run for real
 ```
 
-Regenerates `plugins/<name>/` from the canonical `.claude/agents`, `.claude/skills`, and root `.mcp.json`. **Never hand-edit generated content** — run this after editing agents, skills, or rules, and before publishing (committing / `/plugin marketplace update`).
+Restart your Claude Code sessions afterward, and verify the plugin resolves: `claude --agent conductor` (or the scoped `conductor-core:conductor` if something still shadows it), and confirm the rules arrive via the preloaded `operating-standards` skill rather than a local `~/.claude/rules/` copy.
 
-Hand-authored exceptions this script never touches: each plugin's `.claude-plugin/plugin.json`, and — for `conductor-core` only — `hooks/hooks.json` and `hooks/emit-rules.ps1` (only `hooks/rules.md` inside that folder is generated).
+What it does and doesn't touch:
+- **Backs up first, always** — before removing anything, it copies the current `~/.claude/{agents,rules,skills}` to a timestamped `~/.claude-backup-<timestamp>/`. Delete that backup once you're satisfied the migration worked.
+- **Removes by name-match only** — an item under `~/.claude/{agents,rules,skills}` is removed only if its name matches something this repo actually ships. Canon agent and skill names are read live from `plugins/*/`; the two legacy rules filenames (`engineering-rules.md`, `git-hygiene.md`) no longer exist as files in this repo — they're absorbed into the `operating-standards` skill — so they're hardcoded in the script for matching purposes only. Foreign files/dirs (never part of this repo) are never touched.
+- **Never touches `settings.json`** — the `permissions.deny` git-mutation guard and machine-local keys stay exactly as they are; plugins cannot ship `permissions.deny`, so this file must survive the migration untouched.
+- **Never touches `agent-memory/`** — the memory vault is project-local and out of scope for this cleanup.
+
+This workbench machine itself can keep using `sync-global.ps1` for day-to-day development (e.g. testing plugins locally via `claude --plugin-dir`) — migrating away from it is optional here, and only really matters for machines that consume the marketplace as plugins.
 
 ### `memory-lint.ps1` — deterministic vault linter
 
@@ -191,7 +207,7 @@ pwsh scripts/memory-lint.ps1
 pwsh scripts/memory-lint.ps1 -Fix   # safe, idempotent auto-repairs
 ```
 
-Checks the `.claude/agent-memory/` vault for broken links, missing tags, stale research, and `MEMORY.md` index mismatches. Exits non-zero on integrity errors. `.claude/skills/memory-review/` is the companion judgment skill — run it for accuracy review against current repo state (monthly, or after major changes); it runs the linter first, then applies judgment the linter can't (verify, reconcile, prune, promote).
+Checks the `.claude/agent-memory/` vault for broken links, missing tags, stale research, and `MEMORY.md` index mismatches. Exits non-zero on integrity errors. `-Fix` applies safe, idempotent repairs (filename normalization, index rewrites, missing `metadata.updated`, tag format normalization) and regenerates `.obsidian/graph.json` color groups — one deterministic color per `topic/*` tag in use. `plugins/conductor-core/skills/memory-review/` is the companion judgment skill — run it for accuracy review against current repo state (monthly, or after major changes); it runs the linter first, then applies judgment the linter can't (verify, reconcile, prune, promote).
 
 ### Memory vault + Obsidian setup
 
@@ -203,9 +219,9 @@ Checks the `.claude/agent-memory/` vault for broken links, missing tags, stale r
 3. **Graph view** (⌘/Ctrl-G): enable **Filters → Tags** to turn `type/*`, `topic/*`, `agent/*` into hub nodes — `topic/*` is the cross-cutting connector linking subjects across agent folders. Use **Groups** to color-code by `path:<agent>` or `tag:#type/*` (list specific queries above broad ones — first match wins).
 4. The **Tags** and **Properties** side panes browse the taxonomy and render `metadata.*` per note.
 5. Optional: *Find Unlinked Files* / *Broken Links* community plugins for orphan/broken-link reports — `scripts/memory-lint.ps1` already does this deterministically.
-6. If you don't want per-user Obsidian UI state committed, gitignore `.claude/agent-memory/.obsidian/` (note: `graph.json` inside it is intentionally tracked and synced — see `sync-global.ps1` above).
+6. If you don't want per-user Obsidian UI state committed, gitignore `.claude/agent-memory/.obsidian/`.
 
-Memory is project-local by design — `sync-global.ps1` never syncs `agent-memory/`. Each project where you run the conductor gets its own vault.
+Memory is project-local by design — no script syncs `agent-memory/` to `~/.claude/`. Each project where you run the conductor gets its own vault.
 
 ---
 
@@ -215,18 +231,22 @@ Memory is project-local by design — `sync-global.ps1` never syncs `agent-memor
 
 Agents never mutate git state. Enforced by two layers:
 
-1. **Rule** — `.claude/rules/git-hygiene.md` instructs all agents to treat git as read-only.
+1. **Rule** — the `operating-standards` skill (preloaded by every agent) instructs all agents to treat git as read-only.
 2. **Deny list** — `permissions.deny` in `settings.json` hard-blocks mutating commands.
 
-There is no `PreToolUse` hook backstop — a prior `.claude/hooks/block-git-writes.ps1` hook was removed; the deny list is the sole deterministic enforcement layer, backed by the advisory rule.
+There is no `PreToolUse` hook backstop — the deny list is the sole deterministic enforcement layer, backed by the advisory rule.
 
 `git status`, `diff`, `log`, `blame`, and `show` are allowed. Everything else in the deny list above is blocked — including the dual-mode subcommands (`branch`, `tag`, `stash`, `worktree`, `remote`, `notes`) **wholesale**, which also blocks their read-only listing forms (e.g. `git branch -a`, `git remote -v`). To inspect refs read-only, use `git for-each-ref` / `git show-ref` instead.
 
 ### MCP Servers
 
-Configured in `.mcp.json`. Verify connections inside a session with `/mcp`.
+Shipped inside `plugins/conductor-core/.mcp.json`, delivered by the plugin itself. Verify connections inside a session with `/mcp`.
 
 | Server | Purpose |
 |--------|---------|
 | `sequential-thinking` | Structured reasoning for planning and decomposition |
 | `context7` | Up-to-date library and framework documentation |
+
+### Versioning
+
+Plugin entries in `.claude-plugin/marketplace.json` omit `version` deliberately — for git-source installs, every commit is a new floating version.

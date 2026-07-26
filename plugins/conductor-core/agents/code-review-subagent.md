@@ -7,6 +7,7 @@ mcpServers:
   - sequential-thinking
   - context7
 skills:
+  - operating-standards
   - git-diff
   - vue3
   - typescript

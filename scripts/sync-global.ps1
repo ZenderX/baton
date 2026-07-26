@@ -1,18 +1,18 @@
 <#
 .SYNOPSIS
-    Syncs .claude from the project repo into the global user home folder.
+    Syncs .claude/settings.json from the project repo into the global user
+    settings file.
 .DESCRIPTION
-    Clean-replaces agents, rules, and skills subdirs in ~/.claude/ from the project.
-    Each synced subdir is removed then re-copied so deleted source files don't persist.
-    settings.json and the Obsidian graph.json are repo-authoritative merges instead
-    (a small preserve-list of machine-local keys survives from the deployed copy) -
-    these files are never clean-replaced since Obsidian/Claude Code rewrite
-    machine-local state into them at runtime.
-    Finally, registers each MCP server from the project's .mcp.json into Claude
-    Code's user scope by shelling out to `claude mcp add-json` (never writes
-    ~/.claude.json directly).
+    Plugins-as-source-of-truth: agents, rules, and skills are authored in
+    plugins/*/ and delivered by installing the plugin, so this script no
+    longer copies those subdirs. Its one remaining job is the repo-authoritative
+    merge of settings.json into ~/.claude/settings.json (a small preserve-list
+    of machine-local keys survives from the deployed copy) - settings.json is
+    never clean-replaced since Claude Code rewrites machine-local state into
+    it at runtime. MCP servers now travel inside plugins/conductor-core/.mcp.json,
+    delivered by the plugin itself, so this script no longer registers them.
 .PARAMETER DryRun
-    Print what would be copied/written/run without making changes.
+    Print what would be written without making changes.
 #>
 param(
     [switch]$DryRun
@@ -24,74 +24,15 @@ $ErrorActionPreference = 'Stop'
 $ProjectRoot = Split-Path -Parent $PSScriptRoot
 $UserHome = [System.Environment]::GetFolderPath('UserProfile')
 
-function Sync-Folder {
-    param(
-        [string]$Source,
-        [string]$Destination,
-        [string[]]$SubDirs   # if specified, clean-replace these subdirs; otherwise clean-replace root
-    )
-
-    if (-not (Test-Path $Source)) {
-        Write-Host "  SKIP  $Source (not found)"
-        return
-    }
-
-    $items = if ($SubDirs) {
-        $SubDirs | ForEach-Object { Join-Path $Source $_ } | Where-Object { Test-Path $_ }
-    } else {
-        @($Source)
-    }
-
-    foreach ($item in $items) {
-        $relBase = if ($SubDirs) { Split-Path -Leaf $item } else { '' }
-        $destRoot = if ($relBase) { Join-Path $Destination $relBase } else { $Destination }
-
-        # Clean destination before copying so deleted source files don't persist
-        if ($DryRun) {
-            Write-Host "  WOULD CLEAN $destRoot"
-        } elseif (Test-Path $destRoot) {
-            Remove-Item -Path $destRoot -Recurse -Force
-            Write-Host "  CLEANED  $destRoot"
-        }
-
-        Get-ChildItem -Path $item -Recurse -File | ForEach-Object {
-            $rel = $_.FullName.Substring($item.Length).TrimStart([IO.Path]::DirectorySeparatorChar, '/')
-            $dest = if ($relBase) {
-                Join-Path (Join-Path $Destination $relBase) $rel
-            } else {
-                Join-Path $Destination $rel
-            }
-
-            $destDir = Split-Path $dest
-            if ($DryRun) {
-                Write-Host "  WOULD COPY  $($_.FullName)"
-                Write-Host "           -> $dest"
-            } else {
-                if (-not (Test-Path $destDir)) {
-                    New-Item -ItemType Directory -Path $destDir -Force | Out-Null
-                }
-                Copy-Item -Path $_.FullName -Destination $dest -Force
-                Write-Host "  COPIED  $($_.FullName.Substring($ProjectRoot.Length + 1)) -> $dest"
-            }
-        }
-    }
-}
-
 # Machine-local keys that live only in the deployed settings.json and must survive
 # the sync even though the repo copy is otherwise authoritative (repo wins on
 # everything else, including deletions). Extend this list as new machine-local
 # settings keys are introduced.
-$SettingsPreserveKeys = @('model', 'tui', 'enabledPlugins')
-
-# Machine-local Obsidian graph view-state keys (force-layout tuning, panel
-# collapse state, zoom) that live only on the deployed graph.json and must
-# survive the sync. Repo wins on everything else (colorGroups, search, display
-# toggles, and any new keys), including deletions.
-$GraphPreserveKeys = @(
-    'collapse-filter', 'collapse-color-groups', 'collapse-display', 'collapse-forces',
-    'centerStrength', 'repelStrength', 'linkStrength', 'linkDistance',
-    'scale', 'close', 'textFadeMultiplier', 'nodeSizeMultiplier'
-)
+# 'extraKnownMarketplaces' is preserved because this repo's own .claude/settings.json
+# registers its own marketplace with the RELATIVE path "." for dogfooding; that
+# relative entry only resolves from this repo's directory, so the deployed
+# (global) value must win here rather than syncing the repo's relative path verbatim.
+$SettingsPreserveKeys = @('model', 'tui', 'enabledPlugins', 'extraKnownMarketplaces')
 
 function ConvertTo-Hashtable {
     param([Parameter(ValueFromPipeline)]$InputObject)
@@ -150,116 +91,11 @@ function Merge-JsonRepoAuthoritative {
     }
 }
 
-# Registers each server defined in the repo's .mcp.json into Claude Code's
-# user scope via `claude mcp add-json`, rather than writing ~/.claude.json
-# directly (it bundles OAuth/session/trust state and scripted writes to it
-# have documented corruption issues - see anthropics/claude-code#29056).
-# `add-json` is NOT idempotent: it has no --force/update flag and exits 1 if
-# a same-name entry already exists in user scope. To make re-runs idempotent,
-# this function removes any existing user-scope entry first, then adds it
-# fresh (remove exits 1 when absent, which is expected and ignored). Note: a
-# project .mcp.json with a same-named server shadows the user-scope entry
-# entirely (precedence: local > project > user), so this registration is a
-# fallback baseline, not the active config, whenever a project-level
-# .mcp.json is also present.
-function Sync-McpServers {
-    param(
-        [string]$Source
-    )
-
-    if (-not (Test-Path $Source)) {
-        Write-Host "  SKIP  $Source (not found)"
-        return $true
-    }
-
-    if (-not (Get-Command 'claude' -ErrorAction SilentlyContinue)) {
-        Write-Host "  SKIP  claude CLI not found on PATH; cannot register MCP servers"
-        return $true
-    }
-
-    $config = Get-Content -Raw -Path $Source | ConvertFrom-Json | ConvertTo-Hashtable
-    $servers = $config['mcpServers']
-    if (-not $servers -or $servers.Count -eq 0) {
-        Write-Host "  SKIP  $Source (no mcpServers defined)"
-        return $true
-    }
-
-    $allSucceeded = $true
-    foreach ($name in $servers.Keys) {
-        $serverJson = $servers[$name] | ConvertTo-Json -Depth 10 -Compress
-        $cmdDisplay = "claude mcp add-json $name '$serverJson' --scope user"
-
-        if ($DryRun) {
-            Write-Host "  WOULD RUN  claude mcp remove $name --scope user"
-            Write-Host "  WOULD RUN  $cmdDisplay"
-            continue
-        }
-
-        # add-json errors (exit 1) if a same-name user-scope entry already exists and
-        # offers no --force/update flag, so remove any existing one first to make
-        # re-runs idempotent. remove exits 1 when absent - intentionally ignored.
-        & claude mcp remove $name --scope user 2>&1 | Out-Null
-
-        try {
-            # PS5.1 strips inner quotes from JSON when passing to native executables.
-            # ProcessStartInfo lets us set the raw command line directly, bypassing that.
-            # The JSON argument must also be wrapped in double-quotes with inner quotes
-            # escaped as \" so Windows CRT argument parsing keeps them intact.
-            $claudeExe = (Get-Command 'claude' -ErrorAction Stop).Source
-
-            $escapedJson = '"' + $serverJson.Replace('"', '\"') + '"'
-            $psi = [System.Diagnostics.ProcessStartInfo]::new($claudeExe)
-            $psi.Arguments = "mcp add-json $name $escapedJson --scope user"
-            $psi.RedirectStandardOutput = $true
-            $psi.RedirectStandardError  = $true
-            $psi.UseShellExecute = $false
-            $proc = [System.Diagnostics.Process]::Start($psi)
-            $stdout = $proc.StandardOutput.ReadToEnd()
-            $stderr = $proc.StandardError.ReadToEnd()
-            $proc.WaitForExit()
-            $output = ($stdout + $stderr).Trim() -split "`n"
-            $exitCode = $proc.ExitCode
-        } catch {
-            $output = $_.Exception.Message
-            $exitCode = 1
-        }
-
-        if ($exitCode -ne 0) {
-            Write-Host "  FAILED  mcp add-json for '$name' (exit $exitCode):"
-            $output | ForEach-Object { Write-Host "    $_" }
-            $allSucceeded = $false
-        } else {
-            Write-Host "  REGISTERED  $name -> user scope"
-        }
-    }
-
-    return $allSucceeded
-}
-
-# --- .claude ---
-$srcClaude  = Join-Path $ProjectRoot '.claude'
-$destClaude = Join-Path $UserHome '.claude'
-Write-Host "`n[.claude] $srcClaude -> $destClaude"
-# Only merge known content subdirs; never touch sessions, cache, credentials, etc.
-Sync-Folder -Source $srcClaude -Destination $destClaude -SubDirs @('agents', 'rules', 'skills')
-Merge-JsonRepoAuthoritative -Source (Join-Path $srcClaude 'settings.json') -Destination (Join-Path $destClaude 'settings.json') -PreserveKeys $SettingsPreserveKeys
-
-# --- Obsidian graph.json (view-state merge; .obsidian dir is never clean-replaced -
-# once the vault is opened, Obsidian writes its own workspace.json/app.json/etc.
-# there and live-rewrites graph.json UI state) ---
-$srcGraph  = Join-Path $srcClaude 'agent-memory/.obsidian/graph.json'
-$destGraph = Join-Path $destClaude 'agent-memory/.obsidian/graph.json'
-Write-Host "`n[graph.json] $srcGraph -> $destGraph"
-Merge-JsonRepoAuthoritative -Source $srcGraph -Destination $destGraph -PreserveKeys $GraphPreserveKeys
-
-# --- MCP servers (user scope) ---
-$srcMcp = Join-Path $ProjectRoot '.mcp.json'
-Write-Host "`n[.mcp.json] $srcMcp -> user scope (via claude CLI)"
-$mcpSucceeded = Sync-McpServers -Source $srcMcp
+# --- .claude/settings.json ---
+$srcSettings  = Join-Path $ProjectRoot '.claude/settings.json'
+$destSettings = Join-Path $UserHome '.claude/settings.json'
+Write-Host "`n[settings.json] $srcSettings -> $destSettings"
+Merge-JsonRepoAuthoritative -Source $srcSettings -Destination $destSettings -PreserveKeys $SettingsPreserveKeys
 
 $doneSuffix = if ($DryRun) { ' (dry run)' } else { '' }
-if ($mcpSucceeded) {
-    Write-Host "`nDone$doneSuffix."
-} else {
-    Write-Host "`nDone$doneSuffix, with MCP registration failures (see FAILED lines above)."
-}
+Write-Host "`nDone$doneSuffix."

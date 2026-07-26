@@ -6,6 +6,8 @@ model: sonnet
 mcpServers:
   - context7
   - sequential-thinking
+skills:
+  - operating-standards
 memory: project
 ---
 
@@ -112,7 +114,7 @@ Return findings directly in your response to the invoker. Do not write to any fi
 
 Save to `.claude/agent-memory/research-subagent/`: durable external findings — library quirks, version facts, API behaviors — with source URL and retrieval date. Mark recency-sensitive facts by adding `decaying` to `tags:`; the linter flags them when stale.
 
-**Mechanics:** bare slug filename (e.g., `obsidian-alias-resolution.md`); tags: `type/research`, `topic/<x>`, `agent/research-subagent`; `metadata.type: research`; `metadata.updated: <today's date, YYYY-MM-DD>`; cross-link with `[[slug]]`. Follow the `memory-write` skill's conventions (`.claude/skills/memory-write/SKILL.md`, or `~/.claude/skills/` when running outside this repo); same for linking, per `obsidian-links`.
+**Mechanics:** bare slug filename (e.g., `obsidian-alias-resolution.md`); tags: `type/research`, `topic/<x>`, `agent/research-subagent`; `metadata.type: research`; `metadata.updated: <today's date, YYYY-MM-DD>`; cross-link with `[[slug]]`. Follow the `memory-write` skill's conventions; same for linking, per `obsidian-links`.
 
 ## Constraints
 

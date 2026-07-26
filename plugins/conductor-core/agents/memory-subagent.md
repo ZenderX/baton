@@ -4,6 +4,7 @@ description: Post-task dirty propagator and topic steward. Flags 1-hop neighbor 
 tools: Read, Edit, Grep, Glob, Bash
 model: haiku
 skills:
+  - operating-standards
   - memory-write
   - obsidian-links
 ---
