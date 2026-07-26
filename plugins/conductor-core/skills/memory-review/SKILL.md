@@ -61,6 +61,13 @@ For each flagged item, classify:
 | `MISSING-UPDATED` | Set `metadata.updated` to today if the content is still accurate; otherwise prune |
 | `DUPLICATE-BASENAME` | Keep the more recent or more specific note (Rule 7); tombstone or delete the other |
 | `TOPIC-SINGLETON` | Judge: merge into an established topic (retag + cross-link) if it's a synonym/fragment; keep if genuinely emerging — then add a same-topic link when a second note arrives |
+| `TAG-SPRAWL` | A tag (topic or ad hoc) is used by exactly one note; same judgment as `TOPIC-SINGLETON` — merge into an established tag or accept as genuinely new |
+| `NO-INBOUND` | Note has outbound links but nothing links back to it; add a `[[wikilink]]` from a related note, or fold it into MEMORY.md |
+| `EXPIRED` | `metadata.expires` is past due; re-verify the claim, refresh `updated`/`expires`, or prune per the freshness schema in `memory-write` |
+| `STALE-ORPHAN` | Over 180 days old AND no inbound links — the two-factor dead-weight signal (age alone is not sufficient reason to act); verify against current state or prune with the link-survival rule |
+| `NAME-MISMATCH` | `name:` frontmatter disagrees with the filename; decide which is authoritative and fix the other |
+| `TYPE-MISMATCH` | `metadata.type` disagrees with the `type/*` tag; retag both to whichever type actually fits (see Fix Categorization) |
+| `BROKEN-LINK-NAME` | Gate-blocking, like `BROKEN-LINK`: a `[[wikilink]]` target matches no note's declared `name:` field even though a same-named file exists — usually caused by a `NAME-MISMATCH`; fix the mismatch or re-point the link |
 
 ### 4. Fix Categorization
 

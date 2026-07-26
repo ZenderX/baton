@@ -27,6 +27,36 @@ metadata:
 
 `name` must match the filename exactly (without `.md`). `metadata.type` must match the `type/*` tag suffix — both must agree or the note is inconsistent.
 
+## Freshness & Staleness
+
+All of the fields below are **optional** additions to the `metadata:` block above — the existing linter and every existing note stay valid without them. A note with no `freshness` field is `timeless` by default.
+
+```yaml
+metadata:
+  type: user|feedback|project|reference
+  updated: YYYY-MM-DD
+  freshness: timeless|slow|medium|fast   # optional; default timeless
+  expires: YYYY-MM-DD                    # optional; only meaningful if freshness != timeless
+  supersedes: [other-note-slug]          # optional; invalidate-don't-delete
+```
+
+**Freshness classes:**
+
+| Class | Decay window | Use for |
+|---|---|---|
+| `timeless` (default) | none | decisions, rationale, engineering lessons |
+| `slow` | weeks-months | policy, conventions |
+| `medium` | days | versions, project state |
+| `fast` | hours-days | prices, live facts |
+
+**Invalidate, don't delete.** When a note's claim is contradicted by newer information, don't delete it — write (or update) the newer note with `supersedes: [old-slug]`, and mark the old note superseded: add a short banner pointing at the successor and cross-link both directions. This mirrors Zep/Graphiti's bi-temporal memory model — a contradicted fact keeps its history and gets marked invalid; retrieval prefers the current one. Deleting a note that other notes cite just turns "outdated" into "broken link."
+
+**Do not build contradiction detection from embedding/semantic similarity.** This is the obvious-looking shortcut for "does this new note contradict an old one" and it doesn't work: measured AUROC 0.59, statistically indistinguishable from chance. A fact that *contradicts* another is on average *more* embedding-similar to it than an unrelated paraphrase is — same entities, same predicate shape, opposite polarity. Use explicit `supersedes:` links instead: a judgment call recorded deterministically in frontmatter, not inferred from a vector distance.
+
+**Free signal: the `modified` auto-stamp.** Claude Code v2.1.214+ auto-stamps a `modified: <ISO-8601>` field into any memory file that **already has frontmatter** — it never adds frontmatter to a file that lacks one. Any note you edit that already has a `metadata:` block picks this up automatically; you don't need to hand-maintain it, and it's a second, involuntary freshness signal alongside `metadata.updated`.
+
+**`MEMORY.md`'s budget is a hard limit, not a guideline.** The index auto-loads the first **200 lines or 25KB, whichever comes first** — content past that is silently dropped from context, and since v2.1.210 an over-limit *write* to `MEMORY.md` is a hard error rather than a silent truncation. This is why the one-line-per-entry rule in Step 2 below is load-bearing, not stylistic: push all detail into the topic file, keep the index line itself under 150 characters.
+
 ## Type Selection
 
 | Type | Tag | Use when |

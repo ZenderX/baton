@@ -14,21 +14,66 @@
         semantics), followed by the static type/* fallback groups
 
     All checks are idempotent: re-running -Fix on a clean vault produces zero changes.
+
+    Report mode also flags (all deterministic, no model judgment):
+      - NO-INBOUND: a note has outbound [[links]] but nothing links back to it
+      - TAG-SPRAWL: an ad hoc tag outside the type/*|agent/*|topic/* scaffold used by
+        exactly one note (topic/* is excluded — TOPIC-SINGLETON below owns that namespace)
+      - EXPIRED: metadata.expires is in the past
+      - STALE-ORPHAN: metadata.updated older than -OrphanStaleDays AND zero inbound links
+        (the two-factor combination; age alone is not flagged this way)
+      - NAME-MISMATCH: name: frontmatter disagrees with the filename (skips *.conflict.md —
+        see CONFLICT-UNRESOLVED, which owns that file and names the correct remedy)
+      - TYPE-MISMATCH: metadata.type disagrees with the type/* tag
+      - BROKEN-LINK-NAME: a [[wikilink]] target matches no note's declared name: field
+        (gate-blocking, like BROKEN-LINK)
+      - CONFLICT-UNRESOLVED / CONFLICT-INDEXED: legacy tripwires only. As of 2026-07-26,
+        the former memory-consolidate.ps1's no-clobber transport no longer produces
+        *.conflict.md files — a colliding stray is left at its original path and reported
+        STRAY-LOCATION for memory-subagent step 0 to resolve by precedence (canonical wins)
+        instead. These checks now only catch a pre-existing artifact or a regression that
+        reintroduces one (gate-blocking; take precedence over FILE-NOT-INDEXED/NAME-MISMATCH,
+        which skip these files entirely). Remedy: distill into the canonical note, then delete.
+      - STRAY-LOCATION: a note living outside the canonical folder structure — either a
+        nested .claude directory anywhere beneath the vault root (the doubled-path
+        signature: an older folder-move bug intermittently handed agents
+        .claude/.claude/agent-memory/), or a top-level vault directory that is neither a
+        canonical conductor-core-<agent-name> folder for a roster agent nor a legitimate
+        dotdir (e.g. .obsidian). Read-only: detected and reported only, never moved or
+        deleted — memory-subagent step 0 owns the remedy (canonical note takes precedence,
+        then prune the stray).
 .PARAMETER Fix
     Apply safe auto-repairs. Idempotent.
 .PARAMETER StaleDays
     Days since metadata.updated before a decaying note is flagged stale. Default: 90.
+.PARAMETER OrphanStaleDays
+    Days since metadata.updated before a note with zero inbound links is flagged
+    STALE-ORPHAN (the two-factor dead-weight signal). Default: 180.
+.PARAMETER VaultRoot
+    Override the vault path (default: <repo>/.claude/agent-memory). Lets a scratch
+    fixture be linted without touching the real vault.
+.PARAMETER AgentsDir
+    Override the agent frontmatter directory used for STRAY-LOCATION's canonical-folder
+    roster derivation (defaults to <repo>/plugins/conductor-core/agents).
 #>
 param(
     [switch]$Fix,
-    [int]$StaleDays = 90
+    [int]$StaleDays = 90,
+    [int]$OrphanStaleDays = 180,
+    [string]$VaultRoot,
+    [string]$AgentsDir
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 $ProjectRoot = Split-Path -Parent $PSScriptRoot
-$VaultRoot   = Join-Path $ProjectRoot '.claude' 'agent-memory'
+if (-not $VaultRoot) {
+    $VaultRoot = Join-Path $ProjectRoot '.claude' 'agent-memory'
+}
+if (-not $AgentsDir) {
+    $AgentsDir = Join-Path $ProjectRoot 'plugins' 'conductor-core' 'agents'
+}
 
 # Known runtime-generated type prefixes. Anchored so slugs containing _ are not mangled.
 [string[]]$KnownPrefixes = @(
@@ -103,6 +148,16 @@ function Get-TagsFromYaml([string]$yaml) {
             Where-Object { $_ -ne '' })
     }
     return @()
+}
+
+function Get-ScalarYamlValue([string]$yaml, [string]$key) {
+    <#
+    .SYNOPSIS Returns a top-level (non-nested) scalar YAML value, e.g. `name: foo`, or $null.
+    #>
+    $keyEsc = [regex]::Escape($key)
+    $m = [regex]::Match($yaml, "(?m)^$keyEsc`:\s*([^\r\n]+)")
+    if ($m.Success) { return $m.Groups[1].Value.Trim().Trim('"').Trim("'") }
+    return $null
 }
 
 function Get-NestedYamlValue([string]$yaml, [string]$parent, [string]$child) {
@@ -211,6 +266,32 @@ function Test-ColorGroupsEqual($Current, $Expected) {
     return $true
 }
 
+function Get-MemoryRoster([string]$AgentsDir) {
+    <#
+    .SYNOPSIS Derives the eligible-agent roster from plugins/conductor-core/agents/*.md
+    frontmatter: only agents declaring `memory: project` have a canonical
+    conductor-core-<agent-name> vault folder. Never hardcoded. Ported from the deleted
+    memory-consolidate.ps1 (2026-07-26) — the one genuinely reusable piece of that script.
+    An agent file with no `memory:` field at all has no memory folder by design and is
+    silently skipped, not reported as a gap.
+    .OUTPUTS [string[]] agent names on the roster.
+    #>
+    $roster = [System.Collections.Generic.List[string]]::new()
+    $agentFiles = @(Get-ChildItem -Path $AgentsDir -Filter '*.md' -File -Force -ErrorAction SilentlyContinue)
+    foreach ($f in $agentFiles) {
+        $content  = Get-Content -LiteralPath $f.FullName -Raw -Encoding utf8
+        $yaml     = Get-FrontmatterBlock $content
+        $memMatch = [regex]::Match($yaml, '(?m)^memory:\s*(\S+)')
+        if (-not $memMatch.Success) { continue }
+        if ($memMatch.Groups[1].Value.Trim() -ne 'project') { continue }
+
+        $nameMatch = [regex]::Match($yaml, '(?m)^name:\s*(\S+)')
+        $agentName = if ($nameMatch.Success) { $nameMatch.Groups[1].Value.Trim() } else { $f.BaseName }
+        $roster.Add($agentName)
+    }
+    return @($roster)
+}
+
 function Build-BasenameMap([System.IO.FileInfo[]]$files) {
     <#
     .SYNOPSIS Builds a hashtable of lowercased basename -> list of full paths (vault-wide).
@@ -225,6 +306,31 @@ function Build-BasenameMap([System.IO.FileInfo[]]$files) {
             $map[$bn] = [System.Collections.Generic.List[string]]::new()
         }
         $map[$bn].Add($f.FullName)
+    }
+    return $map
+}
+
+function Build-NameSlugMap([System.IO.FileInfo[]]$files) {
+    <#
+    .SYNOPSIS Builds a hashtable of lowercased frontmatter `name:` value -> list of full paths.
+    Distinct from Build-BasenameMap (which keys on the filename): this map is used by the
+    BROKEN-LINK-NAME check to catch wikilinks that resolve against a filename but not
+    against any note's *declared* name: field (the two should always agree per the
+    memory-write schema; a mismatch is exactly what NAME-MISMATCH also flags).
+    Memory notes only (excludes MEMORY.md and root-level files, which have no name: field).
+    #>
+    $map = @{}
+    foreach ($f in $files) {
+        if ($f.Name -eq 'MEMORY.md' -or $f.DirectoryName -eq $VaultRoot) { continue }
+        $content = Get-Content $f.FullName -Raw -Encoding utf8
+        $yaml    = Get-FrontmatterBlock $content
+        $nameVal = Get-ScalarYamlValue $yaml 'name'
+        if (-not $nameVal) { continue }
+        $slug = $nameVal.ToLower()
+        if (-not $map.ContainsKey($slug)) {
+            $map[$slug] = [System.Collections.Generic.List[string]]::new()
+        }
+        $map[$slug].Add($f.FullName)
     }
     return $map
 }
@@ -248,6 +354,7 @@ $memoryNotes = @($allMdFiles | Where-Object {
 })
 
 $basenameMap = Build-BasenameMap $allMdFiles
+$nameSlugMap = Build-NameSlugMap $allMdFiles
 
 # ---------------------------------------------------------------------------
 # Result tracking
@@ -259,6 +366,45 @@ $warnings      = [System.Collections.Generic.List[string]]::new()
 # Dynamic topic/* usage: topic name -> list of notes (rel paths) using it.
 # Topics are emergent (no canonical list) — this only tracks fragmentation, not validity.
 $topicNotes = @{}
+
+# Ad hoc tags outside the type/*|agent/*|topic/* scaffold -> list of notes using them.
+# Feeds the TAG-SPRAWL check. topic/* is deliberately excluded here: TOPIC-SINGLETON
+# (below) already owns that namespace and fires on the identical condition, so including
+# topic/* would just duplicate every TOPIC-SINGLETON warning under a second name.
+$allTagNotes = @{}
+
+# note-basename (lowered) -> parsed metadata.updated [datetime], for notes where it parsed.
+# Populated in the main per-note loop; consumed after inbound/outbound are fully built by
+# the STALE-ORPHAN check (which needs both age and inbound-link count together).
+$noteUpdatedDate = @{}
+
+# ---------------------------------------------------------------------------
+# Phase A0: STRAY-LOCATION detection (gate-blocking, read-only)
+# ---------------------------------------------------------------------------
+# Detect-only: this check never moves, creates, or deletes anything — remedy ownership is
+# memory-subagent step 0 (canonical note wins, then prune the stray), never this script.
+$strayRoster    = Get-MemoryRoster -AgentsDir $AgentsDir
+$canonicalNames = @($strayRoster | ForEach-Object { "conductor-core-$_" })
+
+# Shape 1: a nested .claude directory anywhere beneath the vault root — the doubled-path
+# signature (an older folder-move bug intermittently handed agents .claude/.claude/agent-memory/).
+# Get-ChildItem -Recurse rooted AT $VaultRoot only yields descendants, never the vault root
+# itself, so this cannot false-positive on the vault root the way a naive `find`-from-parent
+# scan (matching on the vault's own directory name, e.g. 'agent-memory') would.
+$nestedClaudeDirs = @(Get-ChildItem -Path $VaultRoot -Recurse -Directory -Force -ErrorAction SilentlyContinue |
+    Where-Object { $_.Name -eq '.claude' })
+foreach ($dir in $nestedClaudeDirs) {
+    $integrityErrs.Add("STRAY-LOCATION: $($dir.FullName) — notes outside canonical folders; memory-subagent must integrate them (canonical note takes precedence, then prune the stray)")
+}
+
+# Shape 2: a top-level vault directory that is neither a canonical conductor-core-<agent>
+# folder for a roster agent nor a legitimate dotdir (e.g. .obsidian).
+$topLevelDirs = @(Get-ChildItem -Path $VaultRoot -Directory -Force -ErrorAction SilentlyContinue)
+foreach ($dir in $topLevelDirs) {
+    if ($dir.Name -like '.*') { continue }  # legitimate dotdir, e.g. .obsidian
+    if ($canonicalNames -contains $dir.Name) { continue }
+    $integrityErrs.Add("STRAY-LOCATION: $($dir.FullName) — notes outside canonical folders; memory-subagent must integrate them (canonical note takes precedence, then prune the stray)")
+}
 
 # ---------------------------------------------------------------------------
 # Phase A: Rename type_slug.md -> slug.md (-Fix only; report-only otherwise)
@@ -299,6 +445,7 @@ if ($Fix) {
         $_.DirectoryName -ne $VaultRoot -and $_.Name -ne 'MEMORY.md'
     })
     $basenameMap = Build-BasenameMap $allMdFiles
+    $nameSlugMap = Build-NameSlugMap $allMdFiles
 }
 
 # ---------------------------------------------------------------------------
@@ -309,6 +456,23 @@ foreach ($entry in $basenameMap.GetEnumerator()) {
         $paths = $entry.Value -join ', '
         $integrityErrs.Add("DUPLICATE-BASENAME '[$($entry.Key)]' is ambiguous: $paths")
     }
+}
+
+# ---------------------------------------------------------------------------
+# Phase B2: Legacy conflict files (*.conflict.md) — gate-blocking, checked first
+# ---------------------------------------------------------------------------
+# As of 2026-07-26, memory-consolidate.ps1's no-clobber transport no longer creates
+# .conflict.md files: a colliding stray is left at its original path and reported PENDING
+# for memory-subagent step 0.5a to resolve by precedence (canonical wins), never renamed
+# into a competing artifact. This check is now a legacy tripwire only — it catches a
+# .conflict.md left over from before that change, or a regression that reintroduces one.
+# Flag it explicitly and up front so the generic per-note checks below (NAME-MISMATCH,
+# FILE-NOT-INDEXED) never run on these files and suggest the wrong remedy (renaming/indexing
+# a duplicate instead of distilling it away).
+$conflictNotes = @($memoryNotes | Where-Object { $_.Name -like '*.conflict.md' })
+foreach ($note in $conflictNotes) {
+    $rel = "$($note.Directory.Name)/$($note.Name)"
+    $integrityErrs.Add("CONFLICT-UNRESOLVED (legacy artifact, no longer produced by current tooling): $rel — distill its content into the canonical note, then delete this file")
 }
 
 # ---------------------------------------------------------------------------
@@ -355,6 +519,15 @@ foreach ($f in $allMdFiles) {
         if (-not $basenameMap.ContainsKey($tgtBn)) {
             $integrityErrs.Add("BROKEN-LINK: [[$link]] in $srcRel")
         }
+
+        # Broken link (by declared name): target matches no note's frontmatter `name:`
+        # value, even if a same-named file exists. Distinct from BROKEN-LINK above (which
+        # is filename-based, matching how Obsidian actually resolves a wikilink) — this
+        # check independently verifies the *declared identity* side of the graph, so a
+        # NAME-MISMATCH note (filename and name: field disagree) shows up here too.
+        if (-not $nameSlugMap.ContainsKey($tgtBn)) {
+            $integrityErrs.Add("BROKEN-LINK-NAME: [[$link]] in $srcRel (no note declares this name:)")
+        }
     }
 
     # Skip compliance checks for root-level files (e.g. _conventions.md) and MEMORY.md indexes.
@@ -362,6 +535,18 @@ foreach ($f in $allMdFiles) {
 
     $yaml = Get-FrontmatterBlock $content
     $rel  = "$($f.Directory.Name)/$($f.Name)"
+
+    # --- name: frontmatter must match the filename (memory-write schema invariant) ---
+    # Skipped for *.conflict.md: its name: field legitimately matches the CANONICAL note
+    # it collided with, not its own .conflict.md filename. CONFLICT-UNRESOLVED (Phase B2)
+    # already owns this file and names the correct remedy — flagging NAME-MISMATCH too
+    # would misdirect toward renaming instead of merging.
+    if ($f.Name -notlike '*.conflict.md') {
+        $nameField = Get-ScalarYamlValue $yaml 'name'
+        if ($nameField -and $nameField.ToLower() -ne $f.BaseName.ToLower()) {
+            $warnings.Add("NAME-MISMATCH: $rel declares name: '$nameField' but filename is '$($f.BaseName)'")
+        }
+    }
 
     # --- Required tags ---
     $tags        = Get-TagsFromYaml $yaml
@@ -379,6 +564,16 @@ foreach ($f in $allMdFiles) {
             $topicNotes[$topicName] = [System.Collections.Generic.List[string]]::new()
         }
         $topicNotes[$topicName].Add($rel)
+    }
+
+    # --- Track ad hoc tags outside the type/*|agent/*|topic/* scaffold for the TAG-SPRAWL
+    #     check (below the main loop). topic/* is excluded — TOPIC-SINGLETON above already
+    #     covers that namespace exhaustively. ---
+    foreach ($tag in ($tags | Where-Object { $_ -notmatch '^type/' -and $_ -notmatch '^agent/' -and $_ -notmatch '^topic/' })) {
+        if (-not $allTagNotes.ContainsKey($tag)) {
+            $allTagNotes[$tag] = [System.Collections.Generic.List[string]]::new()
+        }
+        $allTagNotes[$tag].Add($rel)
     }
 
     # --- Normalize inline tags [a, b] to list form (-Fix) ---
@@ -421,9 +616,44 @@ foreach ($f in $allMdFiles) {
         }
     }
 
+    # Record the parsed date for the STALE-ORPHAN check (run after inbound/outbound are
+    # fully built, since it needs every note's final inbound-link count). Any note with a
+    # parseable metadata.updated is eligible, not just decaying types.
+    if ($metaUpdated) {
+        try {
+            $noteUpdatedDate[$srcBn] = [datetime]::ParseExact($metaUpdated, 'yyyy-MM-dd', $null)
+        } catch {
+            # Unparseable date — MISSING-UPDATED already covers this case.
+        }
+    }
+
+    # --- metadata.expires: warn if past due (freshness schema; only meaningful when set) ---
+    $metaExpires = Get-NestedYamlValue $yaml 'metadata' 'expires'
+    if ($metaExpires) {
+        try {
+            $expDate = [datetime]::ParseExact($metaExpires, 'yyyy-MM-dd', $null)
+            if ($expDate -lt $today) {
+                $ageDays = ($today - $expDate).Days
+                $warnings.Add("EXPIRED ($ageDays days ago): $rel — re-verify against current state, refresh, or prune")
+            }
+        } catch {
+            $warnings.Add("BAD-EXPIRES: $rel — metadata.expires '$metaExpires' is not a parseable YYYY-MM-DD date")
+        }
+    }
+
     # --- Staleness check: decaying types only ---
     $metaType   = Get-NestedYamlValue $yaml 'metadata' 'type'
     $isDecaying = ($metaType -in $DecayingTypes) -or ($tags -contains 'decaying')
+
+    # --- metadata.type must match the type/* tag suffix (memory-write schema invariant) ---
+    $typeTag = ($tags | Where-Object { $_ -match '^type/' } | Select-Object -First 1)
+    if ($metaType -and $typeTag) {
+        $typeTagValue = $typeTag -replace '^type/', ''
+        if ($metaType -ne $typeTagValue) {
+            $warnings.Add("TYPE-MISMATCH: $rel — metadata.type '$metaType' disagrees with tag 'type/$typeTagValue'")
+        }
+    }
+
     if ($isDecaying -and $metaUpdated) {
         try {
             $updDate = [datetime]::ParseExact($metaUpdated, 'yyyy-MM-dd', $null)
@@ -446,13 +676,28 @@ foreach ($f in $allMdFiles) {
 }
 
 # --- Orphan check: memory notes with no inbound AND no outbound wikilinks ---
+# --- NO-INBOUND check: has outbound links but nothing links back — a narrower, distinct ---
+# --- signal from ORPHAN above (deliberately not re-fired when ORPHAN already covers the ---
+# --- no-links-at-all case, to avoid double-reporting the same note under two flags). ---
+# --- STALE-ORPHAN check: >OrphanStaleDays old AND zero inbound, regardless of outbound — ---
+# --- the two-factor dead-weight signal; age alone is intentionally not sufficient. ---
 foreach ($note in $memoryNotes) {
     $bn  = $note.BaseName.ToLower()
     $rel = "$($note.Directory.Name)/$($note.Name)"
     $hasOut = $outbound.ContainsKey($bn) -and $outbound[$bn].Count -gt 0
     $hasIn  = $inbound.ContainsKey($bn)  -and $inbound[$bn].Count  -gt 0
+
     if (-not $hasOut -and -not $hasIn) {
         $warnings.Add("ORPHAN (no [[links]] in or out): $rel")
+    } elseif ($hasOut -and -not $hasIn) {
+        $warnings.Add("NO-INBOUND: $rel — has outbound [[links]] but nothing links back to it")
+    }
+
+    if (-not $hasIn -and $noteUpdatedDate.ContainsKey($bn)) {
+        $ageDays = ($today - $noteUpdatedDate[$bn]).Days
+        if ($ageDays -gt $OrphanStaleDays) {
+            $warnings.Add("STALE-ORPHAN ($ageDays days, no inbound): $rel — verify against current state or prune (threshold: $OrphanStaleDays days)")
+        }
     }
 }
 
@@ -463,6 +708,17 @@ if ($topicNotes.Keys.Count -gt 1) {
         if ($entry.Value.Count -eq 1) {
             $warnings.Add("TOPIC-SINGLETON: topic/$($entry.Key) used by only one note ($($entry.Value[0])) — consider reusing an existing topic or cross-linking")
         }
+    }
+}
+
+# --- Tag-sprawl check: an ad hoc tag outside the type/*|agent/*|topic/* scaffold used by ---
+# --- exactly one note. Division of labor vs. TOPIC-SINGLETON above: that check owns the ---
+# --- topic/* namespace exhaustively, so TAG-SPRAWL excludes topic/* to avoid re-firing the ---
+# --- identical warning under a second name. TAG-SPRAWL's novel value is catching sprawl in ---
+# --- tags OUTSIDE the established taxonomy entirely (e.g. a stray one-off 'status/draft'). ---
+foreach ($entry in $allTagNotes.GetEnumerator()) {
+    if ($entry.Value.Count -eq 1) {
+        $warnings.Add("TAG-SPRAWL: '$($entry.Key)' used by only one note ($($entry.Value[0])) — consider reusing an existing tag")
     }
 }
 
@@ -483,16 +739,24 @@ foreach ($folder in $agentFolders) {
     $folderNotes  = @(Get-ChildItem -Path $folder.FullName -Filter '*.md' -File |
                       Where-Object { $_.Name -ne 'MEMORY.md' })
 
-    # Every path in the index must resolve to a real file in this folder.
+    # Every path in the index must resolve to a real file in this folder. A *.conflict.md
+    # target is a distinct defect from a dead link (the file DOES exist) — CONFLICT-INDEXED
+    # flags it separately: an index entry is a promise of a resolved, canonical note, and a
+    # conflict file is neither.
     foreach ($linked in $indexedFiles) {
         $expectedPath = Join-Path $folder.FullName $linked
         if (-not (Test-Path $expectedPath)) {
             $integrityErrs.Add("INDEX-DEAD-LINK: $rel/MEMORY.md -> '$linked' (file not found)")
+        } elseif ($linked -like '*.conflict.md') {
+            $integrityErrs.Add("CONFLICT-INDEXED (legacy artifact, no longer produced by current tooling): $rel/MEMORY.md -> '$linked' — distill its content into the canonical note, then delete it and this index entry")
         }
     }
 
-    # Every note file in the folder must appear in the index.
+    # Every note file in the folder must appear in the index — except *.conflict.md, which
+    # CONFLICT-UNRESOLVED (Phase B2) already owns; indexing one would cement the duplicate
+    # rather than merge it away, so FILE-NOT-INDEXED intentionally never fires for these.
     foreach ($note in $folderNotes) {
+        if ($note.Name -like '*.conflict.md') { continue }
         if ($note.Name -notin $indexedFiles) {
             $integrityErrs.Add("FILE-NOT-INDEXED: $rel/$($note.Name) missing from MEMORY.md")
         }

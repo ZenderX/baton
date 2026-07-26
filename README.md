@@ -36,7 +36,7 @@ Plugin entries in `marketplace.json` omit `version` — git-source plugins float
 
 | Plugin | Contents |
 |--------|----------|
-| `conductor-core` | conductor + 5 subagents (6 agents total), their 5 preloaded skills (`git-diff`, `memory-review`, `memory-write`, `obsidian-links`, `operating-standards`), and `.mcp.json` (`sequential-thinking`, `context7`). 0 hooks. |
+| `conductor-core` | conductor + 5 subagents (6 agents total), 5 bundled skills (`git-diff`, `memory-review`, `memory-write`, `obsidian-links`, `operating-standards`; preload is selective per agent and same-plugin-only — see [Skills](#skills)), and `.mcp.json` (`sequential-thinking`, `context7`). 0 hooks. |
 | `bevy` | Bevy skill — standalone, no agents |
 | `blender` | Blender (bevy_skein) skill — standalone, no agents |
 | `rust` | Rust skill — standalone, no agents |
@@ -96,24 +96,29 @@ If a project- or user-level agent of the same name shadows the plugin's, scope i
 
 The **conductor** is a blackboard orchestrator: it holds the evolving task model in its own context, delegates focused briefs to stateless specialist subagents, distills their results back into its working model, and proceeds — without stopping between phases unless a genuine decision needs the user. It is always the top-level agent (`claude --agent conductor`); nothing spawns it, and it never does specialist work itself.
 
-| Agent | Role | Model | Skills preloaded |
-|-------|------|-------|-------------------|
-| **conductor** | Orchestrator. Holds the shared task model, delegates to specialists, distills results, proceeds autonomously. Entrypoint for Research → Planning → Implementation → Review. | inherit | operating-standards |
-| **planning-subagent** | Codebase analyst and architect. Reads the project, decomposes work, produces a sequenced `task-plan.md`. | sonnet | operating-standards |
-| **research-subagent** | External research only (no codebase access). Library docs, API reference, web facts, latest versions. | sonnet | operating-standards |
-| **implement-subagent** | Autonomous code writer. Owns architectural decisions within each phase. Reads `task-plan.md`, implements, verifies. | sonnet | operating-standards, bevy, rust, typescript, vue3 |
-| **code-review-subagent** | Post-implementation review. Verifies correctness, semantic integrity, best practices. Returns `APPROVED`, `NEEDS_REVISION`, or `FAILED`. Never applies fixes. | sonnet | operating-standards, git-diff, vue3, typescript, rust, bevy |
-| **memory-subagent** | Post-task dirty propagator and topic steward. Flags 1-hop neighbor memories stale after any memory write, reconciles the emergent `topic/*` taxonomy. Conductor-only trigger — subagents never invoke it directly. | haiku | operating-standards, memory-write, obsidian-links |
+It also fans work out: independent subagent invocations dispatch in parallel (a single message, multiple `Agent` calls — capped at 20 concurrent, 200/session), each with an explicit non-overlapping file-ownership scope so parallel briefs don't collide. And it carries no fixed roster of domain skills — before briefing a subagent, it discovers what's available by scanning `plugins/*/skills/*/SKILL.md` frontmatter and matches skills to the files actually in play (see [Skills](#skills)).
+
+| Agent | Role | Model | Skills |
+|-------|------|-------|--------|
+| **conductor** | Orchestrator. Holds the shared task model, delegates to specialists, distills results, proceeds autonomously. Entrypoint for Research → Planning → Implementation → Review. | inherit | operating-standards (preloaded) |
+| **planning-subagent** | Codebase analyst and architect. Reads the project, decomposes work, produces a sequenced `task-plan.md`. | sonnet | operating-standards (preloaded) |
+| **research-subagent** | External research only (no codebase access). Library docs, API reference, web facts, latest versions. | sonnet | operating-standards (preloaded) |
+| **implement-subagent** | Autonomous code writer. Owns architectural decisions within each phase. Reads `task-plan.md`, implements, verifies. | sonnet | operating-standards (preloaded); domain standards (e.g. `rust`, `vue3`) on demand via the `Skill` tool |
+| **code-review-subagent** | Post-implementation review. Verifies correctness, semantic integrity, best practices. Returns `APPROVED`, `NEEDS_REVISION`, or `FAILED`. Never applies fixes. | sonnet | operating-standards, git-diff (preloaded); domain standards on demand via the `Skill` tool |
+| **memory-subagent** | Post-task dirty propagator and topic steward. Flags 1-hop neighbor memories stale after any memory write, reconciles the emergent `topic/*` taxonomy, integrates any stray notes `scripts/memory-lint.ps1` finds living outside the canonical plugin-scoped folders. Conductor-only trigger — subagents never invoke it directly. | haiku | operating-standards, memory-write, obsidian-links (preloaded) |
 
 ### Skills
 
-Skills are authored in `plugins/<plugin>/skills/` and declared by name in an agent's `skills:` frontmatter list — the full skill content is **preloaded** (injected at agent start), not fetched on demand. Skills from every *installed and enabled* plugin merge into one namespace before an agent's `skills:` list resolves, so each skill exists exactly once, in its own plugin.
+Skills are authored in `plugins/<plugin>/skills/` and reach an agent through two distinct paths:
+
+- **Preload** — named in an agent's `skills:` frontmatter, the full skill body is injected at agent start. **Measured to work same-plugin only**: a `skills:` entry naming a skill from a *different* plugin is silently dropped — no error, the content simply never arrives. `conductor-core`'s agents therefore only ever preload `conductor-core`'s own skills (see the table above).
+- **On demand** — loaded mid-task via the `Skill` tool, triggered by the skill's own `paths:` glob matching a file the agent is touching. This is the only mechanism by which a skill from a *different* plugin reaches an agent, and it requires that plugin to be **installed and enabled**.
 
 | Skill | Plugin | Purpose |
 |-------|--------|---------|
 | `git-diff` | conductor-core | Structured branch comparison |
 | `memory-review` | conductor-core | Vault accuracy review procedure |
-| `memory-write` | conductor-core | Memory note-writing conventions — schema, type selection, dirty-flag clearing |
+| `memory-write` | conductor-core | Memory note-writing conventions — schema, type selection, dirty-flag clearing, optional freshness/expiry metadata |
 | `obsidian-links` | conductor-core | Wikilink conventions for connecting memory notes |
 | `operating-standards` | conductor-core | Engineering Rules 1–13 and Git Hygiene Rules G1–G3 — mandatory for every agent |
 | `bevy` | bevy | Bevy game engine patterns |
@@ -122,11 +127,13 @@ Skills are authored in `plugins/<plugin>/skills/` and declared by name in an age
 | `typescript` | typescript | TypeScript coding standards |
 | `vue3` | vue3 | Vue 3 component patterns |
 
-**Consequence for consumers:** `implement-subagent` and `code-review-subagent` declare `bevy`, `rust`, `typescript`, and `vue3` in their `skills:` list, but those skills ship in their own standalone plugins, not in `conductor-core`. Install whichever language plugins match what you write (e.g. `rust` if you write Rust) alongside `conductor-core`. If a listed skill's plugin isn't installed, it simply isn't preloaded that session — nothing breaks.
+**Domain standards load on demand, and require the domain plugin to be enabled.** `implement-subagent` and `code-review-subagent` carry the `Skill` tool and do not list `bevy`/`rust`/`typescript`/`vue3` in `skills:` — a cross-plugin preload there was measured inert (see above), so listing them would have been a no-op that looked like coverage. Instead, each domain skill's own `paths:` glob (`**/*.rs`; `**/*.ts`, `**/*.tsx`; `**/*.vue` + composables/stores) triggers it on demand when a matching file is in play — but only if that plugin is installed *and* enabled. Install whichever language plugins match what you write (e.g. `rust` if you write Rust) alongside `conductor-core`. **This repository's own `.claude/settings.json` enables only `conductor-core`** — running this workbench as-is, without also enabling e.g. `rust`, means no Rust standards reach the agent, and both agents are instructed to say so explicitly rather than proceeding on generic knowledge.
+
+**Cache economics behind that design choice:** every subagent spawn builds its own cache from cold, on the standard 5-minute TTL (the 1-hour TTL applies only to the main conversation) — so a preloaded skill body is paid at full input-token price on *every* invocation, with no amortization across the session. That is why preload here is reserved for `operating-standards` (small, mandatory for every agent) and `git-diff` (small, always used by code-review); the on-demand path costs only skill metadata (~50 tokens) until a matching file actually triggers it, which is cheaper for anything conditional. Separately: a project's `CLAUDE.md` loads in full into every subagent's context, not just the conductor's — six agents means a large `CLAUDE.md` is paid up to six times per task.
 
 ### How rules travel
 
-Engineering Rules 1–13 and Git Hygiene Rules G1–G3 travel as a single preloaded skill, `operating-standards`, shipped by `conductor-core`. Every one of the six agents declares it in `skills:` frontmatter (see the table above), so the rules are injected into every agent's context at session start with zero extra setup — no `SessionStart` hook, no PowerShell, no separate rules directory to keep in sync. Install `conductor-core` and you have them, workbench or consumer alike.
+Engineering Rules 1–13 and Git Hygiene Rules G1–G3 travel as a single preloaded skill, `operating-standards`, shipped by `conductor-core`. Every one of the six agents declares it in `skills:` frontmatter and — because it lives in the *same* plugin as every agent that declares it — the preload actually lands, injected into every agent's context at session start with zero extra setup: no `SessionStart` hook, no PowerShell, no separate rules directory to keep in sync. Install `conductor-core` and you have them, workbench or consumer alike.
 
 ### The learning loop
 
@@ -207,11 +214,13 @@ pwsh scripts/memory-lint.ps1
 pwsh scripts/memory-lint.ps1 -Fix   # safe, idempotent auto-repairs
 ```
 
-Checks the `.claude/agent-memory/` vault for broken links, missing tags, stale research, and `MEMORY.md` index mismatches. Exits non-zero on integrity errors. `-Fix` applies safe, idempotent repairs (filename normalization, index rewrites, missing `metadata.updated`, tag format normalization) and regenerates `.obsidian/graph.json` color groups — one deterministic color per `topic/*` tag in use. `plugins/conductor-core/skills/memory-review/` is the companion judgment skill — run it for accuracy review against current repo state (monthly, or after major changes); it runs the linter first, then applies judgment the linter can't (verify, reconcile, prune, promote).
+Checks the `.claude/agent-memory/` vault for broken links (including wikilinks that don't match any note's declared `name:`), orphaned notes, tag sprawl outside the `type/*`/`agent/*` scaffold, expired or stale-and-orphaned notes, frontmatter schema mismatches, `MEMORY.md` index mismatches, and stray notes living outside the canonical folder structure (`STRAY-LOCATION`: a nested `.claude` directory anywhere beneath the vault root — the doubled-path signature from a historical folder-move bug — or a top-level directory that isn't a canonical `conductor-core-<agent-name>/` folder). Exits non-zero on integrity errors. This check is read-only — it only detects and reports; `memory-subagent` owns integrating any strays it finds. `-Fix` applies safe, idempotent repairs (filename normalization, index rewrites, missing `metadata.updated`, tag format normalization) and regenerates `.obsidian/graph.json` color groups — one deterministic color per `topic/*` tag in use. `plugins/conductor-core/skills/memory-review/` is the companion judgment skill — run it for accuracy review against current repo state (monthly, or after major changes); it runs the linter first, then applies judgment the linter can't (verify, reconcile, prune, promote).
 
 ### Memory vault + Obsidian setup
 
-`.claude/agent-memory/` is a per-subagent memory vault, browsable in Obsidian. Each subagent folder (`conductor/`, `implement-subagent/`, …) holds topic-slug notes with YAML frontmatter and wikilinks; cross-agent `[[links]]` resolve vault-wide.
+`.claude/agent-memory/` is a per-subagent memory vault, browsable in Obsidian. Each subagent folder (`conductor/`, `implement-subagent/`, …) holds topic-slug notes with YAML frontmatter and wikilinks; cross-agent `[[links]]` resolve vault-wide. Frontmatter may optionally carry `freshness` (`timeless`/`slow`/`medium`/`fast`), `expires`, and `supersedes` — contradicted notes are invalidated and cross-linked to their replacement, never deleted out from under an inbound link. See the `memory-write` skill for the schema.
+
+Each folder's `MEMORY.md` index auto-loads into that agent's context at spawn, but only the first **200 lines or 25KB, whichever comes first** — anything past that is silently dropped. Keep entries to one line each and push detail into the topic note it points to.
 
 **Setup:**
 1. Install [Obsidian](https://obsidian.md) → **Open → Open folder as vault** → select `.claude/agent-memory/` (the folder itself, not the repo root or a subagent folder).
