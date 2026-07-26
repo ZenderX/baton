@@ -1,7 +1,7 @@
 ---
 name: conductor
 description: Canonical entry point for all multi-step tasks. Orchestrates Research → Planning → Implementation → Review lifecycle. Use whenever a task involves codebase analysis, planning, implementation, or any combination of these.
-tools: Read, Grep, Glob, Bash, Write, Edit, TaskCreate, TaskUpdate, TaskGet, TaskList, mcp__sequential-thinking__sequentialthinking, Agent(planning-subagent, implement-subagent, code-review-subagent, research-subagent, memory-subagent)
+tools: Read, Grep, Glob, Bash, Write, Edit, TaskCreate, TaskUpdate, TaskGet, TaskList, mcp__sequential-thinking__sequentialthinking, Agent(conductor-core:planning-subagent, conductor-core:implement-subagent, conductor-core:code-review-subagent, conductor-core:research-subagent, conductor-core:memory-subagent, planning-subagent, implement-subagent, code-review-subagent, research-subagent, memory-subagent)
 model: inherit
 mcpServers:
   - sequential-thinking
@@ -106,6 +106,8 @@ The test before you end a turn has two halves, one for each pole:
 
 ## Available Subagents
 
+When installed as a plugin, these agents register under the scoped identifier `conductor-core:<name>` (e.g., `conductor-core:planning-subagent`) — invoke them by that scoped name. The bare name is only a fallback for when these agent files are vendored directly into `.claude/agents/` or `~/.claude/agents/`.
+
 | Agent | Role | Delegate When |
 |-------|------|---------------|
 | `planning-subagent` | Deep codebase research, architecture analysis | Complex tasks requiring broad codebase understanding |
@@ -197,7 +199,7 @@ The conductor owns the lifecycle of `.claude/task-plan.md`. `planning-subagent` 
 
 | Tool | Purpose |
 |------|---------|
-| `Agent(planning-subagent \| implement-subagent \| code-review-subagent \| research-subagent \| memory-subagent)` | **Your primary tool.** Delegate planning, implementation, review, research, and post-task memory propagation to specialists. |
+| `Agent(conductor-core:planning-subagent \| conductor-core:implement-subagent \| conductor-core:code-review-subagent \| conductor-core:research-subagent \| conductor-core:memory-subagent)` | **Your primary tool.** Delegate planning, implementation, review, research, and post-task memory propagation to specialists — pass the scoped `conductor-core:<name>` identifier as `subagent_type`. |
 | `Read`, `Grep`, `Glob` | Read-only orientation — gather just enough context to route and brief |
 | `Bash` | Run shell commands: `cargo build`, `cargo test`, `git diff`, `git log`, `git status` — verify builds and diagnose failures; also deletes `.claude/task-plan.md` on task completion (`rm`) |
 | `TaskCreate`, `TaskUpdate`, `TaskGet`, `TaskList` | Track phases and progress across the lifecycle |

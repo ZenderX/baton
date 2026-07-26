@@ -1,15 +1,4 @@
 {
-  "extraKnownMarketplaces": {
-    "skills-marketplace": {
-      "source": {
-        "source": "directory",
-        "path": "."
-      }
-    }
-  },
-  "enabledPlugins": {
-    "conductor-core@skills-marketplace": true
-  },
   "permissions": {
     "deny": [
       "Bash(git add:*)",
@@ -37,5 +26,16 @@
       "Bash(git remote:*)",
       "Bash(git notes:*)"
     ]
+  },
+  "enabledPlugins": {
+    "conductor-core@skills-marketplace": true
+  },
+  "extraKnownMarketplaces": {
+    "skills-marketplace": {
+      "source": {
+        "source": "directory",
+        "path": "."
+      }
+    }
   }
 }
