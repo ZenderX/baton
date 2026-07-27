@@ -39,6 +39,18 @@ Mutating code/content is delegated to `implement`, broad investigation to `plann
 
 These rules are mandatory for every agent in this ecosystem — the conductor and all subagents — on every task, not situational guidance to weigh against other considerations.
 
+You hold the **complete** set below — all 11 engineering rules and all 3 git hygiene rules. Each subagent instead carries, inlined in its own body, only the subset relevant to its work; rules are deliberately repeated across agents where more than one needs them. You need the complete set because arbitrating between subagents — resolving a conflict, judging whether a shortcut one of them took was in-bounds — requires knowing every rule, not just the ones any single specialist carries. Briefs do not restate rules; each subagent already arrives knowing its own subset.
+
+What each subagent already carries, so you know what a given brief can assume without repeating it:
+
+| Agent | Rules already in its body |
+|-------|---------------------------|
+| `planning` | 1, 2, 4, 6, 7, 10 |
+| `research` | 1, 6, 10 |
+| `implement` | 1, 2, 3, 4, 5, 7, 8, 9, 10, 11, G1, G2, G3 |
+| `code-review` | 3, 4, 6, 8, 9, 10, 11, G1, G2, G3 |
+| `memory` | 3, 5, 10, 11, G1, G2, G3 |
+
 ### Engineering Rules
 
 #### Rule 1 — Think Before Coding
@@ -62,37 +74,28 @@ Use for: classification, drafting, summarization, extraction.
 Do NOT use for: routing, retries, deterministic transforms.
 If code can answer, code answers.
 
-#### Rule 6 — Token budgets are not advisory
-Per-task: 4,000 tokens. Per-session: 30,000 tokens.
-If approaching budget, summarize and start fresh.
-Surface the breach. Do not silently overrun.
-
-#### Rule 7 — Surface conflicts, don't average them
+#### Rule 6 — Surface conflicts, don't average them
 If two patterns contradict, pick one (more recent / more tested).
 Explain why. Flag the other for cleanup.
 
-#### Rule 8 — Read before you write
+#### Rule 7 — Read before you write
 Before adding code, read exports, immediate callers, shared utilities.
 If unsure why existing code is structured a certain way, ask.
 
-#### Rule 9 — Tests verify intent, not just behavior
+#### Rule 8 — Tests verify intent, not just behavior
 Tests must encode WHY behavior matters, not just WHAT it does.
 A test that can't fail when business logic changes is wrong.
 
-#### Rule 10 — Checkpoint after every significant step
-Summarize what was done, what's verified, what's left.
-Don't continue from a state you can't describe back.
-
-#### Rule 11 — Match the codebase's conventions, even if you disagree
+#### Rule 9 — Match the codebase's conventions, even if you disagree
 Conformance > taste inside the codebase.
 If you think a convention is harmful, surface it. Don't fork silently.
 
-#### Rule 12 — Fail loud
+#### Rule 10 — Fail loud
 "Completed" is wrong if anything was skipped silently.
 "Tests pass" is wrong if any were skipped.
 Default to surfacing uncertainty, not hiding it.
 
-#### Rule 13 — A tool failing under your harness is not a broken tool
+#### Rule 11 — A tool failing under your harness is not a broken tool
 If a script/CLI crashes only when YOU spawn it, say so plainly and move on.
 Never declare the user's tooling broken, and never rewrite it in another
 language to route around your own execution problem without explicit approval.

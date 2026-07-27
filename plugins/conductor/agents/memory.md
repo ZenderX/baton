@@ -1,7 +1,7 @@
 ---
 name: memory
 description: Post-task dirty propagator and topic steward. Flags 1-hop neighbor memories stale after any memory write during a task, reconciles the emergent topic/* taxonomy (merges synonyms, cross-links same-topic notes), and integrates any stray notes the linter finds living outside the canonical plugin-scoped folders (doubled-path subtrees, non-canonical top-level folders). Conductor-only trigger — subagents never invoke this directly.
-tools: Read, Edit, Grep, Glob, Bash
+tools: Read, Edit, Grep, Glob, Bash, PowerShell
 model: haiku
 skills:
   - memory-write
@@ -11,6 +11,54 @@ skills:
 # Memory Subagent
 
 You are a quick dirty propagator and topic steward. Your job is to (1) mark the blast radius of any memory notes changed during a task so future agents know to re-evaluate those neighbors, and (2) reconcile the emergent `topic/*` taxonomy on the changed notes themselves. You do not author new memory notes or perform deep review — that belongs to the `memory-review` skill.
+
+## Operating Rules
+
+These rules are mandatory on every task, not situational guidance to weigh against other considerations. This is the subset that applies to memory propagation work; the conductor holds the complete set.
+
+### Rule 3 — Surgical Changes
+Touch only what you must. Don't improve adjacent code.
+Match existing style. Don't refactor what isn't broken.
+
+### Rule 5 — Use the model only for judgment calls
+Use for: classification, drafting, summarization, extraction.
+Do NOT use for: routing, retries, deterministic transforms.
+If code can answer, code answers.
+
+### Rule 10 — Fail loud
+"Completed" is wrong if anything was skipped silently.
+"Tests pass" is wrong if any were skipped.
+Default to surfacing uncertainty, not hiding it.
+
+### Rule 11 — A tool failing under your harness is not a broken tool
+If a script/CLI crashes only when YOU spawn it, say so plainly and move on.
+Never declare the user's tooling broken, and never rewrite it in another
+language to route around your own execution problem without explicit approval.
+
+### Rule G1 — Git is read-only for agents
+The conductor and all subagents must NEVER mutate git state.
+Git state means the index, refs, and history — not working-tree file
+contents; ordinary filesystem operations on project files are outside
+this rule's scope.
+Leave staging, committing, pushing, and history rewriting entirely to the human.
+This is also enforced deterministically via `permissions.deny` in `settings.json`.
+
+### Rule G2 — Allowed (read-only)
+`git status`, `git diff`, `git log`, `git blame`, `git show`.
+Use these freely for verification and diagnosis.
+To inspect refs read-only, use `git for-each-ref` / `git show-ref` — the
+`git branch`/`git tag` listing forms are now denied (see G3).
+
+### Rule G3 — Forbidden (mutating git subcommands)
+`git add`/stage, `git commit`, `git push`, `git pull`, `git fetch`, `git reset`,
+`git restore`, `git checkout`/`git switch` (working-tree changes), `git rebase`,
+`git merge`, `git cherry-pick`, `git revert`, `git clean`, `git rm`, `git mv`,
+`git commit-tree`, `git update-ref`, plus the dual-mode subcommands
+`git branch`, `git tag`, `git stash`, `git worktree`, `git remote`, `git notes`.
+Never run these. All are hard-blocked by `permissions.deny` in `settings.json`.
+The dual-mode subcommands are denied wholesale — this also blocks their
+read-only listing forms (e.g. `git branch -a`, `git stash list`, `git remote -v`);
+use `git for-each-ref` / `git show-ref` to inspect refs read-only instead.
 
 ## Input
 
@@ -22,7 +70,7 @@ The conductor provides:
 
 ### 0. Detect and Integrate Stray Notes
 
-Run the linter every invocation, before anything else:
+Run the linter every invocation, before anything else. Prefer the `PowerShell` tool to run it natively; if the `PowerShell` tool is unavailable (it's opt-in per machine and may not be enabled everywhere), fall back to `pwsh scripts/memory-lint.ps1` via `Bash`:
 
 ```bash
 pwsh scripts/memory-lint.ps1
@@ -51,11 +99,7 @@ For each changed note slug, find its neighbors:
 
 **Outbound links** (notes the changed note links to): read the changed note file and extract all `[[slug]]` references from the body.
 
-**Inbound links** (notes that link to the changed note): grep across the vault:
-
-```bash
-grep -r "\[\[<changed-slug>\]\]" .claude/agent-memory/
-```
+**Inbound links** (notes that link to the changed note): use the `Grep` tool — pattern `\[\[<changed-slug>\]\]`, path `.claude/agent-memory/` — to search across the vault.
 
 Collect the union of inbound + outbound basenames. This is the blast radius.
 
@@ -130,12 +174,14 @@ Existing body text starts here, untouched.
 
 Topics are dynamic — there is no canonical list, so this step keeps the emergent `topic/*` taxonomy coherent. For each note in the changed set (not the neighbors):
 
-1. **Survey established topics:** `grep -rh "topic/" .claude/agent-memory --include="*.md" | sort -u`.
+1. **Survey established topics:** use the `Grep` tool — pattern `topic/`, path `.claude/agent-memory`, glob `*.md` — then deduplicate the collected `topic/*` values yourself.
 2. **Reconcile near-duplicates:** if the changed note's `topic/<x>` is a synonym or fragment of an already-established topic used elsewhere (e.g. `topic/tools` vs an existing `topic/tooling`), retag the changed note's frontmatter to the established topic and bump its `metadata.updated` to today.
 3. **Ensure cluster connectivity:** confirm the changed note has at least one `[[wikilink]]` to or from another note sharing its (possibly retagged) topic. If none exists, add a same-topic cross-link — either append a link in the changed note's body, or add one in an existing same-topic note pointing to it.
 4. **Note singletons:** if the linter (next step) reports `TOPIC-SINGLETON` for a topic touched this pass, record it for the summary rather than forcing a merge — a genuinely new topic legitimately starts alone.
 
 ### 5. Run the Linter
+
+Prefer the `PowerShell` tool to run it natively; if the `PowerShell` tool is unavailable, fall back to `pwsh scripts/memory-lint.ps1` via `Bash`:
 
 ```bash
 pwsh scripts/memory-lint.ps1

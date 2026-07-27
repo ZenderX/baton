@@ -72,11 +72,7 @@ metadata:
 
 ## Topic Selection
 
-Topics are dynamic, not a fixed vocabulary. Before tagging, survey what's already in use:
-
-```bash
-grep -rh "topic/" .claude/agent-memory --include="*.md" | sort -u
-```
+Topics are dynamic, not a fixed vocabulary. Before tagging, survey what's already in use: use the `Grep` tool — pattern `topic/`, path `.claude/agent-memory`, glob `*.md` — then deduplicate the collected matches yourself to see the established set.
 
 Reuse an existing `topic/<x>` when one reasonably fits. Mint a new `topic/<x>` only when none does — one topic tag per note. Don't agonize over the perfect fit: the memory subagent reconciles the taxonomy after each task (merging synonyms, cross-linking same-topic notes), so a reasonable choice now is enough.
 

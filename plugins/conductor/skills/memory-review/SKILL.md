@@ -79,11 +79,9 @@ The linter only checks that `type/*` and `topic/*` tags are *present* — it can
 
 ### 5. Verify Against Repo State
 
-For each note flagged as stale or any note whose claim seems load-bearing, verify it reflects current reality:
+For each note flagged as stale or any note whose claim seems load-bearing, verify it reflects current reality: use the `Grep` tool with pattern `<keyword>` and path `.claude/` to check whether the described file/pattern still exists, and cross-check recent history:
 
 ```bash
-# Check if the described file/pattern still exists
-grep -r "<keyword>" .claude/
 git log --oneline -10
 ```
 
@@ -160,10 +158,7 @@ metadata:
 Superseded by [[successor-slug]]. Removed because: <reason>.
 ```
 
-To find inbound links before pruning:
-```bash
-grep -r "\[\[<slug>\]\]" .claude/agent-memory/
-```
+To find inbound links before pruning: use the `Grep` tool with pattern `\[\[<slug>\]\]` and path `.claude/agent-memory/`.
 
 ### 9. Update MEMORY.md
 

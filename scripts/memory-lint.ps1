@@ -70,6 +70,14 @@ param(
     [string]$VaultRoot
 )
 
+# This repo's tooling requires PowerShell 7 Core (pwsh) on both macOS and Windows.
+# Windows PowerShell 5.1 (powershell.exe) is not supported: it lacks utf8NoBOM
+# (used below for BOM-free writes) and other PS7-only behavior this script relies on.
+if ($PSVersionTable.PSVersion.Major -lt 7 -or $PSVersionTable.PSEdition -ne 'Core') {
+    Write-Error "This script requires PowerShell 7 Core (pwsh) - Windows PowerShell 5.1 (powershell.exe) is not supported. Detected: PowerShell $($PSVersionTable.PSVersion) ($($PSVersionTable.PSEdition) edition). Re-run with: pwsh $PSCommandPath"
+    exit 1
+}
+
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 

@@ -100,7 +100,7 @@ It also fans work out: independent subagent invocations dispatch in parallel (a 
 
 | Agent | Role | Model | Skills |
 |-------|------|-------|--------|
-| **main** | Orchestrator (the conductor). Holds the shared task model, delegates to specialists, distills results, proceeds autonomously. Entrypoint for Research → Planning → Implementation → Review. | inherit | none — Engineering Rules 1–13 and Git Hygiene Rules G1–G3 are inlined directly in its own agent body (see [How rules travel](#how-rules-travel)) |
+| **main** | Orchestrator (the conductor). Holds the shared task model, delegates to specialists, distills results, proceeds autonomously. Entrypoint for Research → Planning → Implementation → Review. | inherit | none — holds the complete Engineering + Git Hygiene rule set inlined directly in its own agent body; each subagent carries its own relevant subset instead (see [How rules travel](#how-rules-travel)) |
 | **planning** | Codebase analyst and architect. Reads the project, decomposes work, produces a sequenced `task-plan.md`. | sonnet | none |
 | **research** | External research only (no codebase access). Library docs, API reference, web facts, latest versions. | sonnet | none |
 | **implement** | Autonomous code writer. Owns architectural decisions within each phase. Reads `task-plan.md`, implements, verifies. | sonnet | none preloaded; domain standards (e.g. `rust`, `vue3`) on demand via the `Skill` tool |
@@ -132,7 +132,9 @@ Skills are authored in `plugins/<plugin>/skills/` and reach an agent through two
 
 ### How rules travel
 
-Engineering Rules 1–13 and Git Hygiene Rules G1–G3 are inlined verbatim in `plugins/conductor/agents/main.md`'s own `## Operating Rules` section — this is the single canonical home of the rules, and there is no separate skill, hook, or rules directory carrying a second copy. Install `conductor` and run `claude --agent main` and you have them, workbench or consumer alike, with zero extra setup.
+`plugins/conductor/agents/main.md`'s `## Operating Rules` section holds the **complete** set — every Engineering Rule and every Git Hygiene Rule — because the conductor arbitrates between subagents and needs the full picture to judge conflicts between them. Each subagent instead carries, inlined in its own body, only the subset of rules relevant to its own work; rules are deliberately repeated across agent files wherever more than one agent needs them, rather than centralized in one place. There is no separate skill, hook, or rules directory carrying a copy — every copy lives directly in the agent body that needs it.
+
+Git Hygiene Rules go only to the agents that can actually run git: the conductor and the subagents carrying the `Bash` tool. Subagents never see the conductor's `main.md` body directly — they run in their own isolated context — but they don't need to: each already knows its own rules, so briefs carry task content only and never restate rules.
 
 ### The learning loop
 
@@ -170,6 +172,8 @@ Agents and skills are authored **directly in place** under `plugins/<plugin>/{ag
 This workbench dogfoods its own plugin: `.claude/settings.json` registers a marketplace named `skills-marketplace` pointing at the relative path `.` (`extraKnownMarketplaces`) and enables `conductor@skills-marketplace` (`enabledPlugins`). Because the marketplace source is this repo's own root, editing `plugins/conductor/agents/*.md` (or any skill under it) takes effect in this workbench's next session with no deploy step.
 
 Several scripts under `scripts/` remain, for narrower jobs than before:
+
+**Requires PowerShell 7 Core (`pwsh`)** on both macOS and Windows — maintainer-only, the consumer path above needs no PowerShell at all. Windows PowerShell 5.1 (`powershell.exe`, preinstalled on Windows) is **not** supported and every script below refuses to run under it with an explicit error. On Windows, `pwsh` is a separate install (it is not `powershell.exe`) — see [the PowerShell install docs](https://learn.microsoft.com/powershell/scripting/install/installing-powershell) — and must be on `PATH`; on macOS, `brew install powershell`.
 
 ### `sync-global.ps1` — deploy settings.json to your machine
 
@@ -239,7 +243,7 @@ Memory is project-local by design — no script syncs `agent-memory/` to `~/.cla
 
 Agents never mutate git state. Enforced by two layers:
 
-1. **Rule** — Engineering Rules 1–13 and Git Hygiene Rules G1–G3, inlined in `plugins/conductor/agents/main.md` (see [How rules travel](#how-rules-travel)), instruct the conductor to treat git as read-only and to leave staging, committing, and history rewriting to the human.
+1. **Rule** — Engineering Rules 1–11 and Git Hygiene Rules G1–G3 instruct every agent that carries them to treat git as read-only and to leave staging, committing, and history rewriting to the human. The conductor holds the complete set in `plugins/conductor/agents/main.md`; the subagents that can run git (those carrying the `Bash` tool) carry the git-hygiene subset directly in their own bodies (see [How rules travel](#how-rules-travel)).
 2. **Deny list** — `permissions.deny` in `settings.json` hard-blocks mutating commands, deterministically, for this machine, regardless of which agent or subagent issues the `Bash` call. Plugins can't ship `permissions.deny` themselves, so this layer requires you to copy the block from [Quick Start](#quick-start-for-consumers) into your own `settings.json`.
 
 `git status`, `diff`, `log`, `blame`, `show`, `for-each-ref`, and `show-ref` are unaffected by the deny list. Blocked: `add`, `commit`, `push`, `pull`, `fetch`, `reset`, `restore`, `checkout`, `switch`, `rebase`, `merge`, `cherry-pick`, `revert`, `clean`, `rm`, `mv`, `commit-tree`, `update-ref`, `branch`, `tag`, `stash`, `worktree`, `remote`, `notes` — including the dual-mode subcommands' (`branch`, `tag`, `stash`, `worktree`, `remote`, `notes`) read-only listing forms (e.g. `git branch -a`, `git remote -v`), which are blocked **wholesale** by the deny list. Use `git for-each-ref` / `git show-ref` to inspect refs read-only instead.

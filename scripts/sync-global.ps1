@@ -18,6 +18,14 @@ param(
     [switch]$DryRun
 )
 
+# This repo's tooling requires PowerShell 7 Core (pwsh) on both macOS and Windows.
+# Windows PowerShell 5.1 (powershell.exe) is not supported: it lacks the PS7 default
+# BOM-free UTF-8 encoding this script's Set-Content call relies on.
+if ($PSVersionTable.PSVersion.Major -lt 7 -or $PSVersionTable.PSEdition -ne 'Core') {
+    Write-Error "This script requires PowerShell 7 Core (pwsh) - Windows PowerShell 5.1 (powershell.exe) is not supported. Detected: PowerShell $($PSVersionTable.PSVersion) ($($PSVersionTable.PSEdition) edition). Re-run with: pwsh $PSCommandPath"
+    exit 1
+}
+
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
@@ -92,8 +100,8 @@ function Merge-JsonRepoAuthoritative {
 }
 
 # --- .claude/settings.json ---
-$srcSettings  = Join-Path $ProjectRoot '.claude/settings.json'
-$destSettings = Join-Path $UserHome '.claude/settings.json'
+$srcSettings  = Join-Path $ProjectRoot '.claude' 'settings.json'
+$destSettings = Join-Path $UserHome '.claude' 'settings.json'
 Write-Host "`n[settings.json] $srcSettings -> $destSettings"
 Merge-JsonRepoAuthoritative -Source $srcSettings -Destination $destSettings -PreserveKeys $SettingsPreserveKeys
 

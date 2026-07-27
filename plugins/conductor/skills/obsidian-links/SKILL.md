@@ -34,11 +34,7 @@ Link liberally — over-linking is better than under-linking:
 
 ## Finding Inbound Links
 
-To find all notes that link to a given slug:
-
-```bash
-grep -r "\[\[slug\]\]" .claude/agent-memory/
-```
+To find all notes that link to a given slug, use the `Grep` tool with pattern `\[\[slug\]\]` and path `.claude/agent-memory/`.
 
 Use this before pruning or renaming a note, and before clearing a dirty flag (to know which neighbors need re-linking).
 
@@ -56,7 +52,7 @@ This keeps the graph accurate after the memory subagent's propagation pass.
 
 Before removing a note that has inbound links:
 
-1. Find all inbound links: `grep -r "\[\[slug\]\]" .claude/agent-memory/`
+1. Find all inbound links: use the `Grep` tool with pattern `\[\[slug\]\]` and path `.claude/agent-memory/`.
 2. For each linking note, either:
    - **Re-point:** replace `[[old-slug]]` with `[[successor-slug]]`, or
    - **Leave as tombstone pointer:** the pruned note becomes a tombstone stub that redirects to `[[successor]]`.
