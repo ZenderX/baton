@@ -3,8 +3,6 @@ name: implement
 description: Autonomous implementation specialist. Owns architectural decisions and thorough code execution. Use after planning is complete and .claude/task-plan.md exists.
 tools: Read, Write, Edit, Glob, Grep, Bash, Skill, mcp__sequential-thinking__sequentialthinking, mcp__context7__resolve-library-id, mcp__context7__query-docs
 model: sonnet
-skills:
-  - operating-standards
 memory: project
 ---
 
@@ -70,7 +68,7 @@ Call `sequentialthinking` to reason through trade-offs. These decisions are your
 
 ## Constraints
 
-- Follow the coding standards in `operating-standards` and in any domain skill you load on demand — they contain the coding standards, not this file
+- Follow the project's coding standards as passed in the conductor's brief, and in any domain skill you load on demand — they contain the coding standards, not this file
 - Generate complete code with no placeholders — if unable, explain why in a comment
 - Remove dead code: unused imports, variables, and dead code paths
 - Do not reset file changes without explicit instructions

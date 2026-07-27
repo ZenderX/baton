@@ -7,11 +7,11 @@
     Plugin agents/skills resolve last, so a stale ~/.claude/agents/*.md (or
     rules/skills equivalent) silently wins over same-named plugin content
     forever. Canon names come from plugins/*/ (agents/skills are authored
-    there; the two rules filenames no longer exist as files - absorbed into
-    the operating-standards skill - so they're hardcoded below). Only name-
-    matched items under <Destination>/{agents,rules,skills} are backed up
-    then removed; foreign items, settings.json, agent-memory/, and plugins/
-    are never touched.
+    there; the two rules filenames no longer exist as files - inlined into
+    plugins/conductor/agents/main.md's Operating Rules section - so they're
+    hardcoded below). Only name-matched items under <Destination>/{agents,
+    rules,skills} are backed up then removed; foreign items, settings.json,
+    agent-memory/, and plugins/ are never touched.
 .PARAMETER DryRun
     Print what would be backed up/removed without making changes.
 .PARAMETER Destination

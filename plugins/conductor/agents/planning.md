@@ -4,8 +4,6 @@ description: Phase planning architect. Analyzes the codebase and produces a sequ
 tools: Read, Glob, Grep, Write, Edit, mcp__sequential-thinking__sequentialthinking
 model: sonnet
 memory: project
-skills:
-  - operating-standards
 ---
 
 # Planning Subagent

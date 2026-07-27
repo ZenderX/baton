@@ -27,7 +27,7 @@ Read every file in `~/.claude/agent-memory/promotion-queue/`. If the directory d
 For each queued file:
 1. Read its proposed instruction text, target file, source project (name/path), date, and provenance note-slug.
 2. Judge the proposal:
-   - **Accept:** make the canonical edit to the named target under `plugins/conductor/agents/`, `plugins/<plugin>/skills/<skill>/SKILL.md`, or the `operating-standards` skill (`plugins/conductor/skills/operating-standards/SKILL.md`) for a rule, in this workbench; if the source project is locally reachable, annotate the source note per the promotion-annotation convention in step 10.
+   - **Accept:** make the canonical edit to the named target under `plugins/conductor/agents/`, `plugins/<plugin>/skills/<skill>/SKILL.md`, or the `## Operating Rules` section of `plugins/conductor/agents/main.md` for a rule, in this workbench; if the source project is locally reachable, annotate the source note per the promotion-annotation convention in step 10.
    - **Reject:** make no edit; record the reason in the review summary.
 3. Delete the queue file once resolved, whether accepted or rejected.
 

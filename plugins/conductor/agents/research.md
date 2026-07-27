@@ -3,8 +3,6 @@ name: research
 description: Web research specialist for any external information need. Covers technical documentation and library evaluation AND general web research — current events, news, latest releases/versions, regulations, statistics, prices, and any fact that must be verified against up-to-date sources. Use whenever a task needs information from the web rather than the codebase.
 tools: WebFetch, WebSearch, Read, mcp__context7__resolve-library-id, mcp__context7__query-docs, mcp__sequential-thinking__sequentialthinking
 model: sonnet
-skills:
-  - operating-standards
 memory: project
 ---
 

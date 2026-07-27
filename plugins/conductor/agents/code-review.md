@@ -4,7 +4,6 @@ description: Review code changes from a completed implementation phase or a bran
 tools: Read, Glob, Grep, Bash, Skill, mcp__sequential-thinking__sequentialthinking, mcp__context7__resolve-library-id, mcp__context7__query-docs
 model: sonnet
 skills:
-  - operating-standards
   - git-diff
 memory: project
 ---

@@ -36,7 +36,7 @@ Plugin entries in `marketplace.json` omit `version` — git-source plugins float
 
 | Plugin | Contents |
 |--------|----------|
-| `conductor` | conductor + 5 subagents (6 agents total), 5 bundled skills (`git-diff`, `memory-review`, `memory-write`, `obsidian-links`, `operating-standards`; preload is selective per agent and same-plugin-only — see [Skills](#skills)), and `.mcp.json` (`sequential-thinking`, `context7`). 0 hooks. |
+| `conductor` | conductor + 5 subagents (6 agents total), 4 bundled skills (`git-diff`, `memory-review`, `memory-write`, `obsidian-links`; preload is selective per agent and same-plugin-only — see [Skills](#skills)), and `.mcp.json` (`sequential-thinking`, `context7`). |
 | `bevy` | Bevy skill — standalone, no agents |
 | `blender` | Blender (bevy_skein) skill — standalone, no agents |
 | `rust` | Rust skill — standalone, no agents |
@@ -100,12 +100,12 @@ It also fans work out: independent subagent invocations dispatch in parallel (a 
 
 | Agent | Role | Model | Skills |
 |-------|------|-------|--------|
-| **main** | Orchestrator (the conductor). Holds the shared task model, delegates to specialists, distills results, proceeds autonomously. Entrypoint for Research → Planning → Implementation → Review. | inherit | operating-standards (preloaded) |
-| **planning** | Codebase analyst and architect. Reads the project, decomposes work, produces a sequenced `task-plan.md`. | sonnet | operating-standards (preloaded) |
-| **research** | External research only (no codebase access). Library docs, API reference, web facts, latest versions. | sonnet | operating-standards (preloaded) |
-| **implement** | Autonomous code writer. Owns architectural decisions within each phase. Reads `task-plan.md`, implements, verifies. | sonnet | operating-standards (preloaded); domain standards (e.g. `rust`, `vue3`) on demand via the `Skill` tool |
-| **code-review** | Post-implementation review. Verifies correctness, semantic integrity, best practices. Returns `APPROVED`, `NEEDS_REVISION`, or `FAILED`. Never applies fixes. | sonnet | operating-standards, git-diff (preloaded); domain standards on demand via the `Skill` tool |
-| **memory** | Post-task dirty propagator and topic steward. Flags 1-hop neighbor memories stale after any memory write, reconciles the emergent `topic/*` taxonomy, integrates any stray notes `scripts/memory-lint.ps1` finds living outside the canonical plugin-scoped folders. Conductor-only trigger — subagents never invoke it directly. | haiku | operating-standards, memory-write, obsidian-links (preloaded) |
+| **main** | Orchestrator (the conductor). Holds the shared task model, delegates to specialists, distills results, proceeds autonomously. Entrypoint for Research → Planning → Implementation → Review. | inherit | none — Engineering Rules 1–13 and Git Hygiene Rules G1–G3 are inlined directly in its own agent body (see [How rules travel](#how-rules-travel)) |
+| **planning** | Codebase analyst and architect. Reads the project, decomposes work, produces a sequenced `task-plan.md`. | sonnet | none |
+| **research** | External research only (no codebase access). Library docs, API reference, web facts, latest versions. | sonnet | none |
+| **implement** | Autonomous code writer. Owns architectural decisions within each phase. Reads `task-plan.md`, implements, verifies. | sonnet | none preloaded; domain standards (e.g. `rust`, `vue3`) on demand via the `Skill` tool |
+| **code-review** | Post-implementation review. Verifies correctness, semantic integrity, best practices. Returns `APPROVED`, `NEEDS_REVISION`, or `FAILED`. Never applies fixes. | sonnet | git-diff (preloaded); domain standards on demand via the `Skill` tool |
+| **memory** | Post-task dirty propagator and topic steward. Flags 1-hop neighbor memories stale after any memory write, reconciles the emergent `topic/*` taxonomy, integrates any stray notes `scripts/memory-lint.ps1` finds living outside the canonical plugin-scoped folders. Conductor-only trigger — subagents never invoke it directly. | haiku | memory-write, obsidian-links (preloaded) |
 
 ### Skills
 
@@ -120,7 +120,6 @@ Skills are authored in `plugins/<plugin>/skills/` and reach an agent through two
 | `memory-review` | conductor | Vault accuracy review procedure |
 | `memory-write` | conductor | Memory note-writing conventions — schema, type selection, dirty-flag clearing, optional freshness/expiry metadata |
 | `obsidian-links` | conductor | Wikilink conventions for connecting memory notes |
-| `operating-standards` | conductor | Engineering Rules 1–13 and Git Hygiene Rules G1–G3 — mandatory for every agent |
 | `bevy` | bevy | Bevy game engine patterns |
 | `blender` | blender | Blender-to-Bevy (bevy_skein) integration conventions |
 | `rust` | rust | Rust coding standards |
@@ -129,11 +128,11 @@ Skills are authored in `plugins/<plugin>/skills/` and reach an agent through two
 
 **Domain standards load on demand, and require the domain plugin to be enabled.** `implement` and `code-review` carry the `Skill` tool and do not list `bevy`/`rust`/`typescript`/`vue3` in `skills:` — a cross-plugin preload there was measured inert (see above), so listing them would have been a no-op that looked like coverage. Instead, each domain skill's own `paths:` glob (`**/*.rs`; `**/*.ts`, `**/*.tsx`; `**/*.vue` + composables/stores) triggers it on demand when a matching file is in play — but only if that plugin is installed *and* enabled. Install whichever language plugins match what you write (e.g. `rust` if you write Rust) alongside `conductor`. **This repository's own `.claude/settings.json` enables only `conductor`** — running this workbench as-is, without also enabling e.g. `rust`, means no Rust standards reach the agent, and both agents are instructed to say so explicitly rather than proceeding on generic knowledge.
 
-**Cache economics behind that design choice:** every subagent spawn builds its own cache from cold, on the standard 5-minute TTL (the 1-hour TTL applies only to the main conversation) — so a preloaded skill body is paid at full input-token price on *every* invocation, with no amortization across the session. That is why preload here is reserved for `operating-standards` (small, mandatory for every agent) and `git-diff` (small, always used by code-review); the on-demand path costs only skill metadata (~50 tokens) until a matching file actually triggers it, which is cheaper for anything conditional. Separately: a project's `CLAUDE.md` loads in full into every subagent's context, not just the conductor's — six agents means a large `CLAUDE.md` is paid up to six times per task.
+**Cache economics behind that design choice:** every subagent spawn builds its own cache from cold, on the standard 5-minute TTL (the 1-hour TTL applies only to the main conversation) — so a preloaded skill body is paid at full input-token price on *every* invocation, with no amortization across the session. That is why preload is reserved for skills a given agent needs on essentially every invocation — `git-diff` for code-review, `memory-write` and `obsidian-links` for the memory subagent — while everything conditional (domain coding standards) stays on-demand: the on-demand path costs only skill metadata (~50 tokens) until a matching file actually triggers it. Separately: a project's `CLAUDE.md` loads in full into every subagent's context, not just the conductor's — six agents means a large `CLAUDE.md` is paid up to six times per task.
 
 ### How rules travel
 
-Engineering Rules 1–13 and Git Hygiene Rules G1–G3 travel as a single preloaded skill, `operating-standards`, shipped by `conductor`. Every one of the six agents declares it in `skills:` frontmatter and — because it lives in the *same* plugin as every agent that declares it — the preload actually lands, injected into every agent's context at session start with zero extra setup: no `SessionStart` hook, no PowerShell, no separate rules directory to keep in sync. Install `conductor` and you have them, workbench or consumer alike.
+Engineering Rules 1–13 and Git Hygiene Rules G1–G3 are inlined verbatim in `plugins/conductor/agents/main.md`'s own `## Operating Rules` section — this is the single canonical home of the rules, and there is no separate skill, hook, or rules directory carrying a second copy. Install `conductor` and run `claude --agent main` and you have them, workbench or consumer alike, with zero extra setup.
 
 ### The learning loop
 
@@ -170,7 +169,7 @@ Agents and skills are authored **directly in place** under `plugins/<plugin>/{ag
 
 This workbench dogfoods its own plugin: `.claude/settings.json` registers a marketplace named `skills-marketplace` pointing at the relative path `.` (`extraKnownMarketplaces`) and enables `conductor@skills-marketplace` (`enabledPlugins`). Because the marketplace source is this repo's own root, editing `plugins/conductor/agents/*.md` (or any skill under it) takes effect in this workbench's next session with no deploy step.
 
-Two scripts under `scripts/` remain, for narrower jobs than before:
+Several scripts under `scripts/` remain, for narrower jobs than before:
 
 ### `sync-global.ps1` — deploy settings.json to your machine
 
@@ -197,11 +196,11 @@ pwsh scripts/clean-global.ps1 -DryRun   # preview first
 pwsh scripts/clean-global.ps1           # then run for real
 ```
 
-Restart your Claude Code sessions afterward, and verify the plugin resolves: `claude --agent main` (or the scoped `conductor:main` if something still shadows it), and confirm the rules arrive via the preloaded `operating-standards` skill rather than a local `~/.claude/rules/` copy.
+Restart your Claude Code sessions afterward, and verify the plugin resolves: `claude --agent main` (or the scoped `conductor:main` if something still shadows it), and confirm the rules come from the plugin's own `main.md` (see [How rules travel](#how-rules-travel)) rather than a stale local `~/.claude/agents/main.md` copy.
 
 What it does and doesn't touch:
 - **Backs up first, always** — before removing anything, it copies the current `~/.claude/{agents,rules,skills}` to a timestamped `~/.claude-backup-<timestamp>/`. Delete that backup once you're satisfied the migration worked.
-- **Removes by name-match only** — an item under `~/.claude/{agents,rules,skills}` is removed only if its name matches something this repo actually ships. Canon agent and skill names are read live from `plugins/*/`; the two legacy rules filenames (`engineering-rules.md`, `git-hygiene.md`) no longer exist as files in this repo — they're absorbed into the `operating-standards` skill — so they're hardcoded in the script for matching purposes only. Foreign files/dirs (never part of this repo) are never touched.
+- **Removes by name-match only** — an item under `~/.claude/{agents,rules,skills}` is removed only if its name matches something this repo actually ships. Canon agent and skill names are read live from `plugins/*/`; the two legacy rules filenames (`engineering-rules.md`, `git-hygiene.md`) no longer exist as files in this repo — they're absorbed into the rules text inlined in `plugins/conductor/agents/main.md` (see [How rules travel](#how-rules-travel)) — so they're hardcoded in the script for matching purposes only. Foreign files/dirs (never part of this repo) are never touched.
 - **Never touches `settings.json`** — the `permissions.deny` git-mutation guard and machine-local keys stay exactly as they are; plugins cannot ship `permissions.deny`, so this file must survive the migration untouched.
 - **Never touches `agent-memory/`** — the memory vault is project-local and out of scope for this cleanup.
 
@@ -240,12 +239,10 @@ Memory is project-local by design — no script syncs `agent-memory/` to `~/.cla
 
 Agents never mutate git state. Enforced by two layers:
 
-1. **Rule** — the `operating-standards` skill (preloaded by every agent) instructs all agents to treat git as read-only.
-2. **Deny list** — `permissions.deny` in `settings.json` hard-blocks mutating commands.
+1. **Rule** — Engineering Rules 1–13 and Git Hygiene Rules G1–G3, inlined in `plugins/conductor/agents/main.md` (see [How rules travel](#how-rules-travel)), instruct the conductor to treat git as read-only and to leave staging, committing, and history rewriting to the human.
+2. **Deny list** — `permissions.deny` in `settings.json` hard-blocks mutating commands, deterministically, for this machine, regardless of which agent or subagent issues the `Bash` call. Plugins can't ship `permissions.deny` themselves, so this layer requires you to copy the block from [Quick Start](#quick-start-for-consumers) into your own `settings.json`.
 
-There is no `PreToolUse` hook backstop — the deny list is the sole deterministic enforcement layer, backed by the advisory rule.
-
-`git status`, `diff`, `log`, `blame`, and `show` are allowed. Everything else in the deny list above is blocked — including the dual-mode subcommands (`branch`, `tag`, `stash`, `worktree`, `remote`, `notes`) **wholesale**, which also blocks their read-only listing forms (e.g. `git branch -a`, `git remote -v`). To inspect refs read-only, use `git for-each-ref` / `git show-ref` instead.
+`git status`, `diff`, `log`, `blame`, `show`, `for-each-ref`, and `show-ref` are unaffected by the deny list. Blocked: `add`, `commit`, `push`, `pull`, `fetch`, `reset`, `restore`, `checkout`, `switch`, `rebase`, `merge`, `cherry-pick`, `revert`, `clean`, `rm`, `mv`, `commit-tree`, `update-ref`, `branch`, `tag`, `stash`, `worktree`, `remote`, `notes` — including the dual-mode subcommands' (`branch`, `tag`, `stash`, `worktree`, `remote`, `notes`) read-only listing forms (e.g. `git branch -a`, `git remote -v`), which are blocked **wholesale** by the deny list. Use `git for-each-ref` / `git show-ref` to inspect refs read-only instead.
 
 ### MCP Servers
 
