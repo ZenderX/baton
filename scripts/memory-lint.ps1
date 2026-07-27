@@ -29,7 +29,7 @@
       - TYPE-MISMATCH: metadata.type disagrees with the type/* tag
       - BROKEN-LINK-NAME: a [[wikilink]] target matches no note's declared name: field
         (gate-blocking, like BROKEN-LINK)
-      - DIRTY-BANNER-IN-FRONTMATTER: the dirty banner line (inserted by memory-subagent
+      - DIRTY-BANNER-IN-FRONTMATTER: the dirty banner line (inserted by the memory subagent
         §3) landed before the frontmatter's closing --- instead of after it, corrupting
         the YAML block (gate-blocking, like BROKEN-LINK; -Fix relocates it deterministically,
         preserving the file's original CRLF/LF convention). Scope boundary: detection relies
@@ -42,14 +42,14 @@
       - DIRTY-MISSING-REASON: metadata.dirty is set but metadata.dirty_reason is absent or
         empty (warning; never auto-fixed — inventing a reason is a judgment call, not a
         mechanical repair)
-      - STRAY-LOCATION: a note living outside the canonical folder structure — either a
-        nested .claude directory anywhere beneath the vault root (the doubled-path
-        signature: an older folder-move bug intermittently handed agents
-        .claude/.claude/agent-memory/), or a top-level vault directory that is neither a
-        canonical conductor-core-<agent-name> folder for a roster agent nor a legitimate
-        dotdir (e.g. .obsidian). Read-only: detected and reported only, never moved or
-        deleted — memory-subagent step 0 owns the remedy (canonical note takes precedence,
-        then prune the stray).
+      - STRAY-LOCATION: any directory found anywhere under the project root (pruning .git,
+        releases, node_modules) that has a MEMORY.md file as a direct child, and is neither
+        the vault root itself nor a direct child of the vault root. Detection is purely by
+        MEMORY.md presence — no plugin/agent name roster involved, so it's rename-proof.
+        Found via a manual, symlink-safe directory walk (not Get-ChildItem -Recurse), so a
+        cyclic symlink/junction cannot cause an infinite walk. Read-only: detected and
+        reported only, never moved or deleted — the memory subagent step 0 owns the remedy
+        (canonical note takes precedence, then prune the stray).
 .PARAMETER Fix
     Apply safe auto-repairs. Idempotent.
 .PARAMETER StaleDays
@@ -59,28 +59,28 @@
     STALE-ORPHAN (the two-factor dead-weight signal). Default: 180.
 .PARAMETER VaultRoot
     Override the vault path (default: <repo>/.claude/agent-memory). Lets a scratch
-    fixture be linted without touching the real vault.
-.PARAMETER AgentsDir
-    Override the agent frontmatter directory used for STRAY-LOCATION's canonical-folder
-    roster derivation (defaults to <repo>/plugins/conductor-core/agents).
+    fixture be linted without touching the real vault. When explicitly passed, the
+    STRAY-LOCATION walk root becomes this path's parent instead of the real project
+    root, so a scratch-fixture lint run scans only the fixture, not the real repo.
 #>
 param(
     [switch]$Fix,
     [int]$StaleDays = 90,
     [int]$OrphanStaleDays = 180,
-    [string]$VaultRoot,
-    [string]$AgentsDir
+    [string]$VaultRoot
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
+# Captured before the default-assignment below overwrites $VaultRoot, so the
+# STRAY-LOCATION walk-root logic (Phase A0) can tell "caller passed -VaultRoot"
+# apart from "using the default" even though both end up with a non-empty value.
+$VaultRootWasSpecified = $PSBoundParameters.ContainsKey('VaultRoot')
+
 $ProjectRoot = Split-Path -Parent $PSScriptRoot
 if (-not $VaultRoot) {
     $VaultRoot = Join-Path $ProjectRoot '.claude' 'agent-memory'
-}
-if (-not $AgentsDir) {
-    $AgentsDir = Join-Path $ProjectRoot 'plugins' 'conductor-core' 'agents'
 }
 
 # Known runtime-generated type prefixes. Anchored so slugs containing _ are not mangled.
@@ -93,12 +93,12 @@ $TypePrefixPattern = '^(' + ($KnownPrefixes -join '|') + ')_(.+)$'
 # Metadata types that are subject to staleness checks.
 [string[]]$DecayingTypes = @('research')
 
-# Dirty banner line, as inserted by memory-subagent §3 / cleared by memory-write's
+# Dirty banner line, as inserted by the memory subagent §3 / cleared by memory-write's
 # "Clearing a Dirty Flag". Matched by both DIRTY-BANNER-IN-FRONTMATTER (detects it stranded
 # inside the YAML block, which corrupts frontmatter) and the -Fix relocation repair.
 # Deliberately tolerant of the date and the free-text reason varying — only the fixed
 # emoji/bold-DIRTY/since-date prefix is anchored, matching the byte-identical banner text
-# specified across memory-subagent, memory-write, and memory-review. No line anchors here:
+# specified across the memory subagent, memory-write, and memory-review. No line anchors here:
 # the pattern is matched both against a single split line (Repair-DirtyBannerPlacement) and
 # as a substring test against the whole frontmatter blob (the Phase A2 detection below).
 $DirtyBannerLinePattern = '>\s*⚠️\s*\*\*DIRTY \(since \d{4}-\d{2}-\d{2}\):\*\*'
@@ -237,7 +237,7 @@ function Repair-DirtyBannerPlacement([string]$content, [string]$yaml, [string]$b
     line stranded inside it, returns the repaired full file content: the banner line is
     removed from the YAML block (along with one immediately-preceding blank line, the stray
     gap the misplaced banner typically left behind) and re-inserted as the first line of the
-    body, immediately after the closing ---, matching the depiction in memory-subagent §3.
+    body, immediately after the closing ---, matching the depiction in the memory subagent §3.
     The reconstructed frontmatter/delimiter/banner region is rebuilt using $content's own
     dominant EOL convention (see Get-DominantEol) rather than a hardcoded LF, so a CRLF-authored
     note comes out fully CRLF instead of a mixed-EOL file — the untouched body already uses
@@ -352,30 +352,64 @@ function Test-ColorGroupsEqual($Current, $Expected) {
     return $true
 }
 
-function Get-MemoryRoster([string]$AgentsDir) {
+function Test-ReparsePoint {
     <#
-    .SYNOPSIS Derives the eligible-agent roster from plugins/conductor-core/agents/*.md
-    frontmatter: only agents declaring `memory: project` have a canonical
-    conductor-core-<agent-name> vault folder. Never hardcoded. Ported from the deleted
-    memory-consolidate.ps1 (2026-07-26) — the one genuinely reusable piece of that script.
-    An agent file with no `memory:` field at all has no memory folder by design and is
-    silently skipped, not reported as a gap.
-    .OUTPUTS [string[]] agent names on the roster.
+    .SYNOPSIS $true if $Path is a symlink/junction; -Force stats the reparse point itself.
+    Mirrors the identical helper in scripts/clean-global.ps1 — kept as a local copy rather
+    than a shared module since these are single-file maintainer scripts by convention.
     #>
-    $roster = [System.Collections.Generic.List[string]]::new()
-    $agentFiles = @(Get-ChildItem -Path $AgentsDir -Filter '*.md' -File -Force -ErrorAction SilentlyContinue)
-    foreach ($f in $agentFiles) {
-        $content  = Get-Content -LiteralPath $f.FullName -Raw -Encoding utf8
-        $yaml     = Get-FrontmatterBlock $content
-        $memMatch = [regex]::Match($yaml, '(?m)^memory:\s*(\S+)')
-        if (-not $memMatch.Success) { continue }
-        if ($memMatch.Groups[1].Value.Trim() -ne 'project') { continue }
+    param([string]$Path)
+    $item = Get-Item -Force -ErrorAction SilentlyContinue -Path $Path
+    return ($null -ne $item) -and [bool]($item.Attributes -band [IO.FileAttributes]::ReparsePoint)
+}
 
-        $nameMatch = [regex]::Match($yaml, '(?m)^name:\s*(\S+)')
-        $agentName = if ($nameMatch.Success) { $nameMatch.Groups[1].Value.Trim() } else { $f.BaseName }
-        $roster.Add($agentName)
+function Get-MemoryMdDirs([string]$Root) {
+    <#
+    .SYNOPSIS Manually walks $Root (explicit stack, NOT Get-ChildItem -Recurse) and returns
+    every directory that has a MEMORY.md file as a direct child. This is the sole signal
+    STRAY-LOCATION uses to identify an agent-memory folder — no plugin/agent name roster
+    involved, so the check is rename-proof by construction.
+    Symlink-safe: each directory is checked via Test-ReparsePoint BEFORE its children are
+    enumerated/pushed, so a cyclic symlink/junction cannot cause an infinite walk. Prunes
+    .git, releases, node_modules by exact directory name at any depth (never descended into).
+    .OUTPUTS [System.IO.DirectoryInfo[]] directories containing a direct-child MEMORY.md,
+    including $Root itself if it qualifies. Empty array if $Root does not exist.
+    #>
+    $PruneNames = @('.git', 'releases', 'node_modules')
+    $hits  = [System.Collections.Generic.List[System.IO.DirectoryInfo]]::new()
+    $stack = [System.Collections.Generic.Stack[System.IO.DirectoryInfo]]::new()
+
+    $rootItem = Get-Item -LiteralPath $Root -Force -ErrorAction SilentlyContinue
+    if ($null -eq $rootItem) { return @() }
+    $stack.Push($rootItem)
+
+    while ($stack.Count -gt 0) {
+        $dir = $stack.Pop()
+
+        # Symlink/junction guard: checked before descending (not before pushing) so the
+        # same reparse-point definition Test-ReparsePoint applies is used consistently,
+        # and so a reparse point passed in directly as $Root is also honored.
+        if (Test-ReparsePoint -Path $dir.FullName) { continue }
+
+        # Single listing serves both the MEMORY.md check and the descend step below.
+        # -ceq (case-SENSITIVE) is deliberate: on a case-insensitive-but-case-preserving
+        # filesystem (default macOS/Windows), Test-Path/Join-Path resolution against
+        # 'MEMORY.md' would also match a same-named-but-different-case file such as an
+        # agent's own lowercase 'memory.md' — a real collision observed against
+        # plugins/*/agents/memory.md, not a hypothetical. Get-ChildItem's returned .Name
+        # is the on-disk (case-preserved) name, so -ceq correctly rejects that collision.
+        $entries = @(Get-ChildItem -LiteralPath $dir.FullName -Force -ErrorAction SilentlyContinue)
+        if (@($entries | Where-Object { -not $_.PSIsContainer -and $_.Name -ceq 'MEMORY.md' }).Count -gt 0) {
+            $hits.Add($dir)
+        }
+
+        foreach ($child in ($entries | Where-Object { $_.PSIsContainer })) {
+            if ($PruneNames -contains $child.Name) { continue }
+            $stack.Push($child)
+        }
     }
-    return @($roster)
+
+    return @($hits)
 }
 
 function Build-BasenameMap([System.IO.FileInfo[]]$files) {
@@ -468,28 +502,24 @@ $noteUpdatedDate = @{}
 # Phase A0: STRAY-LOCATION detection (gate-blocking, read-only)
 # ---------------------------------------------------------------------------
 # Detect-only: this check never moves, creates, or deletes anything — remedy ownership is
-# memory-subagent step 0 (canonical note wins, then prune the stray), never this script.
-$strayRoster    = Get-MemoryRoster -AgentsDir $AgentsDir
-$canonicalNames = @($strayRoster | ForEach-Object { "conductor-core-$_" })
+# the memory subagent step 0 (canonical note wins, then prune the stray), never this script.
+#
+# Walk root: the real project root for a normal run (the cwd-wide scan the user asked for),
+# but $VaultRoot's own parent when -VaultRoot was explicitly overridden — preserving the
+# existing scratch-fixture test-isolation convention (a fixture lint run scans only the
+# fixture, never the real repo it happens to live under).
+$StrayWalkRoot = if ($VaultRootWasSpecified) { Split-Path -Parent $VaultRoot } else { $ProjectRoot }
 
-# Shape 1: a nested .claude directory anywhere beneath the vault root — the doubled-path
-# signature (an older folder-move bug intermittently handed agents .claude/.claude/agent-memory/).
-# Get-ChildItem -Recurse rooted AT $VaultRoot only yields descendants, never the vault root
-# itself, so this cannot false-positive on the vault root the way a naive `find`-from-parent
-# scan (matching on the vault's own directory name, e.g. 'agent-memory') would.
-$nestedClaudeDirs = @(Get-ChildItem -Path $VaultRoot -Recurse -Directory -Force -ErrorAction SilentlyContinue |
-    Where-Object { $_.Name -eq '.claude' })
-foreach ($dir in $nestedClaudeDirs) {
-    $integrityErrs.Add("STRAY-LOCATION: $($dir.FullName) — notes outside canonical folders; memory-subagent must integrate them (canonical note takes precedence, then prune the stray)")
-}
-
-# Shape 2: a top-level vault directory that is neither a canonical conductor-core-<agent>
-# folder for a roster agent nor a legitimate dotdir (e.g. .obsidian).
-$topLevelDirs = @(Get-ChildItem -Path $VaultRoot -Directory -Force -ErrorAction SilentlyContinue)
-foreach ($dir in $topLevelDirs) {
-    if ($dir.Name -like '.*') { continue }  # legitimate dotdir, e.g. .obsidian
-    if ($canonicalNames -contains $dir.Name) { continue }
-    $integrityErrs.Add("STRAY-LOCATION: $($dir.FullName) — notes outside canonical folders; memory-subagent must integrate them (canonical note takes precedence, then prune the stray)")
+# Every directory anywhere under $StrayWalkRoot (pruning .git/releases/node_modules) that has
+# a MEMORY.md file as a direct child. A directory qualifies as "canonical" purely by being
+# $VaultRoot itself or a direct child of it — no plugin/agent name roster involved, so this
+# is rename-proof by construction and requires no retro-compat name list.
+$memoryMdDirs = @(Get-MemoryMdDirs -Root $StrayWalkRoot | Sort-Object FullName)
+foreach ($dir in $memoryMdDirs) {
+    if ($dir.FullName -eq $VaultRoot) { continue }  # never flag the vault root itself
+    $parentDir = Split-Path -Parent $dir.FullName
+    if ($parentDir -eq $VaultRoot) { continue }  # canonical folder, direct child of vault root
+    $integrityErrs.Add("STRAY-LOCATION: $($dir.FullName) — notes outside canonical folders; the memory subagent must integrate them (canonical note takes precedence, then prune the stray)")
 }
 
 # ---------------------------------------------------------------------------
@@ -537,7 +567,7 @@ if ($Fix) {
 # ---------------------------------------------------------------------------
 # Phase A2: DIRTY-BANNER-IN-FRONTMATTER detection/relocation (gate-blocking)
 # ---------------------------------------------------------------------------
-# The dirty banner (inserted by memory-subagent §3) must live in the BODY, as the first
+# The dirty banner (inserted by the memory subagent §3) must live in the BODY, as the first
 # line after frontmatter's closing ---. If it instead landed inside the metadata: block,
 # the YAML is corrupted (a blockquote line inside a mapping is not valid YAML). This runs
 # as its own phase, before Phase C builds the wikilink graph, so that in -Fix mode the
@@ -764,10 +794,10 @@ foreach ($f in $allMdFiles) {
         # strip quotes the way Get-ScalarYamlValue does.
         $reasonNormalized = if ($metaDirtyReason) { $metaDirtyReason.Trim().Trim('"').Trim("'") } else { $null }
         $reasonStr = if ($reasonNormalized) { $reasonNormalized } else { 'no reason recorded' }
-        $warnings.Add("DIRTY (since $metaDirty): $rel — flagged by memory-subagent; re-evaluate and re-link (reason: $reasonStr)")
+        $warnings.Add("DIRTY (since $metaDirty): $rel — flagged by the memory subagent; re-evaluate and re-link (reason: $reasonStr)")
         if ([string]::IsNullOrWhiteSpace($reasonNormalized)) {
             # Never auto-fixed: inventing a reason is a judgment call, and a fabricated
-            # reason is worse than an honest gap (see memory-subagent §3 / this script's
+            # reason is worse than an honest gap (see the memory subagent §3 / this script's
             # .DESCRIPTION for why -Fix deliberately does not touch this).
             $warnings.Add("DIRTY-MISSING-REASON: $rel — metadata.dirty is set but metadata.dirty_reason is absent or empty")
         }

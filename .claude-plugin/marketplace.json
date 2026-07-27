@@ -7,8 +7,8 @@
   "description": "Private marketplace for the conductor/subagent orchestration pattern and its domain skills (Bevy, Rust, TypeScript, Vue3, Blender).",
   "plugins": [
     {
-      "name": "conductor-core",
-      "source": "./plugins/conductor-core",
+      "name": "conductor",
+      "source": "./plugins/conductor",
       "description": "Conductor orchestrator + 5 subagents (planning, research, implement, code-review, memory) with their preloaded skills and MCP servers."
     },
     {

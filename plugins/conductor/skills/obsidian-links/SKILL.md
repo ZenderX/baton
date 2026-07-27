@@ -50,7 +50,7 @@ When you clear a dirty flag after updating a note's content, re-check outbound l
 2. If a linked note has been renamed or tombstoned, update the link to point to the successor.
 3. If the updated note's content now implies a new relationship, add a new `[[link]]`.
 
-This keeps the graph accurate after the memory-subagent's propagation pass.
+This keeps the graph accurate after the memory subagent's propagation pass.
 
 ## Tombstone Re-pointing
 

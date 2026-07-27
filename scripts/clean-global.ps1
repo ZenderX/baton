@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
     One-time migration: removes stale sync-global.ps1-deployed agent/rule/
-    skill copies from ~/.claude/ so a plugin install (conductor-core, etc.)
+    skill copies from ~/.claude/ so a plugin install (conductor, etc.)
     takes over resolution instead of being silently shadowed by them.
 .DESCRIPTION
     Plugin agents/skills resolve last, so a stale ~/.claude/agents/*.md (or
@@ -45,7 +45,7 @@ function Test-ReparsePoint {
 function Get-CanonNames {
     param([string]$SubDir)
     if ($SubDir -eq 'agents') {
-        $p = Join-Path $PluginsRoot 'conductor-core/agents'
+        $p = Join-Path $PluginsRoot 'conductor/agents'
         if (-not (Test-Path $p)) { return @() }
         return @(Get-ChildItem -Path $p -File -Filter '*.md' | ForEach-Object { $_.Name })
     }

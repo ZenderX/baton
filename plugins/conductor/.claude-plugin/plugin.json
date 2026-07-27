@@ -1,5 +1,5 @@
 {
-  "name": "conductor-core",
+  "name": "conductor",
   "description": "Conductor orchestrator + 5 subagents (planning, research, implement, code-review, memory) with their preloaded skills and MCP servers.",
   "author": {
     "name": "Z3nder",

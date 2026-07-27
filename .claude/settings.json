@@ -28,7 +28,7 @@
     ]
   },
   "enabledPlugins": {
-    "conductor-core@skills-marketplace": true
+    "conductor@skills-marketplace": true
   },
   "extraKnownMarketplaces": {
     "skills-marketplace": {

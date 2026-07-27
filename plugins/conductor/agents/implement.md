@@ -1,5 +1,5 @@
 ---
-name: implement-subagent
+name: implement
 description: Autonomous implementation specialist. Owns architectural decisions and thorough code execution. Use after planning is complete and .claude/task-plan.md exists.
 tools: Read, Write, Edit, Glob, Grep, Bash, Skill, mcp__sequential-thinking__sequentialthinking, mcp__context7__resolve-library-id, mcp__context7__query-docs
 model: sonnet
@@ -38,8 +38,8 @@ Domain coding-standards skills (`rust`, `typescript`, `vue3`, `bevy`, etc.) are 
 ### 1. Context Loading
 
 Read these files if they exist before writing a single line of code:
-- `.claude/task-plan.md` — the phased execution plan from planning-subagent
-- `.claude/research-findings.md` or inline brief — external library findings from research-subagent (passed by the conductor)
+- `.claude/task-plan.md` — the phased execution plan from the planning subagent
+- `.claude/research-findings.md` or inline brief — external library findings from the research subagent (passed by the conductor)
 
 Understand the full plan even if you are implementing one phase. Knowing what comes next informs how you design interfaces today.
 
@@ -90,7 +90,7 @@ Call `sequentialthinking` to reason through trade-offs. These decisions are your
 
 Save to your memory directory: durable, non-obvious gotchas hit while building — integration quirks, why-this-way choices that survive the diff. Never save generated code or paths git already tracks; if it's derivable by re-reading the code, don't write it.
 
-**Mechanics:** bare slug filename (e.g., `db-connection-pooling.md`); tags: `type/implementation`, `topic/<x>`, `agent/implement-subagent`; `metadata.type: implementation`; `metadata.updated: <today's date, YYYY-MM-DD>`; cross-link with `[[slug]]`. Write via the `memory-write` skill; link via the `obsidian-links` skill.
+**Mechanics:** bare slug filename (e.g., `db-connection-pooling.md`); tags: `type/implementation`, `topic/<x>`, `agent/implement`; `metadata.type: implementation`; `metadata.updated: <today's date, YYYY-MM-DD>`; cross-link with `[[slug]]`. Write via the `memory-write` skill; link via the `obsidian-links` skill.
 
 **MEMORY.md budget:** one line per entry, detail in the topic file — the index auto-loads into context but is cut at 200 lines / 25KB, and anything past that is silently dropped.
 

@@ -27,7 +27,7 @@ Read every file in `~/.claude/agent-memory/promotion-queue/`. If the directory d
 For each queued file:
 1. Read its proposed instruction text, target file, source project (name/path), date, and provenance note-slug.
 2. Judge the proposal:
-   - **Accept:** make the canonical edit to the named target under `plugins/conductor-core/agents/`, `plugins/<plugin>/skills/<skill>/SKILL.md`, or the `operating-standards` skill (`plugins/conductor-core/skills/operating-standards/SKILL.md`) for a rule, in this workbench; if the source project is locally reachable, annotate the source note per the promotion-annotation convention in step 10.
+   - **Accept:** make the canonical edit to the named target under `plugins/conductor/agents/`, `plugins/<plugin>/skills/<skill>/SKILL.md`, or the `operating-standards` skill (`plugins/conductor/skills/operating-standards/SKILL.md`) for a rule, in this workbench; if the source project is locally reachable, annotate the source note per the promotion-annotation convention in step 10.
    - **Reject:** make no edit; record the reason in the review summary.
 3. Delete the queue file once resolved, whether accepted or rejected.
 
@@ -175,7 +175,7 @@ Some memories outgrow the vault: a note that encodes durable, *generalizable* be
 
 For each note touched during review, ask: *would every future session in every project need this?* If yes, it is a promotion candidate.
 
-**Workbench guard — promotion may only edit files in the canonical workbench repo.** Workbench identity is marker-based, not path-based: a repo is the canonical workbench when its root contains **both** `.claude-plugin/marketplace.json` **and** `scripts/sync-global.ps1`. This works identically across machines and OSes because no path is ever hardcoded — check for the two files' presence, not a specific filesystem location. Agent, skill, and operating-rule content elsewhere are consumer-installed plugin copies (obtained via `/plugin marketplace add` + `/plugin install`, not deployed by any script); editing them forks the canonical source and would require reverse-centralization. In any other project, do NOT edit instruction files — instead write a file to the machine-global queue `~/.claude/agent-memory/promotion-queue/<slug>.md` containing: the proposed instruction text, the target file (e.g. `plugins/conductor-core/agents/implement-subagent.md`), the source project (repo name/path), the date, and provenance (the note-slug that prompted the promotion). The workbench drains this queue automatically in step 1 on its next review — no need to surface it to the user separately.
+**Workbench guard — promotion may only edit files in the canonical workbench repo.** Workbench identity is marker-based, not path-based: a repo is the canonical workbench when its root contains **both** `.claude-plugin/marketplace.json` **and** `scripts/sync-global.ps1`. This works identically across machines and OSes because no path is ever hardcoded — check for the two files' presence, not a specific filesystem location. Agent, skill, and operating-rule content elsewhere are consumer-installed plugin copies (obtained via `/plugin marketplace add` + `/plugin install`, not deployed by any script); editing them forks the canonical source and would require reverse-centralization. In any other project, do NOT edit instruction files — instead write a file to the machine-global queue `~/.claude/agent-memory/promotion-queue/<slug>.md` containing: the proposed instruction text, the target file (e.g. `plugins/conductor/agents/implement.md`), the source project (repo name/path), the date, and provenance (the note-slug that prompted the promotion). The workbench drains this queue automatically in step 1 on its next review — no need to surface it to the user separately.
 
 After promoting in the workbench:
 1. Annotate the source note: add a line `**Promoted to `<target-file>` on <YYYY-MM-DD>**` and slim any body text now duplicated by the instruction — the note keeps the *why*/provenance, the instruction carries the behavior. Never leave the full text in both places (drift risk).
@@ -191,7 +191,7 @@ pwsh scripts/memory-lint.ps1
 
 Expected output: `OK  Vault is clean.` with exit code 0.
 
-**Do not trigger `memory-subagent` after this pass.** Propagation would dirty-flag the very notes this review just verified, converting a clean vault back into noise for the next reviewer. If specific notes were left genuinely unverified, flag those individually in the summary rather than propagating wholesale.
+**Do not trigger the memory subagent after this pass.** Propagation would dirty-flag the very notes this review just verified, converting a clean vault back into noise for the next reviewer. If specific notes were left genuinely unverified, flag those individually in the summary rather than propagating wholesale.
 
 ## Output Format
 
@@ -211,7 +211,7 @@ Return a change summary:
 - Reconciled: kept <file-A> over <file-B> (Rule 7); <file-B> tombstoned
 
 **Vault status:** Clean / <N> items deferred for human judgment
-**Propagation:** Suppressed — see step 11 (`memory-subagent` not triggered after a review pass)
+**Propagation:** Suppressed — see step 11 (the memory subagent not triggered after a review pass)
 **Deferred:** <any items needing human input and why>
 ```
 
@@ -222,4 +222,4 @@ Return a change summary:
 - When uncertain whether a memory is stale, update `metadata.updated` and add a note in the body rather than pruning.
 - Do not prune a note merely because it is old; prune when it is inaccurate or superseded.
 - Never promote a memory into agent/skill/rule files outside the canonical workbench repo — write a promotion-queue file (`~/.claude/agent-memory/promotion-queue/<slug>.md`) instead, for the workbench to drain on its next review (step 1).
-- Never invoke `memory-subagent` at the end of a `memory-review` pass — state the suppression and reason explicitly in the summary (see step 11).
+- Never invoke the memory subagent at the end of a `memory-review` pass — state the suppression and reason explicitly in the summary (see step 11).

@@ -78,7 +78,7 @@ Topics are dynamic, not a fixed vocabulary. Before tagging, survey what's alread
 grep -rh "topic/" .claude/agent-memory --include="*.md" | sort -u
 ```
 
-Reuse an existing `topic/<x>` when one reasonably fits. Mint a new `topic/<x>` only when none does — one topic tag per note. Don't agonize over the perfect fit: the `memory-subagent` reconciles the taxonomy after each task (merging synonyms, cross-linking same-topic notes), so a reasonable choice now is enough.
+Reuse an existing `topic/<x>` when one reasonably fits. Mint a new `topic/<x>` only when none does — one topic tag per note. Don't agonize over the perfect fit: the memory subagent reconciles the taxonomy after each task (merging synonyms, cross-linking same-topic notes), so a reasonable choice now is enough.
 
 ## Body Structure
 
@@ -94,7 +94,7 @@ Do not save: code patterns derivable from the codebase, git history, debugging f
 
 ### Step 1 — Write the note file
 
-Create `<slug>.md` in the correct agent folder (e.g. `.claude/agent-memory/implement-subagent/db-pooling.md`):
+Create `<slug>.md` in the correct agent folder (e.g. `.claude/agent-memory/conductor-implement/db-pooling.md`):
 
 ```markdown
 ---
@@ -103,7 +103,7 @@ description: Connection pool must stay below 20 — exceeded limit caused prod O
 tags:
   - type/feedback
   - topic/tooling
-  - agent/implement-subagent
+  - agent/implement
 metadata:
   type: feedback
   updated: 2026-06-30
@@ -127,7 +127,7 @@ The MEMORY.md is the always-loaded index — never write full memory content the
 
 ## Clearing a Dirty Flag
 
-If the note you are rewriting was previously flagged dirty, clear both artifacts once you have verified the content against current repo state. This is the inverse of the flagging operation in `memory-subagent` §3 — same two regions of the file, both edits reversed in the same pass.
+If the note you are rewriting was previously flagged dirty, clear both artifacts once you have verified the content against current repo state. This is the inverse of the flagging operation in the memory subagent's §3 — same two regions of the file, both edits reversed in the same pass.
 
 Before (a correctly dirty-flagged note):
 

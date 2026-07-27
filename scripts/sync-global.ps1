@@ -9,7 +9,7 @@
     merge of settings.json into ~/.claude/settings.json (a small preserve-list
     of machine-local keys survives from the deployed copy) - settings.json is
     never clean-replaced since Claude Code rewrites machine-local state into
-    it at runtime. MCP servers now travel inside plugins/conductor-core/.mcp.json,
+    it at runtime. MCP servers now travel inside plugins/conductor/.mcp.json,
     delivered by the plugin itself, so this script no longer registers them.
 .PARAMETER DryRun
     Print what would be written without making changes.
