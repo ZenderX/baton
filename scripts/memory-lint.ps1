@@ -49,7 +49,8 @@
         Found via a manual, symlink-safe directory walk (not Get-ChildItem -Recurse), so a
         cyclic symlink/junction cannot cause an infinite walk. Read-only: detected and
         reported only, never moved or deleted — the memory subagent step 0 owns the remedy
-        (canonical note takes precedence, then prune the stray).
+        (notes moved + dirty-flagged into the canonical folder, indexes merged, stray folder
+        pruned).
 .PARAMETER Fix
     Apply safe auto-repairs. Idempotent.
 .PARAMETER StaleDays
@@ -510,7 +511,8 @@ $noteUpdatedDate = @{}
 # Phase A0: STRAY-LOCATION detection (gate-blocking, read-only)
 # ---------------------------------------------------------------------------
 # Detect-only: this check never moves, creates, or deletes anything — remedy ownership is
-# the memory subagent step 0 (canonical note wins, then prune the stray), never this script.
+# the memory subagent step 0 (migrate: move notes into the canonical folder, dirty-flag them,
+# merge indexes, prune the stray folder), never this script.
 #
 # Walk root: the real project root for a normal run (the cwd-wide scan the user asked for),
 # but $VaultRoot's own parent when -VaultRoot was explicitly overridden — preserving the
@@ -527,7 +529,7 @@ foreach ($dir in $memoryMdDirs) {
     if ($dir.FullName -eq $VaultRoot) { continue }  # never flag the vault root itself
     $parentDir = Split-Path -Parent $dir.FullName
     if ($parentDir -eq $VaultRoot) { continue }  # canonical folder, direct child of vault root
-    $integrityErrs.Add("STRAY-LOCATION: $($dir.FullName) — notes outside canonical folders; the memory subagent must integrate them (canonical note takes precedence, then prune the stray)")
+    $integrityErrs.Add("STRAY-LOCATION: $($dir.FullName) — notes outside canonical folders; the memory agent must migrate them to the canonical folder (notes moved + dirty-flagged, indexes merged, stray folder pruned)")
 }
 
 # ---------------------------------------------------------------------------

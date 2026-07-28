@@ -56,7 +56,7 @@ For each flagged item, classify:
 |------|----------------|
 | `ORPHAN` | Check whether the note has value; if yes, cross-link to a related note or MEMORY.md; if not, prune with link-survival rule |
 | `STALE` | Read note; verify claim against current repo state; update body + `metadata.updated`, or prune |
-| `DIRTY` | Read note → verify against current repo state → re-link outbound links → clear the dirty flag (remove `dirty`/`dirty_reason` frontmatter keys and banner); or escalate if the content cannot be verified |
+| `DIRTY` | Read note → verify against current repo state → check for duplicates (Grep the vault for same-topic/overlapping notes); if a duplicate exists, merge the relevant content into one survivor and delete the other (link-survival rule, step 8, applies to the deleted note's inbound links) → re-link outbound links → clear the dirty flag on the survivor (remove `dirty`/`dirty_reason` frontmatter keys and banner); or escalate if the content cannot be verified |
 | `MISSING-TAG` | Add missing tags; classify correctly |
 | `MISSING-UPDATED` | Set `metadata.updated` to today if the content is still accurate; otherwise prune |
 | `DUPLICATE-BASENAME` | Keep the more recent or more specific note (Rule 7); tombstone or delete the other |
@@ -120,6 +120,8 @@ Existing body text, now re-verified.
 ```
 
 Update `metadata.updated` to today. Never clear without verifying. Never leave the banner line inside the `metadata:` block — that is invalid YAML, not a partially-cleared flag.
+
+**Dedup obligation for dirty notes:** before clearing a dirty flag, check whether the note duplicates another one already in the vault. This is the common case for notes arriving dirty via stray-folder migration (the `memory` agent's step 0), where the same content may already exist under a different slug in the canonical folder. Use the `Grep` tool for the note's key terms across `.claude/agent-memory/` to find candidates; if a duplicate exists, merge the relevant information into one survivor, delete the other using the link-survival rule (step 8), and only then clear the dirty flag on the survivor.
 
 ### 6. Reconcile Contradictions
 

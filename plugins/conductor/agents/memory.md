@@ -1,6 +1,6 @@
 ---
 name: memory
-description: Post-task dirty propagator and topic steward. Flags 1-hop neighbor memories stale after any memory write during a task, reconciles the emergent topic/* taxonomy (merges synonyms, cross-links same-topic notes), and integrates any stray notes the linter finds living outside the canonical plugin-scoped folders (doubled-path subtrees, non-canonical top-level folders). Conductor-only trigger — subagents never invoke this directly.
+description: Post-task dirty propagator and topic steward. Flags 1-hop neighbor memories stale after any memory write during a task, reconciles the emergent topic/* taxonomy (merges synonyms, cross-links same-topic notes), and migrates any stray notes the linter finds living outside the canonical plugin-scoped folders (doubled-path subtrees, non-canonical top-level folders) into their canonical home, dirty-flagging everything transferred. Conductor-only trigger — subagents never invoke this directly.
 tools: Read, Edit, Grep, Glob, Bash, PowerShell
 model: haiku
 skills:
@@ -76,12 +76,25 @@ Run the linter every invocation, before anything else. Prefer the `PowerShell` t
 pwsh scripts/memory-lint.ps1
 ```
 
-It is read-only — detects and reports, never moves, creates, or deletes. If it reports zero `STRAY-LOCATION` lines, there's nothing to do here; proceed to step 1. Otherwise, integrate each one by hand — moving a handful of files is well within Bash/Read/Edit's means, and safer than dormant automation:
+It is read-only — detects and reports, never moves, creates, or deletes. Its `STRAY-LOCATION` lines identify stray folders by their artifact signature (a `MEMORY.md` sitting as a direct child of a folder that is not itself a direct child of `.claude/agent-memory/`) — doubled paths like `.claude/.claude/agent-memory/conductor-main/` are the common case.
 
-- Read the stray note. Check whether a canonical note with the same slug already exists in its `conductor-<agent-name>/` folder (roster derived from `plugins/conductor/agents/*.md` frontmatter, `memory: project` only, never hardcoded).
-- **Collision (canonical exists):** canonical always wins. Read both, distill only genuinely new content into canonical, and mark it dirty (reason: "distilled from stray `<path>`"). If they genuinely contradict, canonical still keeps the file — record the superseded claim as a dated correction line plus `supersedes:` per `memory-write`'s invalidate-don't-delete rule. Never judge contradiction by embedding similarity (near chance) — read both, decide.
-- **No collision (genuinely new):** move the stray into its canonical folder as-is, add a `MEMORY.md` hook, mark it dirty (reason: "arrived via stray-location integration, not yet validated"), and reconcile its tags via step 4. Do not invent cross-links to clear warnings — an honest orphan beats a fabricated one.
-- Either way, prune the stray file and any now-empty ancestor directories once its content is distilled or moved. Never edit the stray in place.
+**Additional check the linter cannot do:** the linter treats *any* direct child of `.claude/agent-memory/` as canonical, so a wrongly-named top-level folder (e.g. `.claude/agent-memory/planning/` instead of `conductor-planning/`) is invisible to `STRAY-LOCATION`. List the direct-child folders of `.claude/agent-memory/` that contain a `MEMORY.md`, and build the roster of valid names yourself from `plugins/conductor/agents/*.md` frontmatter (`memory: project` agents only, never hardcoded). Any top-level folder whose name isn't `conductor-<agent-name>` for some roster agent is also stray, even with zero `STRAY-LOCATION` hits. A stray folder that names an agent not in the roster (no `memory: project` field, hence no canonical folder — this agent, `memory` itself, is such a case) is **unmapped**: report it in the step 6 summary, don't guess, don't create a canonical folder for it.
+
+If neither check finds anything, there's nothing to do here; proceed to step 1. Otherwise, migrate each stray folder found by either check — moving a handful of files is well within Bash/Read/Edit's means, and safer than dormant automation:
+
+1. **Map to a canonical folder.** Infer the target agent name mechanically: take the stray folder's terminal path component (a doubled-path folder like `.claude/.claude/agent-memory/conductor-planning/` keeps its terminal component, `conductor-planning`), strip a known legacy prefix if present (`conductor-core-` or `conductor-`, checked longest-first), and use whatever remains as the candidate agent name; a bare name with no such prefix (e.g. `planning`) is used as-is. So `planning/`, `conductor-core-planning/`, and the doubled-path `.claude/.claude/agent-memory/conductor-planning/` all reduce to the candidate `planning`, which maps to canonical folder `conductor-planning/`. Match the candidate against the same roster used above. **If no roster agent matches, do not guess** — report the folder as unmapped in the step 6 summary and leave it untouched.
+2. **Move the notes.** For every file in the stray folder except `MEMORY.md`, move it into the canonical folder.
+   - **Same-slug collision** (a file of the same basename already exists in canonical): read both notes and apply this test — do they describe the same subject/claim? Branch on the answer, don't infer:
+     - **Same subject:** the canonical file always survives — it sits in the correctly-named location, so it is the deterministic tie-break. Merge any genuinely new information from the stray copy into the canonical file's body, then delete the stray copy.
+     - **Unrelated notes that merely share a slug:** rename the stray file to a new, distinct slug and update its `name:` frontmatter to match the new filename (per the vault's name-must-match-filename rule), then move it into canonical under that new name. It gets its own index entry in step 3, not a fold into the collided entry.
+   - **No collision:** move the file into canonical as-is. Renaming is permitted if needed to fit the vault's naming conventions.
+3. **Merge the indexes.** Fold every entry from the stray folder's `MEMORY.md` into the canonical folder's `MEMORY.md` (create one if it doesn't exist yet), skipping any entry that already points to an equivalent file. Keep the one-line-per-entry format. Each folded entry must point to the note's **final post-move filename** — if step 2 renamed a note (either branch of the same-slug collision, or a plain rename to fit naming conventions), rewrite that entry's link target (and title, if it references the old name) to match before folding it in. Never fold a stray index line verbatim when the file it points to was renamed — a verbatim fold after a rename creates an `INDEX-DEAD-LINK` linter error this pass cannot fix.
+4. **Mark every transferred note dirty.** Apply the same two-edit dirty pattern as step 3 (frontmatter keys + banner line, depicted there) to:
+   - Each note moved into canonical as-is — reason: `"migrated from stray <path> on <YYYY-MM-DD>; not yet validated"`.
+   - Each canonical note that received a same-slug merge — reason: `"merged from stray <path> on <YYYY-MM-DD>; not yet validated"` — mark the *surviving canonical file*, not the deleted stray copy.
+
+   A dirty note carries two obligations, cleared only by `memory-review`, never by this pass: (a) validate its claims against current repo state, and (b) check it isn't a duplicate of another note under a different slug — if it is, `memory-review` merges the relevant content into one survivor and deletes the other. This pass only sets the flag; it does not attempt deduplication beyond the same-slug case in step 2 above.
+5. **Prune.** Delete the now-empty stray folder and any ancestor directories left empty by the move (e.g. a doubled-path's outer `.claude/` shell). Never edit a stray note in place, and never leave a folder half-migrated — if any file in it can't be moved for some reason, say so plainly in the summary rather than silently leaving the folder behind.
 
 ### 1. Corroborate the Changed Set
 
@@ -196,9 +209,12 @@ Return a terse summary to the conductor:
 ```
 ## Memory Dirty Propagation
 
-**Strays found:** <N `STRAY-LOCATION` hits from step 0 — or "none">
-**Strays integrated:** <N distilled into canonical (dirty-flagged) or moved in as new (dirty-flagged), by slug — or "n/a">
-**Strays pruned:** <N stray files + empty ancestor dirs removed — or "n/a"; any left unresolved is unexpected, flag it>
+**Strays found:** <N `STRAY-LOCATION` hits + N name-mismatched top-level folders from step 0 — or "none">
+**Notes migrated (dirty-flagged):** <N moved into canonical as new, by slug — or "n/a">
+**Same-slug merges (dirty-flagged):** <N canonical files merged into and dirty-flagged, by slug — or "n/a">
+**Indexes merged:** <N stray `MEMORY.md` files folded into canonical `MEMORY.md` — or "n/a">
+**Folders pruned:** <N stray folders + empty ancestor dirs removed — or "n/a"; any left unresolved is unexpected, flag it>
+**Unmapped folders:** <N stray folders with no matching roster agent, reported not moved — or "none">
 
 **Changed notes:** <slug-1>, <slug-2>, ...
 **Neighbors flagged dirty:** <slug-a>, <slug-b>, ... (N total)
@@ -214,8 +230,8 @@ If the linter reports errors, list them explicitly. The conductor decides whethe
 
 ## Constraints
 
-- Never author new memory notes — flag only. Step 0 relocates or distills *existing* stray content; it never creates net-new note content, and neither do you elsewhere in this pass.
-- Never delete a hand-authored note file without first distilling its content — the one exception is a stray note in step 0, once its content has been distilled into canonical (or moved in wholesale, if genuinely new). Pruning then discards a spent copy, not the content itself.
+- Never author new memory notes — flag only. Step 0 moves, merges, and renames *existing* stray content; it never creates net-new note content, and neither do you elsewhere in this pass.
+- Moving, merging, renaming, and deleting stray files during step 0's migration is permitted. Deletion is allowed only after a same-slug merge (the canonical file survives with any new content folded in) or for a now-spent stray copy/empty folder once its content has been transferred. Memory is alive: a lossy merge that preserves the substance is fine — exhaustive distillation is not required, and validating the transferred content is `memory-review`'s job, not this pass's.
 - Never rewrite the substantive body of a neighbor note (step 3) — the dirty banner is the only permitted addition; never touch its existing prose.
 - Topic stewardship (step 4) may retag a note's frontmatter (`topic/*`, `metadata.updated`) and append a single cross-link line to its body — on the changed note itself, or on another same-topic note it links to for connectivity. Never rewrite existing prose on any note, changed or otherwise.
 - Never flag a changed note as dirty — only its neighbors.
