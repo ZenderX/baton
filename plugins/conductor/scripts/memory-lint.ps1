@@ -62,7 +62,12 @@
     Override the vault path (default: <repo>/.claude/agent-memory). Lets a scratch
     fixture be linted without touching the real vault. When explicitly passed, the
     STRAY-LOCATION walk root becomes this path's parent instead of the real project
-    root, so a scratch-fixture lint run scans only the fixture, not the real repo.
+    root, so a scratch-fixture lint run scans only the fixture, not the real repo —
+    but the stray scan never walks outside the project root. If the passed -VaultRoot
+    lies outside the project root (e.g. a machine-global ~/.claude path), its parent
+    is out of bounds too, so the walk is clamped to the vault path itself: the caller
+    explicitly named that tree, so scanning inside it stays consented, but nothing
+    outside it is scanned.
 #>
 param(
     [switch]$Fix,
@@ -101,6 +106,18 @@ $ProjectRoot = if (-not [string]::IsNullOrWhiteSpace($env:CLAUDE_PROJECT_DIR)) {
 if (-not $VaultRoot) {
     $VaultRoot = Join-Path $ProjectRoot '.claude' 'agent-memory'
 }
+
+# Canonicalize both roots once, here, rather than at each comparison site: every
+# downstream `-eq $VaultRoot` / `-eq $ProjectRoot` check (Phase A0's STRAY-LOCATION walk
+# and elsewhere) compares against a .FullName, which is always backslash-separated on
+# Windows. A caller-supplied -VaultRoot with forward or mixed slashes (e.g.
+# "C:/Users/.../.claude/agent-memory") would otherwise never string-equal a same
+# directory's .FullName, silently flagging the vault root and its own canonical children
+# as STRAY-LOCATION. Same normalization Test-PathUnderRoot uses (GetFullPath + trim
+# trailing separator); PowerShell's default -eq is already case-insensitive, so no
+# downstream comparison needs to change.
+$ProjectRoot = [System.IO.Path]::GetFullPath($ProjectRoot).TrimEnd([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar)
+$VaultRoot   = [System.IO.Path]::GetFullPath($VaultRoot).TrimEnd([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar)
 
 # Known runtime-generated type prefixes. Anchored so slugs containing _ are not mangled.
 [string[]]$KnownPrefixes = @(
@@ -449,6 +466,19 @@ function Build-BasenameMap([System.IO.FileInfo[]]$files) {
     return $map
 }
 
+function Test-PathUnderRoot([string]$Path, [string]$Root) {
+    <#
+    .SYNOPSIS $true if $Path is $Root itself or lies nested under it. Compares
+    fully-resolved, trailing-separator-trimmed paths, case-insensitively (the default
+    Windows/macOS filesystems are case-insensitive-but-case-preserving, so a
+    case-sensitive compare would produce false negatives there for no real benefit).
+    Neither $Path nor $Root need exist on disk — GetFullPath resolves syntactically.
+    #>
+    $fullPath = [System.IO.Path]::GetFullPath($Path).TrimEnd([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar)
+    $fullRoot = [System.IO.Path]::GetFullPath($Root).TrimEnd([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar)
+    return ($fullPath -eq $fullRoot) -or $fullPath.StartsWith($fullRoot + [System.IO.Path]::DirectorySeparatorChar, [System.StringComparison]::OrdinalIgnoreCase)
+}
+
 function Build-NameSlugMap([System.IO.FileInfo[]]$files) {
     <#
     .SYNOPSIS Builds a hashtable of lowercased frontmatter `name:` value -> list of full paths.
@@ -527,8 +557,17 @@ $noteUpdatedDate = @{}
 # Walk root: the real project root for a normal run (the cwd-wide scan the user asked for),
 # but $VaultRoot's own parent when -VaultRoot was explicitly overridden — preserving the
 # existing scratch-fixture test-isolation convention (a fixture lint run scans only the
-# fixture, never the real repo it happens to live under).
-$StrayWalkRoot = if ($VaultRootWasSpecified) { Split-Path -Parent $VaultRoot } else { $ProjectRoot }
+# fixture, never the real repo it happens to live under). Boundary rule, non-negotiable:
+# the stray scan must never walk outside the project root. So the parent is only used when
+# it is $ProjectRoot itself or nested under it; if a caller points -VaultRoot at a tree
+# outside the project (e.g. a machine-global ~/.claude path), that parent is out of bounds
+# too, and the walk is clamped to $VaultRoot itself instead — the caller explicitly named
+# that tree, so scanning inside it stays consented, but its surroundings are not.
+$StrayWalkRoot = $ProjectRoot
+if ($VaultRootWasSpecified) {
+    $vaultParent = Split-Path -Parent $VaultRoot
+    $StrayWalkRoot = if (Test-PathUnderRoot -Path $vaultParent -Root $ProjectRoot) { $vaultParent } else { $VaultRoot }
+}
 
 # Every directory anywhere under $StrayWalkRoot (pruning .git/releases/node_modules) that has
 # a MEMORY.md file as a direct child. A directory qualifies as "canonical" purely by being

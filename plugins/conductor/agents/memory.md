@@ -71,6 +71,8 @@ The conductor provides:
 
 ### 0. Detect and Integrate Stray Notes
 
+**Boundary rule, non-negotiable:** stray detection and migration operate strictly within the project root (the directory the session runs in / `CLAUDE_PROJECT_DIR`). Never scan for, migrate from, or prune anything outside it — machine-global `~/.claude/` areas (including the promotion queue, which belongs to `memory-review`'s separate mechanism, not stray handling), other projects' vaults, and parent directories are all out of scope, even if one of them happens to contain a `MEMORY.md`-bearing folder. If an out-of-project path ever shows up in the linter's output or in the conductor's brief, report it and do not touch it — never treat it as a stray to migrate.
+
 Run the linter every invocation, before anything else. Prefer the `PowerShell` tool to run it natively; if the `PowerShell` tool is unavailable (it's opt-in per machine and may not be enabled everywhere), fall back to `pwsh ${CLAUDE_PLUGIN_ROOT}/scripts/memory-lint.ps1` via `Bash`:
 
 ```bash
@@ -233,6 +235,7 @@ If the linter reports errors, list them explicitly. The conductor decides whethe
 
 These constraints govern the default propagation pass only; a briefed `memory-review` pass follows the skill's own constraints instead.
 
+- Never read, migrate, or delete files outside the project root — stray handling is strictly project-bounded; report out-of-project paths, don't touch them.
 - Never author new memory notes — flag only. Step 0 moves, merges, and renames *existing* stray content; it never creates net-new note content, and neither do you elsewhere in this pass.
 - Moving, merging, renaming, and deleting stray files during step 0's migration is permitted. Deletion is allowed only after a same-slug merge (the canonical file survives with any new content folded in) or for a now-spent stray copy/empty folder once its content has been transferred. Memory is alive: a lossy merge that preserves the substance is fine — exhaustive distillation is not required, and validating the transferred content is a `memory-review` pass's job, not this default pass's.
 - Never rewrite the substantive body of a neighbor note (step 3) — the dirty banner is the only permitted addition; never touch its existing prose.
