@@ -162,7 +162,7 @@ Installed as a plugin, these register as `conductor:<name>` — invoke by that s
 | `research` | Web research — docs, current events, versions, regulations, statistics, prices | Task needs information from the web rather than the codebase |
 | `implement` | Code generation, refactoring, file creation | Clear spec exists, ready for code changes |
 | `code-review` | Build/lint/test verification, code quality | Verify implementation quality after each phase |
-| `memory` | Post-task dirty propagation — flags neighbor memories stale after any write | After any task where memory notes were written or edited |
+| `memory` | All memory-vault work — post-task dirty propagation, vault stewardship/review passes | After any task where memory notes were written or edited; or when vault quality work is needed |
 
 ## Skill Discovery
 
@@ -188,11 +188,11 @@ Fan-out without crisp scope causes Step Repetition — per MAST (1,600+ traces),
 
 Save to your memory directory: cross-cutting insights spanning multiple subagent outputs — workflow-level architectural decisions, patterns in how tasks recur, why an orchestration choice was made.
 
-**Mechanics:** bare slug filename (e.g., `auth-refactor-sequencing.md`); tags `type/<kind>`, `topic/<x>`, `agent/main` (`<kind>` matches the note's type); `metadata.type: <kind>`; `metadata.updated: <today's date>`; cross-link with `[[slug]]` per the `memory-write` and `obsidian-links` skills.
+**Mechanics:** bare slug filename (e.g., `auth-refactor-sequencing.md`); tags `type/<kind>`, `topic/<x>`, `agent/main` (`<kind>` matches the note's type); `metadata.type: <kind>`; `metadata.updated: <today's date>`; cross-link with `[[slug]]`.
 
-**Vault stewardship:** as the only agent with visibility across all subagent outputs, you own cross-cutting vault quality — periodically run `pwsh scripts/memory-lint.ps1` (the `memory-review` procedure) to surface broken links, orphans, stale research, and cross-link related notes across agent folders after multi-subagent work.
+**Vault stewardship** belongs to `memory` — delegate a review/stewardship pass to it like any other brief, rather than running vault tooling yourself.
 
-**Memory Subagent Trigger:** once a task is fully complete (after the final review pass), if any memory note was written or edited during the task, invoke `memory` with the changed slugs and a one-line reason each. Conductor-only prerogative — subagents never trigger it directly. Skip if nothing changed. **Exception:** a `memory-review` pass never triggers this — propagation would re-flag the very notes the pass just verified.
+**Memory Subagent Trigger:** once a task is fully complete (after the final review pass), if any memory note was written or edited during the task, invoke `memory` with the changed slugs and a one-line reason each. Conductor-only prerogative — subagents never trigger it directly. Skip if nothing changed. **Exception:** a vault-review/stewardship pass delegated to `memory` is terminal — never follow it with another `memory` propagation invocation, which would re-flag the very notes just verified.
 
 ## Task Routing
 

@@ -14,7 +14,7 @@ Invoke when:
 - A significant architectural change may have invalidated existing memories
 - Monthly cadence for routine vault hygiene
 
-The conductor invokes this skill with `pwsh scripts/memory-lint.ps1` results in hand, or triggers the full workflow below.
+This skill is preloaded into the `memory` agent's body. The conductor never invokes this skill directly — it delegates a vault review/stewardship pass to the `memory` agent (the same way it delegates any other brief), and the `memory` agent runs this procedure, either with `pwsh ${CLAUDE_PLUGIN_ROOT}/scripts/memory-lint.ps1` results already in hand or by triggering the full workflow below itself.
 
 ## Workflow
 
@@ -34,14 +34,14 @@ For each queued file:
 ### 2. Run the Linter
 
 ```bash
-pwsh scripts/memory-lint.ps1
+pwsh ${CLAUDE_PLUGIN_ROOT}/scripts/memory-lint.ps1
 ```
 
 Capture the full output. Any integrity errors (broken links, dead index entries) must be resolved before judgment work.
 
 If integrity errors exist, run:
 ```bash
-pwsh scripts/memory-lint.ps1 -Fix
+pwsh ${CLAUDE_PLUGIN_ROOT}/scripts/memory-lint.ps1 -Fix
 ```
 
 Then re-run in report mode and confirm exit 0 before proceeding.
@@ -183,12 +183,12 @@ After promoting in the workbench:
 Run the linter once more to confirm the vault is clean:
 
 ```bash
-pwsh scripts/memory-lint.ps1
+pwsh ${CLAUDE_PLUGIN_ROOT}/scripts/memory-lint.ps1
 ```
 
 Expected output: `OK  Vault is clean.` with exit code 0.
 
-**Do not trigger the memory subagent after this pass.** Propagation would dirty-flag the very notes this review just verified, converting a clean vault back into noise for the next reviewer. If specific notes were left genuinely unverified, flag those individually in the summary rather than propagating wholesale.
+**A review pass is terminal — never follow it with a propagation pass**, whether run inline by this agent or requested back from the conductor. Propagation would dirty-flag the very notes this review just verified, converting a clean vault back into noise for the next reviewer. State the suppression explicitly in the summary (see Output Format below). If specific notes were left genuinely unverified, flag those individually in the summary rather than propagating wholesale.
 
 ## Output Format
 
@@ -208,7 +208,7 @@ Return a change summary:
 - Reconciled: kept <file-A> over <file-B> (Rule 7); <file-B> tombstoned
 
 **Vault status:** Clean / <N> items deferred for human judgment
-**Propagation:** Suppressed — see step 11 (the memory subagent not triggered after a review pass)
+**Propagation:** Suppressed — see step 11 (a review pass is terminal; no propagation pass follows it)
 **Deferred:** <any items needing human input and why>
 ```
 
@@ -219,4 +219,4 @@ Return a change summary:
 - When uncertain whether a memory is stale, update `metadata.updated` and add a note in the body rather than pruning.
 - Do not prune a note merely because it is old; prune when it is inaccurate or superseded.
 - Never promote a memory into agent/skill/rule files outside the canonical workbench repo — write a promotion-queue file (`~/.claude/agent-memory/promotion-queue/<slug>.md`) instead, for the workbench to drain on its next review (step 1).
-- Never invoke the memory subagent at the end of a `memory-review` pass — state the suppression and reason explicitly in the summary (see step 11).
+- Never follow a `memory-review` pass with a propagation pass — neither run inline nor requested back from the conductor — state the suppression and reason explicitly in the summary (see step 11).

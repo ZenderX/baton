@@ -87,7 +87,17 @@ $ErrorActionPreference = 'Stop'
 # apart from "using the default" even though both end up with a non-empty value.
 $VaultRootWasSpecified = $PSBoundParameters.ContainsKey('VaultRoot')
 
-$ProjectRoot = Split-Path -Parent $PSScriptRoot
+
+# Project root: NOT derived from this script's own location. As a shipped plugin file
+# (plugins/conductor/scripts/memory-lint.ps1) this script runs from a consumer's plugin
+# cache, which says nothing about where the project/vault actually lives. Resolve instead
+# from $env:CLAUDE_PROJECT_DIR (set by the Claude Code harness to the project root) when
+# present and non-empty, else fall back to the current working directory.
+$ProjectRoot = if (-not [string]::IsNullOrWhiteSpace($env:CLAUDE_PROJECT_DIR)) {
+    $env:CLAUDE_PROJECT_DIR
+} else {
+    (Get-Location).Path
+}
 if (-not $VaultRoot) {
     $VaultRoot = Join-Path $ProjectRoot '.claude' 'agent-memory'
 }
