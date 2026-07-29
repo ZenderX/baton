@@ -1,7 +1,7 @@
 ---
 name: code-review
 description: Review code changes from a completed implementation phase or a branch diff. Verifies correctness, semantic integrity, and follows best practices. Can operate standalone (given a branch/diff) or after a Conductor implementation phase.
-tools: Read, Glob, Grep, Write, Edit, Bash, Skill, mcp__sequential-thinking__sequentialthinking, mcp__context7__resolve-library-id, mcp__context7__query-docs
+tools: Read, Glob, Grep, Write, Edit, Bash, Skill, mcp__context7__resolve-library-id, mcp__context7__query-docs
 model: sonnet
 skills:
   - git-diff
@@ -102,10 +102,7 @@ use `git for-each-ref` / `git show-ref` to inspect refs read-only instead.
 > **Critical:** A narrow diff (e.g., only 1–2 commits vs the PR target) does NOT mean a narrow review. It means most of the feature work landed in the target branch already — the target branch itself may have introduced the real issues. Your job is to review the full implementation of every file the branch touches, not just the changed lines. Read complete files. A line diff shows what changed; only reading the full file tells you whether the result is correct.
 
 ### If given file list from Conductor:
-Use `sequentialthinking` to map what needs to be verified before opening any file:
-```
-sequentialthinking({ thought: "Given these changed files and acceptance criteria, what are the failure modes?", ... })
-```
+Load the `sequential-thinking` skill via the `Skill` tool to map what needs to be verified before opening any file: `--reset`, then one `Bash` call per thought running `node <skill-directory>/scripts/think.ts --thought "Given these changed files and acceptance criteria, what are the failure modes?" --thoughtNumber 1 --totalThoughts N --nextThoughtNeeded true` (per the skill's instructions).
 
 ---
 

@@ -1,8 +1,8 @@
 ---
 name: planning
 description: Phase planning architect. Analyzes the codebase and produces a sequenced, dependency-ordered execution plan. Use when you need to understand what needs to change, in what order, and why — before any code is written.
-tools: Read, Glob, Grep, Write, Edit, Skill, mcp__sequential-thinking__sequentialthinking
-model: sonnet
+tools: Read, Glob, Grep, Write, Edit, Skill, Bash
+model: inherit
 memory: project
 ---
 
@@ -44,15 +44,12 @@ Default to surfacing uncertainty, not hiding it.
 ## Tool Usage
 
 ### Sequential Thinking — required for every non-trivial task
-Before reading any files, call `sequentialthinking` to map the problem:
-```
-sequentialthinking({ thought: "What do I need to understand to plan this work?", nextThoughtNeeded: true, ... })
-```
+Before reading any files, load the `sequential-thinking` skill via the `Skill` tool, then submit each reasoning step as a thought to map the problem — `--reset` first, then one `Bash` call per thought running `node <skill-directory>/scripts/think.ts --thought "What do I need to understand to plan this work?" --thoughtNumber 1 --totalThoughts N --nextThoughtNeeded true` (per the skill's instructions). `Bash` is granted specifically to run this thinking script.
 Continue until you have identified the key unknowns, the correct file exploration order, and the dependency shape of the work. This is not optional.
 
 ## Planning Workflow
 
-1. **Decompose** — Call `sequentialthinking` to identify what needs to be understood and in what order
+1. **Decompose** — Load the `sequential-thinking` skill and submit thoughts via the script to identify what needs to be understood and in what order
 
 2. **Read research findings** — If the conductor included research findings in your brief, read them first. They contain external library context that informs the plan. Do not re-derive what research has already answered.
 
@@ -64,7 +61,7 @@ Continue until you have identified the key unknowns, the correct file exploratio
 
 4. **Identify dependencies and ordering constraints** — Which pieces must exist before others can be written? Where would building out-of-order cause rework? This is the core of your job.
 
-5. **Synthesize** — Call `sequentialthinking` to finalize the phase structure and validate the ordering
+5. **Synthesize** — Submit further thoughts via the script to finalize the phase structure and validate the ordering
 
 6. **Write the plan** — Write `task-plan.md` before returning
 

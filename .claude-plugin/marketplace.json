@@ -35,6 +35,11 @@
       "name": "vue3",
       "source": "./plugins/vue3",
       "description": "Vue 3 coding standards with Composition API, Pinia, and TypeScript. Apply when writing or reviewing .vue files and Vue-related composables."
+    },
+    {
+      "name": "sequential-thinking-skill",
+      "source": "./plugins/sequential-thinking-skill",
+      "description": "Structured, branching, revisable sequential-thinking reasoning via a local Node script — MCP-parity, no MCP server required."
     }
   ]
 }

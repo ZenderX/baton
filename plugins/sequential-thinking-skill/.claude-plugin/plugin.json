@@ -1,0 +1,8 @@
+{
+  "name": "sequential-thinking-skill",
+  "description": "Vendored sequential-thinking skill (thedotmack/sequential-thinking-skill) — MCP-parity structured, branching, revisable reasoning via a local Node script, no MCP server required.",
+  "author": {
+    "name": "Z3nder",
+    "email": "7001657+ZenderX@users.noreply.github.com"
+  }
+}

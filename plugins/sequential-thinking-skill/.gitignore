@@ -1,0 +1,4 @@
+**/.think_state.json
+*.skill
+node_modules/
+.claude/

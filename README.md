@@ -22,6 +22,7 @@ This repo is both:
 /plugin install rust@skills-marketplace
 /plugin install typescript@skills-marketplace
 /plugin install vue3@skills-marketplace
+/plugin install sequential-thinking-skill@skills-marketplace
 ```
 
 (`<owner>/<repo>` is this repository's GitHub path; a local checkout path also works with `/plugin marketplace add /absolute/path/to/baton`.)
@@ -36,12 +37,13 @@ Plugin entries in `marketplace.json` omit `version` — git-source plugins float
 
 | Plugin | Contents |
 |--------|----------|
-| `conductor` | conductor + 5 subagents (6 agents total), 4 bundled skills (`git-diff`, `memory-review`, `memory-write`, `obsidian-links`; preload is selective per agent and same-plugin-only — see [Skills](#skills)), and `.mcp.json` (`sequential-thinking`, `context7`). |
+| `conductor` | conductor + 5 subagents (6 agents total), 4 bundled skills (`git-diff`, `memory-review`, `memory-write`, `obsidian-links`; preload is selective per agent and same-plugin-only — see [Skills](#skills)), and `.mcp.json` (`context7`). |
 | `bevy` | Bevy skill — standalone, no agents |
 | `blender` | Blender (bevy_skein) skill — standalone, no agents |
 | `rust` | Rust skill — standalone, no agents |
 | `typescript` | TypeScript skill — standalone, no agents |
 | `vue3` | Vue 3 skill — standalone, no agents |
+| `sequential-thinking-skill` | Structured, branching, revisable sequential-thinking reasoning — standalone, no agents; delivered via the `Skill` tool, no MCP server required |
 
 Install the language plugins relevant to what you work on alongside `conductor` — see [Skills](#skills) below for why.
 
@@ -100,11 +102,11 @@ It also fans work out: independent subagent invocations dispatch in parallel (a 
 
 | Agent | Role | Model | Skills |
 |-------|------|-------|--------|
-| **main** | Orchestrator (the conductor). Holds the shared task model, delegates to specialists, distills results, proceeds autonomously. Entrypoint for Research → Planning → Implementation → Review. | inherit | none — holds the complete Engineering + Git Hygiene rule set inlined directly in its own agent body; each subagent carries its own relevant subset instead (see [How rules travel](#how-rules-travel)) |
-| **planning** | Codebase analyst and architect. Reads the project, decomposes work, produces a sequenced `task-plan.md`. | sonnet | none |
-| **research** | External research only (no codebase access). Library docs, API reference, web facts, latest versions. | sonnet | none |
-| **implement** | Autonomous code writer. Owns architectural decisions within each phase. Reads `task-plan.md`, implements, verifies. | sonnet | none preloaded; domain standards (e.g. `rust`, `vue3`) on demand via the `Skill` tool |
-| **code-review** | Post-implementation review. Verifies correctness, semantic integrity, best practices. Returns `APPROVED`, `NEEDS_REVISION`, or `FAILED`. Never applies fixes. | sonnet | git-diff (preloaded); domain standards on demand via the `Skill` tool |
+| **main** | Orchestrator (the conductor). Holds the shared task model, delegates to specialists, distills results, proceeds autonomously. Entrypoint for Research → Planning → Implementation → Review. | inherit | none preloaded — holds the complete Engineering + Git Hygiene rule set inlined directly in its own agent body; each subagent carries its own relevant subset instead (see [How rules travel](#how-rules-travel)); `sequential-thinking` on demand via the `Skill` tool |
+| **planning** | Codebase analyst and architect. Reads the project, decomposes work, produces a sequenced `task-plan.md`. | sonnet | none preloaded; `sequential-thinking` on demand via the `Skill` tool |
+| **research** | External research only (no codebase access). Library docs, API reference, web facts, latest versions. | sonnet | none preloaded; `sequential-thinking` on demand via the `Skill` tool |
+| **implement** | Autonomous code writer. Owns architectural decisions within each phase. Reads `task-plan.md`, implements, verifies. | sonnet | none preloaded; `sequential-thinking`, domain standards (e.g. `rust`, `vue3`) on demand via the `Skill` tool |
+| **code-review** | Post-implementation review. Verifies correctness, semantic integrity, best practices. Returns `APPROVED`, `NEEDS_REVISION`, or `FAILED`. Never applies fixes. | sonnet | git-diff (preloaded); `sequential-thinking`, domain standards on demand via the `Skill` tool |
 | **memory** | Owner of all memory-vault work. By default, a post-task dirty propagator and topic steward — flags 1-hop neighbor memories stale after any memory write, reconciles the emergent `topic/*` taxonomy, integrates any stray notes `plugins/conductor/scripts/memory-lint.ps1` finds living outside the canonical plugin-scoped folders. When briefed for a vault review/stewardship pass, runs the preloaded `memory-review` procedure instead. Conductor-only trigger — subagents never invoke it directly. | haiku | memory-write, obsidian-links, memory-review (preloaded) |
 
 ### Skills
@@ -112,7 +114,7 @@ It also fans work out: independent subagent invocations dispatch in parallel (a 
 Skills are authored in `plugins/<plugin>/skills/` and reach an agent through two distinct paths:
 
 - **Preload** — named in an agent's `skills:` frontmatter, the full skill body is injected at agent start. **Measured to work same-plugin only**: a `skills:` entry naming a skill from a *different* plugin is silently dropped — no error, the content simply never arrives. `conductor`'s agents therefore only ever preload `conductor`'s own skills (see the table above).
-- **On demand** — loaded mid-task via the `Skill` tool, triggered by the skill's own `paths:` glob matching a file the agent is touching. This is the only mechanism by which a skill from a *different* plugin reaches an agent, and it requires that plugin to be **installed and enabled**.
+- **On demand** — loaded mid-task via the `Skill` tool, triggered either by the skill's own `paths:` glob matching a file the agent is touching (domain skills) or by explicit invocation by name in the agent's own prose (e.g. `sequential-thinking`, which carries no `paths:` frontmatter). This is the only mechanism by which a skill from a *different* plugin reaches an agent, and it requires that plugin to be **installed and enabled**.
 
 | Skill | Plugin | Purpose |
 |-------|--------|---------|
@@ -125,6 +127,7 @@ Skills are authored in `plugins/<plugin>/skills/` and reach an agent through two
 | `rust` | rust | Rust coding standards |
 | `typescript` | typescript | TypeScript coding standards |
 | `vue3` | vue3 | Vue 3 component patterns |
+| `sequential-thinking` | sequential-thinking-skill | Structured, branching, revisable sequential-thinking reasoning via a local Node script — loaded on demand by `main`, `planning`, `research`, `implement`, and `code-review` via the `Skill` tool, no MCP server required |
 
 **Domain standards load on demand, and require the domain plugin to be enabled.** `implement` and `code-review` carry the `Skill` tool and do not list `bevy`/`rust`/`typescript`/`vue3` in `skills:` — a cross-plugin preload there was measured inert (see above), so listing them would have been a no-op that looked like coverage. Instead, each domain skill's own `paths:` glob (`**/*.rs`; `**/*.ts`, `**/*.tsx`; `**/*.vue` + composables/stores) triggers it on demand when a matching file is in play — but only if that plugin is installed *and* enabled. Install whichever language plugins match what you write (e.g. `rust` if you write Rust) alongside `conductor`. **This repository's own `.claude/settings.json` enables only `conductor`** — running this workbench as-is, without also enabling e.g. `rust`, means no Rust standards reach the agent, and both agents are instructed to say so explicitly rather than proceeding on generic knowledge.
 
@@ -257,8 +260,9 @@ Shipped inside `plugins/conductor/.mcp.json`, delivered by the plugin itself. Ve
 
 | Server | Purpose |
 |--------|---------|
-| `sequential-thinking` | Structured reasoning for planning and decomposition |
 | `context7` | Up-to-date library and framework documentation |
+
+Structured reasoning for planning and decomposition is delivered by the `sequential-thinking-skill` plugin instead of an MCP server — see the plugin table above and [Skills](#skills).
 
 ### Versioning
 

@@ -1,8 +1,8 @@
 ---
 name: implement
 description: Autonomous implementation specialist. Owns architectural decisions and thorough code execution. Use after planning is complete and .claude/task-plan.md exists.
-tools: Read, Write, Edit, Glob, Grep, Bash, Skill, mcp__sequential-thinking__sequentialthinking, mcp__context7__resolve-library-id, mcp__context7__query-docs
-model: sonnet
+tools: Read, Write, Edit, Glob, Grep, Bash, Skill, mcp__context7__resolve-library-id, mcp__context7__query-docs
+model: inherit
 memory: project
 ---
 
@@ -87,10 +87,7 @@ use `git for-each-ref` / `git show-ref` to inspect refs read-only instead.
 ## Tool Usage
 
 ### Sequential Thinking — use before implementing anything non-trivial
-Before writing code for a complex task, call `sequentialthinking` to settle your architectural approach:
-```
-sequentialthinking({ thought: "What is the right architecture for this phase given the plan and codebase?", nextThoughtNeeded: true, ... })
-```
+Before writing code for a complex task, load the `sequential-thinking` skill via the `Skill` tool, then settle your architectural approach one thought at a time: `--reset`, then one `Bash` call per thought running `node <skill-directory>/scripts/think.ts --thought "What is the right architecture for this phase given the plan and codebase?" --thoughtNumber 1 --totalThoughts N --nextThoughtNeeded true` (per the skill's instructions).
 This is where you make decisions — interface shape, module structure, data flow. For simple, well-specified tasks, skip it and go directly to implementation.
 
 ### Context7 — for API verification while coding
@@ -121,7 +118,7 @@ For your assigned phase, decide:
 - Data flow and ownership
 - Where to draw abstraction boundaries (err toward less)
 
-Call `sequentialthinking` to reason through trade-offs. These decisions are yours — the plan gives you the what, you own the how.
+Submit thoughts via the sequential-thinking script to reason through trade-offs. These decisions are yours — the plan gives you the what, you own the how.
 
 ### 3. Implementation
 
