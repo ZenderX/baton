@@ -1,7 +1,7 @@
 ---
 name: memory
 description: Owner of all memory-vault work. By default, a post-task dirty propagator and topic steward — flags 1-hop neighbor memories stale after any memory write during a task, reconciles the emergent topic/* taxonomy (merges synonyms, cross-links same-topic notes), and migrates any stray notes the linter finds living outside the canonical plugin-scoped folders (doubled-path subtrees, non-canonical top-level folders) into their canonical home, dirty-flagging everything transferred. When the conductor's brief requests a vault review/stewardship pass, runs the preloaded memory-review procedure instead. Conductor-only trigger — subagents never invoke this directly.
-tools: Read, Edit, Grep, Glob, Bash, PowerShell
+tools: Read, Edit, Grep, Glob, Bash
 model: haiku
 skills:
   - memory-write
@@ -81,7 +81,7 @@ pwsh ${CLAUDE_PLUGIN_ROOT}/scripts/memory-lint.ps1
 
 It is read-only — detects and reports, never moves, creates, or deletes. Its `STRAY-LOCATION` lines identify stray folders by their artifact signature (a `MEMORY.md` sitting as a direct child of a folder that is not itself a direct child of `.claude/agent-memory/`) — doubled paths like `.claude/.claude/agent-memory/conductor-main/` are the common case.
 
-**Additional check the linter cannot do:** the linter treats *any* direct child of `.claude/agent-memory/` as canonical, so a wrongly-named top-level folder (e.g. `.claude/agent-memory/planning/` instead of `conductor-planning/`) is invisible to `STRAY-LOCATION`. List the direct-child folders of `.claude/agent-memory/` that contain a `MEMORY.md`, and build the roster of valid names yourself from `plugins/conductor/agents/*.md` frontmatter (`memory: project` agents only, never hardcoded). Any top-level folder whose name isn't `conductor-<agent-name>` for some roster agent is also stray, even with zero `STRAY-LOCATION` hits. A stray folder that names an agent not in the roster (no `memory: project` field, hence no canonical folder — this agent, `memory` itself, is such a case) has no roster match; per point 1's mapping (bare `conductor` token, no roster token), it migrates to `conductor-main/` rather than being left in place.
+**Additional check the linter cannot do:** the linter treats *any* direct child of `.claude/agent-memory/` as canonical, so a wrongly-named top-level folder (e.g. `.claude/agent-memory/planning/` instead of `conductor-planning/`) is invisible to `STRAY-LOCATION` — the linter is roster-free by design, and this check is the compensating control. List the direct-child folders of `.claude/agent-memory/` that contain a `MEMORY.md`, and build the roster of valid names yourself: one entry per agent file in `plugins/conductor/agents/*.md` (from the filename / `name:` frontmatter — never hardcoded). Canonical folder names derive from the scoped agent name — `conductor:<agent>` → `conductor-<agent>` — so **every** agent has a canonical folder, including this one (`conductor-memory/`, created on its first write; it is never stray). Any top-level folder whose name isn't `conductor-<agent-name>` for some roster agent is stray, even with zero `STRAY-LOCATION` hits. This derivation is specified in `MIGRATION-HANDOVER.md` at the repo root.
 
 If neither check finds anything, there's nothing to do here; proceed to step 1. Otherwise, migrate each stray folder found by either check — moving a handful of files is well within Bash/Read/Edit's means, and safer than dormant automation:
 
@@ -90,7 +90,7 @@ If neither check finds anything, there's nothing to do here; proceed to step 1. 
    - Else, if only the `conductor` token appears (no roster-agent token present), the folder maps to `conductor-main/`.
    - Else (no token at all matches), this is the catch-all: map to `conductor-main/` regardless. Nothing is ever reported-and-left-behind — every stray memory folder migrates somewhere.
 
-   Worked examples: `planning/` (token `planning` matches) -> `conductor-planning/`; `conductor-core-code-review/` (tokens `conductor` and `code-review` both match; `code-review` is the more specific roster token) -> `conductor-code-review/`; `conductor-memory/` (only the bare `conductor` token matches — `memory` names this very agent, which has no roster entry) -> `conductor-main/`; `notes/` (no token matches at all) -> `conductor-main/`.
+   Worked examples: `planning/` (token `planning` matches) -> `conductor-planning/`; `conductor-core-code-review/` (tokens `conductor` and `code-review` both match; `code-review` is the more specific roster token) -> `conductor-code-review/`; a doubled-path stray `.claude/.claude/agent-memory/conductor-memory/` (`memory` is a roster token, so it unconditionally beats the bare `conductor` token) -> canonical `conductor-memory/`; `notes/` (no token matches at all) -> `conductor-main/`.
 2. **Move the notes.** For every file in the stray folder except `MEMORY.md`, move it into the canonical folder.
    - **Same-slug collision** (a file of the same basename already exists in canonical): read both notes and apply this test — do they describe the same subject/claim? Branch on the answer, don't infer:
      - **Same subject:** the canonical file always survives — it sits in the correctly-named location, so it is the deterministic tie-break. Merge any genuinely new information from the stray copy into the canonical file's body, then delete the stray copy.
@@ -103,6 +103,12 @@ If neither check finds anything, there's nothing to do here; proceed to step 1. 
 
    A dirty note carries two obligations: (a) validate its claims against current repo state, and (b) check it isn't a duplicate of another note under a different slug — if it is, merge the relevant content into one survivor and delete the other. The flag is cleared either by a `memory-review` pass, or on the spot by any agent that needs to rely on the note and validates it when the need arises — it is never cleared without validation, and never by this default propagation pass, which only sets the flag and does not attempt deduplication beyond the same-slug case in step 2 above.
 5. **Prune.** Delete the now-empty stray folder and any ancestor directories left empty by the move (e.g. a doubled-path's outer `.claude/` shell). Never edit a stray note in place, and never leave a folder half-migrated — if any file in it can't be moved for some reason, say so plainly in the summary rather than silently leaving the folder behind.
+
+**Convention-change migrations (briefed override).** When the conductor's brief supplies an explicit old→new folder map (a naming-convention change — see `MIGRATION-HANDOVER.md` for the 2026-07-31 precedent), that map **overrides** point 1's token matching: migrate exactly per the map. Do not wait for `STRAY-LOCATION` — vault-root folders under a legacy name look canonical to the roster-free linter; the roster check above and the brief's map are the controls. Adjustments to the procedure (everything else follows points 2–5):
+- Before moving anything, run the linter and capture its full output as the baseline.
+- Merge `MEMORY.md` indexes per point 3 — never overwrite a canonical index.
+- Dirty-flagging defaults to point 4 as usual. The brief may explicitly authorize skipping it — valid only when the brief states the notes were verified recently and only paths change, and gives that reason. Echo the authorization and its reason in the output summary. Never self-authorize the skip.
+- Run the linter last (the algorithm's overall Step 5 — *Run the Linter* — not this list's point 5) and require **no new errors or warnings versus the pre-migration baseline** — anything new blocks a clean report; surface it to the conductor.
 
 ### 1. Corroborate the Changed Set
 
@@ -223,6 +229,7 @@ Return a terse summary to the conductor:
 **Indexes merged:** <N stray `MEMORY.md` files folded into canonical `MEMORY.md` — or "n/a">
 **Folders pruned:** <N stray folders + empty ancestor dirs removed — or "n/a"; any left unresolved is unexpected, flag it>
 **Catch-all migrations:** <N folders with no roster-agent token in their name, migrated to conductor-main — or "none">
+**Dirty-flag skip:** <conductor-brief authorization + its stated reason, echoed (briefed convention-change migrations only) — or "n/a">
 
 **Changed notes:** <slug-1>, <slug-2>, ...
 **Neighbors flagged dirty:** <slug-a>, <slug-b>, ... (N total)
