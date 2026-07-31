@@ -102,7 +102,7 @@ It also fans work out: independent subagent invocations dispatch in parallel (a 
 
 | Agent | Role | Model | Skills |
 |-------|------|-------|--------|
-| **main** | Orchestrator (the conductor). Holds the shared task model, delegates to specialists, distills results, proceeds autonomously. Entrypoint for Research → Planning → Implementation → Review. | inherit | none preloaded — holds the complete Engineering + Git Hygiene rule set inlined directly in its own agent body; each subagent carries its own relevant subset instead (see [How rules travel](#how-rules-travel)); `sequential-thinking` on demand via the `Skill` tool |
+| **main** | Orchestrator (the conductor). Holds the shared task model, delegates to specialists, distills results, proceeds autonomously. Entrypoint for Research → Planning → Implementation → Review. | inherit | none — carries no `Skill` tool and invokes no skills itself; delegates skill-bearing work to subagents. Holds the complete Engineering + Git Hygiene rule set inlined directly in its own agent body; each subagent carries its own relevant subset instead (see [How rules travel](#how-rules-travel)) |
 | **planning** | Codebase analyst and architect. Reads the project, decomposes work, produces a sequenced `task-plan.md`. | sonnet | none preloaded; `sequential-thinking` on demand via the `Skill` tool |
 | **research** | External research only (no codebase access). Library docs, API reference, web facts, latest versions. | sonnet | none preloaded; `sequential-thinking` on demand via the `Skill` tool |
 | **implement** | Autonomous code writer. Owns architectural decisions within each phase. Reads `task-plan.md`, implements, verifies. | sonnet | none preloaded; `sequential-thinking`, domain standards (e.g. `rust`, `vue3`) on demand via the `Skill` tool |
@@ -127,7 +127,7 @@ Skills are authored in `plugins/<plugin>/skills/` and reach an agent through two
 | `rust` | rust | Rust coding standards |
 | `typescript` | typescript | TypeScript coding standards |
 | `vue3` | vue3 | Vue 3 component patterns |
-| `sequential-thinking` | sequential-thinking-skill | Structured, branching, revisable sequential-thinking reasoning via a local Node script — loaded on demand by `main`, `planning`, `research`, `implement`, and `code-review` via the `Skill` tool, no MCP server required |
+| `sequential-thinking` | sequential-thinking-skill | Structured, branching, revisable sequential-thinking reasoning via a local Node script — loaded on demand by `planning`, `research`, `implement`, and `code-review` via the `Skill` tool, no MCP server required |
 
 **Domain standards load on demand, and require the domain plugin to be enabled.** `implement` and `code-review` carry the `Skill` tool and do not list `bevy`/`rust`/`typescript`/`vue3` in `skills:` — a cross-plugin preload there was measured inert (see above), so listing them would have been a no-op that looked like coverage. Instead, each domain skill's own `paths:` glob (`**/*.rs`; `**/*.ts`, `**/*.tsx`; `**/*.vue` + composables/stores) triggers it on demand when a matching file is in play — but only if that plugin is installed *and* enabled. Install whichever language plugins match what you write (e.g. `rust` if you write Rust) alongside `conductor`. **This repository's own `.claude/settings.json` enables only `conductor`** — running this workbench as-is, without also enabling e.g. `rust`, means no Rust standards reach the agent, and both agents are instructed to say so explicitly rather than proceeding on generic knowledge.
 
