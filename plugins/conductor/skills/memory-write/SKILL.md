@@ -1,11 +1,11 @@
 ---
 name: memory-write
-description: How to write a lint-clean memory note — schema, two-step process, type selection, body structure, and dirty-flag clearing. Pairs with obsidian-links.
+description: How to write a lint-clean memory note — schema, type and tag selection, body structure, wikilinking, and dirty-flag clearing.
 ---
 
 # Memory Write
 
-Write a well-formed, lint-clean memory note and register it in the folder index. The linter enforces frontmatter shape, tag completeness, and index presence — this skill ensures you get it right the first time.
+Write a well-formed, lint-clean memory note, wikilink it into the graph, and register it in the folder index. The linter enforces frontmatter shape, tag completeness, link resolution, and index presence — this skill ensures you get it right the first time. Writing a note and linking it are one act, not two: a note that lands unlinked is a note the graph cannot surface.
 
 ## Schema
 
@@ -18,7 +18,7 @@ description: <one-line summary>     # used to judge relevance in future sessions
 tags:
   - type/<kind>                     # see Type Selection below
   - topic/<x>                       # what the note is about
-  - agent/<agent-name>              # which agent authored it
+  - agent/main                      # always literally `agent/main` — see Tag Conventions
 metadata:
   type: <kind>                      # must match the type/* tag suffix exactly
   updated: <YYYY-MM-DD>             # today's date
@@ -49,13 +49,13 @@ metadata:
 | `medium` | days | versions, project state |
 | `fast` | hours-days | prices, live facts |
 
-**Invalidate, don't delete.** When a note's claim is contradicted by newer information, don't delete it — write (or update) the newer note with `supersedes: [old-slug]`, and mark the old note superseded: add a short banner pointing at the successor and cross-link both directions. This mirrors Zep/Graphiti's bi-temporal memory model — a contradicted fact keeps its history and gets marked invalid; retrieval prefers the current one. Deleting a note that other notes cite just turns "outdated" into "broken link."
+**Invalidate, don't delete.** When newer information contradicts a note's claim, don't delete it — write (or update) the newer note with `supersedes: [old-slug]`, add a short banner on the old note pointing at the successor, and cross-link both directions. A contradicted fact keeps its history and gets marked invalid; retrieval prefers the current one. Deleting a note that others cite just turns "outdated" into "broken link".
 
-**Do not build contradiction detection from embedding/semantic similarity.** This is the obvious-looking shortcut for "does this new note contradict an old one" and it doesn't work: measured AUROC 0.59, statistically indistinguishable from chance. A fact that *contradicts* another is on average *more* embedding-similar to it than an unrelated paraphrase is — same entities, same predicate shape, opposite polarity. Use explicit `supersedes:` links instead: a judgment call recorded deterministically in frontmatter, not inferred from a vector distance.
+**Do not detect contradictions by embedding/semantic similarity.** The obvious-looking shortcut doesn't work: measured AUROC 0.59, indistinguishable from chance. A fact that *contradicts* another is on average *more* embedding-similar to it than an unrelated paraphrase — same entities, same predicate shape, opposite polarity. Use explicit `supersedes:` links: a judgment call recorded in frontmatter, not inferred from a vector distance.
 
-**Free signal: the `modified` auto-stamp.** Claude Code v2.1.214+ auto-stamps a `modified: <ISO-8601>` field into any memory file that **already has frontmatter** — it never adds frontmatter to a file that lacks one. Any note you edit that already has a `metadata:` block picks this up automatically; you don't need to hand-maintain it, and it's a second, involuntary freshness signal alongside `metadata.updated`.
+**Free signal: the `modified` auto-stamp.** Claude Code v2.1.214+ auto-stamps `modified: <ISO-8601>` into any memory file that **already has frontmatter** (it never adds frontmatter to a file lacking one). It needs no hand-maintenance and is a second, involuntary freshness signal alongside `metadata.updated`.
 
-**`MEMORY.md`'s budget is a hard limit, not a guideline.** The index auto-loads the first **200 lines or 25KB, whichever comes first** — content past that is silently dropped from context, and since v2.1.210 an over-limit *write* to `MEMORY.md` is a hard error rather than a silent truncation. This is why the one-line-per-entry rule in Step 2 below is load-bearing, not stylistic: push all detail into the topic file, keep the index line itself under 150 characters.
+**`MEMORY.md`'s budget is a hard limit.** The index auto-loads the first **200 lines or 25KB, whichever comes first**; content past that is silently dropped, and since v2.1.210 an over-limit *write* is a hard error. This is why Step 2's one-line-per-entry rule is load-bearing, not stylistic: push detail into the topic file and keep each index line under 150 characters.
 
 ## Type Selection
 
@@ -70,11 +70,17 @@ metadata:
 | `research` | `type/research` | External library findings, version facts (add `decaying` tag; linter flags when stale) |
 | `review` | `type/review` | Recurring defect patterns, project-specific quality bars |
 
-## Topic Selection
+## Tag Conventions
 
-Topics are dynamic, not a fixed vocabulary. Before tagging, survey what's already in use: use the `Grep` tool — pattern `topic/`, path `.claude/agent-memory`, glob `*.md` — then deduplicate the collected matches yourself to see the established set.
+**Tag values are singular and lowercase** — `topic/book`, never `topic/books` or `topic/Books`. Plural and capitalized variants are distinct tags to Obsidian's search, so mixing them fragments the vocabulary for no benefit ([practicalpkm.com](https://practicalpkm.com/how-to-use-tags-effectively/), retrieved 2026-08-02). This governs the tag *value* only; the frontmatter *key* is always the reserved plural `tags:` ([Obsidian properties](https://obsidian.md/help/properties), retrieved 2026-08-02).
 
-Reuse an existing `topic/<x>` when one reasonably fits. Mint a new `topic/<x>` only when none does — one topic tag per note. Don't agonize over the perfect fit: the memory subagent reconciles the taxonomy after each task (merging synonyms, cross-linking same-topic notes), so a reasonable choice now is enough.
+**The `agent/*` tag is always `agent/main`.** Every note lives in the one canonical folder `conductor-main/`, whichever agent authored it, so the tag carries no routing information and must not be used to record provenance — write `agent/main` on every newly authored note regardless of which agent is writing. This matches `memory-review`'s consolidation step, which retags every migrated note to `agent/main`; anything else gets rewritten on the next review pass. Provenance, when it matters, belongs in the note body.
+
+**Nested tags use `/`, and hierarchies stay shallow** (~2 levels, as in the `type/`, `topic/`, `agent/` scaffold above). A parent-tag search matches all children automatically, so `topic/` finds every topic without enumerating them ([Obsidian tags](https://obsidian.md/help/tags), retrieved 2026-08-02). Deeper nesting buys nothing here.
+
+**Machine-filterable facts belong in frontmatter properties, not inline `#tags`.** Obsidian 1.9's Bases (2025) queries YAML frontmatter only and does not read inline tags ([Obsidian properties](https://obsidian.md/help/properties), retrieved 2026-08-02) — so `metadata.type`, `updated`, `freshness`, and `expires` are properties by design, and anything you may later want to filter or sort on goes there rather than into body prose.
+
+**Topics are emergent, not a fixed vocabulary.** Before tagging, survey what's in use: `Grep` with pattern `topic/`, path `.claude/agent-memory`, glob `*.md`, then dedupe the matches to see the established set. Reuse an existing `topic/<x>` when one reasonably fits; mint a new one only when none does — one topic tag per note. A `memory-review` pass reconciles the taxonomy afterwards, so a reasonable choice now is enough.
 
 ## Body Structure
 
@@ -90,7 +96,7 @@ Do not save: code patterns derivable from the codebase, git history, debugging f
 
 ### Step 1 — Write the note file
 
-Create `<slug>.md` in the correct agent folder (e.g. `.claude/agent-memory/conductor-implement/db-pooling.md`):
+Create `<slug>.md` in `.claude/agent-memory/conductor-main/` — the single canonical memory folder (e.g. `.claude/agent-memory/conductor-main/db-pooling.md`). Never create a per-agent folder; the linter reports any note outside `conductor-main/` as `STRAY-LOCATION`.
 
 ```markdown
 ---
@@ -99,7 +105,7 @@ description: Connection pool must stay below 20 — exceeded limit caused prod O
 tags:
   - type/feedback
   - topic/tooling
-  - agent/implement
+  - agent/main
 metadata:
   type: feedback
   updated: 2026-06-30
@@ -113,17 +119,45 @@ Never set the DB connection pool max above 20 connections.
 
 ### Step 2 — Add a one-line pointer to MEMORY.md
 
-Append one line to `.claude/agent-memory/<agent>/MEMORY.md` (under 150 characters):
+Append one line to `.claude/agent-memory/conductor-main/MEMORY.md` (under 150 characters):
 
 ```markdown
 - [DB Connection Pooling](db-pooling.md) — pool max must stay below 20; OOM incident context
 ```
 
-The MEMORY.md is the always-loaded index — never write full memory content there. One-line pointers only. After writing, add `[[slug]]` cross-links in related notes (see the `obsidian-links` skill for mechanics).
+The MEMORY.md is the always-loaded index — never write full memory content there. One-line pointers only.
+
+### Step 3 — Wikilink it into the graph
+
+A note is not finished until it is connected. Every note needs at least one link in or out before you call the task done, or the linter's `ORPHAN`/`NO-INBOUND` checks fire.
+
+**Syntax** ([Obsidian links](https://obsidian.md/help/links), retrieved 2026-08-02):
+
+```
+[[slug]]                # link by note basename (filename without .md)
+[[slug|display text]]   # alias — custom display text
+[[slug#heading]]        # link to a heading within the note
+[[slug#^blockid]]       # link to a specific block
+```
+
+The target is always the note's **basename** — not a path. Casing is ignored by the linter (it compares lowercased), but prefer lowercase slugs.
+
+```
+See [[auth-flow-ordering]] for the sequencing constraints.
+This was caused by the issue described in [[db-pooling|OOM incident]].
+```
+
+**Link liberally, including forward.** Writing `[[paris]]` before `paris.md` exists is normal and officially supported: Obsidian's term is **unresolved link** (not "dangling link"), and it resolves automatically the moment the note is created — no re-linking pass needed ([Obsidian links](https://obsidian.md/help/links), retrieved 2026-08-02). Use forward links freely for topics not yet written; they are breadcrumbs for future connections, a practice Obsidian's own CEO uses deliberately ([stephango.com/vault](https://stephango.com/vault), retrieved 2026-08-02). Scoping this honestly: the *mechanic* is officially documented, the *idiom* is community and practitioner consensus, not official prescription.
+
+**When to link.** On writing a note, link to related notes you know exist plus forward links to ones that should. On updating a note, scan its topic and link notes sharing it. Clustering is emergent — there are no hub files; a well-chosen `topic/*` tag (which renders as its own graph node) plus one same-topic wikilink keeps a note in its cluster.
+
+**Finding inbound links:** `Grep` with pattern `\[\[slug\]\]` and path `.claude/agent-memory/`. Do this before pruning or renaming a note, and before clearing a dirty flag — you need to know which neighbours point at it.
+
+**Before removing a note that has inbound links,** either re-point each linking note to the successor (`[[old-slug]]` → `[[successor-slug]]`) or leave the removed note as a tombstone stub redirecting to `[[successor]]`. Never hard-delete out from under an inbound link.
 
 ## Clearing a Dirty Flag
 
-If the note you are rewriting was previously flagged dirty, clear both artifacts once you have verified the content against current repo state. This is the inverse of the flagging operation in the memory subagent's §3 — same two regions of the file, both edits reversed in the same pass.
+If the note you are rewriting was previously flagged dirty, clear both artifacts once you have verified the content against current repo state. This is the inverse of the flagging operation — same two regions of the file, both edits reversed in the same pass.
 
 Before (a correctly dirty-flagged note):
 
@@ -159,7 +193,8 @@ Steps:
 1. Remove `dirty: <date>` and `dirty_reason: "..."` from the `metadata` block.
 2. Remove the banner line from the top of the body:
    `> ⚠️ **DIRTY (since <YYYY-MM-DD>):** may be stale — re-evaluate against current state and re-link before relying on this. Reason: <reason>.`
-3. Update `metadata.updated` to today.
+3. Re-check the note's outbound links: confirm each still points at a current, accurate note; re-point any whose target was renamed or tombstoned; add a link if the updated content now implies a new relationship.
+4. Update `metadata.updated` to today.
 
 Never clear a dirty flag without actually verifying the note's claims reflect current state. Never leave the banner line inside the `metadata:` block or half-removed — both artifacts come out together, or neither does.
 
@@ -170,3 +205,5 @@ Never clear a dirty flag without actually verifying the note's claims reflect cu
 - Keep `name`, `metadata.type`, and the `type/*` tag in sync.
 - `research` notes must carry the `decaying` tag if the fact has a recency dependency.
 - Do not save anything already visible in the diff, the code, or CLAUDE.md files.
+- A wikilink target is a note basename — never a file path.
+- Do not wikilink to `MEMORY.md` files — they are folder indexes accessed by path, not link targets.

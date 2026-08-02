@@ -27,11 +27,20 @@
         (the two-factor combination; age alone is not flagged this way)
       - NAME-MISMATCH: name: frontmatter disagrees with the filename
       - TYPE-MISMATCH: metadata.type disagrees with the type/* tag
-      - BROKEN-LINK-NAME: a [[wikilink]] target matches no note's declared name: field
-        (gate-blocking, like BROKEN-LINK)
-      - DIRTY-BANNER-IN-FRONTMATTER: the dirty banner line (inserted by the memory subagent
-        §3) landed before the frontmatter's closing --- instead of after it, corrupting
-        the YAML block (gate-blocking, like BROKEN-LINK; -Fix relocates it deterministically,
+      - BROKEN-LINK / BROKEN-LINK-NAME: a [[wikilink]] resolves to no file (BROKEN-LINK) or
+        to no note's declared name: field (BROKEN-LINK-NAME). Both are WARNINGS, not
+        gate-blocking errors. Rationale: a forward link to a slug that was never written is
+        an idiomatic, officially-supported placeholder in Obsidian ("unresolved link") that
+        auto-resolves when the note is created, and this script cannot distinguish it from a
+        link whose target was removed. The tombstone convention (type/tombstone) does not
+        help here: a tombstoned note still EXISTS as a file, so it resolves and never reaches
+        these checks — tombstoning prevents the break rather than labelling it. With no
+        reliable in-vault signal, both demote to warnings rather than inventing a heuristic.
+        INDEX-DEAD-LINK (a MEMORY.md entry pointing at a missing file) stays gate-blocking:
+        an index entry is a path assertion, never a placeholder.
+      - DIRTY-BANNER-IN-FRONTMATTER: the dirty banner line (inserted by the memory agent's
+        default pass) landed before the frontmatter's closing --- instead of after it, corrupting
+        the YAML block (gate-blocking; -Fix relocates it deterministically,
         preserving the file's original CRLF/LF convention). Scope boundary: detection relies
         on Get-FrontmatterBlock finding a closing ---; a note missing the closing delimiter
         entirely returns an empty block and this check does not fire — no other check in this
@@ -43,14 +52,16 @@
         empty (warning; never auto-fixed — inventing a reason is a judgment call, not a
         mechanical repair)
       - STRAY-LOCATION: any directory found anywhere under the project root (pruning .git,
-        releases, node_modules) that has a MEMORY.md file as a direct child, and is neither
-        the vault root itself nor a direct child of the vault root. Detection is purely by
-        MEMORY.md presence — no plugin/agent name roster involved, so it's rename-proof.
+        releases, node_modules) that has a MEMORY.md file as a direct child and is neither
+        the vault root itself nor the single canonical folder <vault-root>/conductor-main.
+        conductor-main is the ONLY canonical memory folder; per-agent folders are not
+        canonical and are flagged like any other stray. Detection is purely by MEMORY.md
+        presence — no plugin/agent name roster involved, so it's rename-proof.
         Found via a manual, symlink-safe directory walk (not Get-ChildItem -Recurse), so a
         cyclic symlink/junction cannot cause an infinite walk. Read-only: detected and
-        reported only, never moved or deleted — the memory subagent step 0 owns the remedy
-        (notes moved + dirty-flagged into the canonical folder, indexes merged, stray folder
-        pruned).
+        reported only, never moved or deleted — the memory-review skill's consolidation step
+        owns the remedy (notes moved + dirty-flagged into conductor-main, indexes merged,
+        stray folder pruned).
 .PARAMETER Fix
     Apply safe auto-repairs. Idempotent.
 .PARAMETER StaleDays
@@ -129,12 +140,12 @@ $TypePrefixPattern = '^(' + ($KnownPrefixes -join '|') + ')_(.+)$'
 # Metadata types that are subject to staleness checks.
 [string[]]$DecayingTypes = @('research')
 
-# Dirty banner line, as inserted by the memory subagent §3 / cleared by memory-write's
+# Dirty banner line, as inserted by the memory agent's default pass / cleared by memory-write's
 # "Clearing a Dirty Flag". Matched by both DIRTY-BANNER-IN-FRONTMATTER (detects it stranded
 # inside the YAML block, which corrupts frontmatter) and the -Fix relocation repair.
 # Deliberately tolerant of the date and the free-text reason varying — only the fixed
 # emoji/bold-DIRTY/since-date prefix is anchored, matching the byte-identical banner text
-# specified across the memory subagent, memory-write, and memory-review. No line anchors here:
+# specified across the memory agent, memory-write, and memory-review. No line anchors here:
 # the pattern is matched both against a single split line (Repair-DirtyBannerPlacement) and
 # as a substring test against the whole frontmatter blob (the Phase A2 detection below).
 $DirtyBannerLinePattern = '>\s*⚠️\s*\*\*DIRTY \(since \d{4}-\d{2}-\d{2}\):\*\*'
@@ -273,7 +284,7 @@ function Repair-DirtyBannerPlacement([string]$content, [string]$yaml, [string]$b
     line stranded inside it, returns the repaired full file content: the banner line is
     removed from the YAML block (along with one immediately-preceding blank line, the stray
     gap the misplaced banner typically left behind) and re-inserted as the first line of the
-    body, immediately after the closing ---, matching the depiction in the memory subagent §3.
+    body, immediately after the closing ---, matching the depiction in memory-write.
     The reconstructed frontmatter/delimiter/banner region is rebuilt using $content's own
     dominant EOL convention (see Get-DominantEol) rather than a hardcoded LF, so a CRLF-authored
     note comes out fully CRLF instead of a mixed-EOL file — the untouched body already uses
@@ -551,8 +562,8 @@ $noteUpdatedDate = @{}
 # Phase A0: STRAY-LOCATION detection (gate-blocking, read-only)
 # ---------------------------------------------------------------------------
 # Detect-only: this check never moves, creates, or deletes anything — remedy ownership is
-# the memory subagent step 0 (migrate: move notes into the canonical folder, dirty-flag them,
-# merge indexes, prune the stray folder), never this script.
+# the memory-review skill's consolidation step (migrate: move notes into conductor-main,
+# dirty-flag them, merge indexes, prune the stray folder), never this script.
 #
 # Walk root: the real project root for a normal run (the cwd-wide scan the user asked for),
 # but $VaultRoot's own parent when -VaultRoot was explicitly overridden — preserving the
@@ -570,15 +581,17 @@ if ($VaultRootWasSpecified) {
 }
 
 # Every directory anywhere under $StrayWalkRoot (pruning .git/releases/node_modules) that has
-# a MEMORY.md file as a direct child. A directory qualifies as "canonical" purely by being
-# $VaultRoot itself or a direct child of it — no plugin/agent name roster involved, so this
-# is rename-proof by construction and requires no retro-compat name list.
+# a MEMORY.md file as a direct child. Exactly one such directory is canonical:
+# $VaultRoot/conductor-main. The vault root itself is exempt (it is the vault, not a stray),
+# and everything else — including per-agent folders, which are no longer canonical — is
+# stray. Detection remains purely MEMORY.md-artifact-based: no plugin/agent name roster is
+# consulted, so the check needs no maintenance as agents are added or renamed.
+$CanonicalMemoryDir = Join-Path $VaultRoot 'conductor-main'
 $memoryMdDirs = @(Get-MemoryMdDirs -Root $StrayWalkRoot | Sort-Object FullName)
 foreach ($dir in $memoryMdDirs) {
-    if ($dir.FullName -eq $VaultRoot) { continue }  # never flag the vault root itself
-    $parentDir = Split-Path -Parent $dir.FullName
-    if ($parentDir -eq $VaultRoot) { continue }  # canonical folder, direct child of vault root
-    $integrityErrs.Add("STRAY-LOCATION: $($dir.FullName) — notes outside canonical folders; the memory agent must migrate them to the canonical folder (notes moved + dirty-flagged, indexes merged, stray folder pruned)")
+    if ($dir.FullName -eq $VaultRoot) { continue }           # never flag the vault root itself
+    if ($dir.FullName -eq $CanonicalMemoryDir) { continue }  # the sole canonical folder
+    $integrityErrs.Add("STRAY-LOCATION: $($dir.FullName) — notes outside the canonical folder; memory-review must migrate them into conductor-main (notes moved + dirty-flagged, indexes merged, stray folder pruned)")
 }
 
 # ---------------------------------------------------------------------------
@@ -699,18 +712,25 @@ foreach ($f in $allMdFiles) {
         }
         $inbound[$tgtBn].Add($srcBn)
 
-        # Broken link: target basename not found anywhere in the vault.
+        # Unresolved link: target basename not found anywhere in the vault. WARNING, not an
+        # integrity error — an unresolved link is Obsidian's own term for a forward link to a
+        # note that does not exist yet, an idiomatic placeholder that auto-resolves the moment
+        # the note is written. This script cannot tell that apart from a link whose target was
+        # deleted: a tombstoned note still exists as a file, so it resolves here and never
+        # reaches this branch, leaving no in-vault signal for the removed case. Rather than
+        # invent a heuristic, both link checks warn and INDEX-DEAD-LINK keeps the gate.
         if (-not $basenameMap.ContainsKey($tgtBn)) {
-            $integrityErrs.Add("BROKEN-LINK: [[$link]] in $srcRel")
+            $warnings.Add("BROKEN-LINK: [[$link]] in $srcRel (unresolved — intentional forward link, or a removed target)")
         }
 
-        # Broken link (by declared name): target matches no note's frontmatter `name:`
+        # Unresolved link (by declared name): target matches no note's frontmatter `name:`
         # value, even if a same-named file exists. Distinct from BROKEN-LINK above (which
         # is filename-based, matching how Obsidian actually resolves a wikilink) — this
         # check independently verifies the *declared identity* side of the graph, so a
         # NAME-MISMATCH note (filename and name: field disagree) shows up here too.
+        # Warning for the same reason as BROKEN-LINK: a forward link fires both checks.
         if (-not $nameSlugMap.ContainsKey($tgtBn)) {
-            $integrityErrs.Add("BROKEN-LINK-NAME: [[$link]] in $srcRel (no note declares this name:)")
+            $warnings.Add("BROKEN-LINK-NAME: [[$link]] in $srcRel (no note declares this name:)")
         }
     }
 
@@ -853,10 +873,10 @@ foreach ($f in $allMdFiles) {
         # strip quotes the way Get-ScalarYamlValue does.
         $reasonNormalized = if ($metaDirtyReason) { $metaDirtyReason.Trim().Trim('"').Trim("'") } else { $null }
         $reasonStr = if ($reasonNormalized) { $reasonNormalized } else { 'no reason recorded' }
-        $warnings.Add("DIRTY (since $metaDirty): $rel — flagged by the memory subagent; re-evaluate and re-link (reason: $reasonStr)")
+        $warnings.Add("DIRTY (since $metaDirty): $rel — flagged by the memory agent; re-evaluate and re-link (reason: $reasonStr)")
         if ([string]::IsNullOrWhiteSpace($reasonNormalized)) {
             # Never auto-fixed: inventing a reason is a judgment call, and a fabricated
-            # reason is worse than an honest gap (see the memory subagent §3 / this script's
+            # reason is worse than an honest gap (see memory-write / this script's
             # .DESCRIPTION for why -Fix deliberately does not touch this).
             $warnings.Add("DIRTY-MISSING-REASON: $rel — metadata.dirty is set but metadata.dirty_reason is absent or empty")
         }

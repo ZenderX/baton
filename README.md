@@ -1,6 +1,6 @@
 # Claude Code Agent Pattern Lab
 
-A Claude Code agent ecosystem: an orchestrator (the **conductor**) that delegates codebase work to specialist subagents, each with persistent per-project memory and a self-improvement loop that promotes durable lessons back into the agents' own instructions.
+A Claude Code agent ecosystem: an orchestrator (the **conductor**) that delegates codebase work to specialist subagents, backed by a persistent per-project memory vault that a dedicated `memory` agent ingests into, prunes, and reorganizes between tasks.
 
 This repo is both:
 - **The canonical workbench** — where the conductor, subagents, and skills are authored directly in place (`plugins/`).
@@ -37,7 +37,7 @@ Plugin entries in `marketplace.json` omit `version` — git-source plugins float
 
 | Plugin | Contents |
 |--------|----------|
-| `conductor` | conductor + 5 subagents (6 agents total), 4 bundled skills (`git-diff`, `memory-review`, `memory-write`, `obsidian-links`; preload is selective per agent and same-plugin-only — see [Skills](#skills)), and `.mcp.json` (`context7`). |
+| `conductor` | conductor + 5 subagents (6 agents total), 3 bundled skills (`git-diff`, `memory-review`, `memory-write`; preload is selective per agent and same-plugin-only — see [Skills](#skills)), and `.mcp.json` (`context7`). |
 | `bevy` | Bevy skill — standalone, no agents |
 | `blender` | Blender (bevy_skein) skill — standalone, no agents |
 | `rust` | Rust skill — standalone, no agents |
@@ -107,7 +107,7 @@ It also fans work out: independent subagent invocations dispatch in parallel (a 
 | **research** | External research only (no codebase access). Library docs, API reference, web facts, latest versions. | sonnet | none preloaded; `sequential-thinking` on demand via the `Skill` tool |
 | **implement** | Autonomous code writer. Owns architectural decisions within each phase. Reads `task-plan.md`, implements, verifies. | sonnet | none preloaded; `sequential-thinking`, domain standards (e.g. `rust`, `vue3`) on demand via the `Skill` tool |
 | **code-review** | Post-implementation review. Verifies correctness, semantic integrity, best practices. Returns `APPROVED`, `NEEDS_REVISION`, or `FAILED`. Never applies fixes. | sonnet | git-diff (preloaded); `sequential-thinking`, domain standards on demand via the `Skill` tool |
-| **memory** | Owner of all memory-vault work. By default, a post-task dirty propagator and topic steward — flags 1-hop neighbor memories stale after any memory write, reconciles the emergent `topic/*` taxonomy, integrates any stray notes `plugins/conductor/scripts/memory-lint.ps1` finds living outside the canonical plugin-scoped folders. When briefed for a vault review/stewardship pass, runs the preloaded `memory-review` procedure instead. Conductor-only trigger — subagents never invoke it directly. | haiku | memory-write, obsidian-links, memory-review (preloaded) |
+| **memory** | Owns memory-vault work for the conductor: **ingest, prune, reorganize `MEMORY.md`**. The default pass is fast — dirty-flags the 1-hop neighbours of changed notes and marks deprecation when siblings change. When briefed for a vault review/stewardship pass, runs the preloaded `memory-review` procedure instead (which also owns migrating stray notes into `conductor-main/`). Writes only to `.claude/agent-memory/conductor-main/`. Conductor-only trigger — subagents never invoke it directly. | haiku | memory-write, memory-review (preloaded) |
 
 ### Skills
 
@@ -119,9 +119,8 @@ Skills are authored in `plugins/<plugin>/skills/` and reach an agent through two
 | Skill | Plugin | Purpose |
 |-------|--------|---------|
 | `git-diff` | conductor | Structured branch comparison |
-| `memory-review` | conductor | Vault accuracy review procedure — preloaded into and run by the `memory` agent, never the conductor directly |
-| `memory-write` | conductor | Memory note-writing conventions — schema, type selection, dirty-flag clearing, optional freshness/expiry metadata |
-| `obsidian-links` | conductor | Wikilink conventions for connecting memory notes |
+| `memory-review` | conductor | Vault review procedure — ingest strays into `conductor-main/`, prune stale notes, reorganize `MEMORY.md`. Preloaded into and run by the `memory` agent, which the conductor delegates the pass to |
+| `memory-write` | conductor | Memory note conventions — schema, tag and type selection, wikilinking, dirty-flag clearing, optional freshness/expiry metadata |
 | `bevy` | bevy | Bevy game engine patterns |
 | `blender` | blender | Blender-to-Bevy (bevy_skein) integration conventions |
 | `rust` | rust | Rust coding standards |
@@ -131,7 +130,7 @@ Skills are authored in `plugins/<plugin>/skills/` and reach an agent through two
 
 **Domain standards load on demand, and require the domain plugin to be enabled.** `implement` and `code-review` carry the `Skill` tool and do not list `bevy`/`rust`/`typescript`/`vue3` in `skills:` — a cross-plugin preload there was measured inert (see above), so listing them would have been a no-op that looked like coverage. Instead, each domain skill's own `paths:` glob (`**/*.rs`; `**/*.ts`, `**/*.tsx`; `**/*.vue` + composables/stores) triggers it on demand when a matching file is in play — but only if that plugin is installed *and* enabled. Install whichever language plugins match what you write (e.g. `rust` if you write Rust) alongside `conductor`. **This repository's own `.claude/settings.json` enables only `conductor`** — running this workbench as-is, without also enabling e.g. `rust`, means no Rust standards reach the agent, and both agents are instructed to say so explicitly rather than proceeding on generic knowledge.
 
-**Cache economics behind that design choice:** every subagent spawn builds its own cache from cold, on the standard 5-minute TTL (the 1-hour TTL applies only to the main conversation) — so a preloaded skill body is paid at full input-token price on *every* invocation, with no amortization across the session. That is why preload is reserved for skills a given agent needs on essentially every invocation — `git-diff` for code-review, `memory-write`, `obsidian-links`, and `memory-review` for the memory subagent — while everything conditional (domain coding standards) stays on-demand: the on-demand path costs only skill metadata (~50 tokens) until a matching file actually triggers it. Separately: a project's `CLAUDE.md` loads in full into every subagent's context, not just the conductor's — six agents means a large `CLAUDE.md` is paid up to six times per task.
+**Cache economics behind that design choice:** every subagent spawn builds its own cache from cold, on the standard 5-minute TTL (the 1-hour TTL applies only to the main conversation) — so a preloaded skill body is paid at full input-token price on *every* invocation, with no amortization across the session. That is why preload is reserved for skills a given agent needs on essentially every invocation — `git-diff` for code-review, `memory-write` and `memory-review` for the memory subagent — while everything conditional (domain coding standards) stays on-demand: the on-demand path costs only skill metadata (~50 tokens) until a matching file actually triggers it. Separately: a project's `CLAUDE.md` loads in full into every subagent's context, not just the conductor's — six agents means a large `CLAUDE.md` is paid up to six times per task.
 
 ### How rules travel
 
@@ -139,33 +138,32 @@ Skills are authored in `plugins/<plugin>/skills/` and reach an agent through two
 
 Git Hygiene Rules go only to the agents that can actually run git: the conductor and the subagents carrying the `Bash` tool. Subagents never see the conductor's `main.md` body directly — they run in their own isolated context — but they don't need to: each already knows its own rules, so briefs carry task content only and never restate rules.
 
-### The learning loop
+### The memory loop
 
-This is the system's actual point: it gets better at the tasks it's used for, and those improvements compound across projects.
+The vault is how the system carries what it learned into the next session.
 
 ```
 agent completes a task
-   │  writes/updates memory notes (.claude/agent-memory/*, an Obsidian-compatible vault)
+   │  writes/updates memory notes (.claude/agent-memory/conductor-main/,
+   │  an Obsidian-compatible vault)
    ▼
-memory subagent flags 1-hop neighbor notes dirty (every task, conductor-triggered)
+memory subagent, default pass (every task, conductor-triggered)
+   │  dirty-flags the 1-hop neighbours of each changed note
+   │  marks deprecation where a changed note supersedes a sibling
    ▼
-memory subagent runs the memory-review procedure — vault audit (monthly, or when
-the conductor briefs it for a review/stewardship pass instead of default propagation)
-   │  verifies claims, reconciles contradictions, prunes stale notes
-   │  asks of each durable note: "would every future session in every project need this?"
+memory subagent, review pass — the memory-review procedure (monthly, or whenever
+the conductor briefs a review/stewardship pass instead of default propagation)
+   │  INGEST    — migrate stray notes into conductor-main/, verify claims
+   │              against current repo state, clear dirty flags
+   │  PRUNE     — reconcile contradictions, tombstone superseded notes,
+   │              remove stale ones without breaking inbound links
+   │  REORGANIZE— rewrite conductor-main/MEMORY.md, the always-loaded index
    ▼
-   ├─ in the canonical workbench (marker files: .claude-plugin/marketplace.json
-   │  AND scripts/sync-global.ps1 both present) ─▶ promote: edit the canonical
-   │  agent/skill file directly under plugins/<plugin>/{agents,skills}
-   │      └─▶ next commit + `/plugin marketplace update` redistributes to consumers
-   │
-   └─ anywhere else (plain plugin install, no local marketplace) ─▶ queue the
-      candidate in ~/.claude/agent-memory/promotion-queue/<slug>.md, then send
-      it upstream via a GitHub issue or PR
-          └─▶ workbench drains the queue on its next memory review (step 1)
+a review pass is terminal — no propagation pass follows it, or it would
+re-dirty the very notes it just verified
 ```
 
-Workbench identity is checked by file presence, never by path, so the same logic works identically on any machine. Project-specific facts, decaying research, and recurring-judgment heuristics stay in the vault — only durable, generalizable lessons get promoted.
+The `memory` agent's authority stops at `.claude/agent-memory/`: it never edits agent, skill, or rule files. A vault insight that seems to belong in an agent definition is surfaced to the user, who decides. Improving the agents themselves is a human edit to `plugins/<plugin>/{agents,skills}/`, redistributed to consumers by the next commit plus `/plugin marketplace update`.
 
 ---
 
@@ -223,11 +221,17 @@ pwsh plugins/conductor/scripts/memory-lint.ps1
 pwsh plugins/conductor/scripts/memory-lint.ps1 -Fix   # safe, idempotent auto-repairs
 ```
 
-Checks the `.claude/agent-memory/` vault for broken links (including wikilinks that don't match any note's declared `name:`), orphaned notes, tag sprawl outside the `type/*`/`agent/*` scaffold, expired or stale-and-orphaned notes, frontmatter schema mismatches, `MEMORY.md` index mismatches, and stray notes living outside the canonical folder structure. `STRAY-LOCATION` walks the project root (pruning `.git`, `releases`, `node_modules`) and identifies an agent-memory folder purely by the presence of a `MEMORY.md` file as a direct child — no plugin/agent name roster involved, so the check is rename-proof. A `MEMORY.md`-bearing directory that isn't the vault root itself and isn't a direct child of the vault root is flagged as stray. The walk is a manual, symlink-safe traversal (not `Get-ChildItem -Recurse`), so a cyclic symlink or junction can't cause an infinite loop. Exits non-zero on integrity errors. This check is read-only — it only detects and reports; `memory` (the memory subagent) owns integrating any strays it finds, canonical note taking precedence before the stray is pruned. `-Fix` applies safe, idempotent repairs (filename normalization, index rewrites, missing `metadata.updated`, tag format normalization) and regenerates `.obsidian/graph.json` color groups — one deterministic color per `topic/*` tag in use. `plugins/conductor/skills/memory-review/` is the companion judgment skill, preloaded into the `memory` agent — ask the conductor to delegate a review/stewardship pass for accuracy review against current repo state (monthly, or after major changes); the `memory` agent then runs the linter first, then applies judgment the linter can't (verify, reconcile, prune, promote).
+Checks the `.claude/agent-memory/` vault for unresolved wikilinks, orphaned notes, tag sprawl outside the `type/*`/`agent/*` scaffold, expired or stale-and-orphaned notes, frontmatter schema mismatches, `MEMORY.md` index mismatches, and stray notes living outside the canonical folder. Exits non-zero on integrity errors.
+
+**`STRAY-LOCATION`** walks the project root (pruning `.git`, `releases`, `node_modules`) and identifies an agent-memory folder purely by the presence of a `MEMORY.md` file as a direct child — no plugin/agent name roster involved, so the check is rename-proof. The rule: **a `MEMORY.md`-bearing directory that is neither the vault root nor `conductor-main/` is stray.** `conductor-main/` is the sole canonical memory folder; per-agent folders are not canonical and are flagged like anything else. The walk is a manual, symlink-safe traversal (not `Get-ChildItem -Recurse`), so a cyclic symlink or junction can't cause an infinite loop. The check is read-only — it detects and reports only; the `memory-review` skill owns migrating strays into `conductor-main/`, with the canonical note winning a same-slug collision before the stray folder is pruned.
+
+**Unresolved links warn, they don't block.** `BROKEN-LINK` and `BROKEN-LINK-NAME` are warnings, not gate-blocking errors: a forward link to a note that doesn't exist yet is idiomatic in Obsidian (its own term is "unresolved link") and resolves automatically once the note is written. The linter cannot distinguish that from a link whose target was deleted — a tombstoned note still exists as a file, so it resolves and never trips the check — so both warn rather than guess. `INDEX-DEAD-LINK` stays gate-blocking, since a `MEMORY.md` entry is a path assertion, never a placeholder.
+
+`-Fix` applies safe, idempotent repairs (filename normalization, index rewrites, missing `metadata.updated`, tag format normalization) and regenerates `.obsidian/graph.json` color groups — one deterministic color per `topic/*` tag in use. `plugins/conductor/skills/memory-review/` is the companion judgment skill, preloaded into the `memory` agent — ask the conductor to delegate a review/stewardship pass (monthly, or after major changes); the agent runs the linter first, then applies the judgment the linter can't: ingest, prune, reorganize `MEMORY.md`.
 
 ### Memory vault + Obsidian setup
 
-`.claude/agent-memory/` is a per-subagent memory vault, browsable in Obsidian. Each subagent folder (`conductor-main/`, `conductor-implement/`, …) holds topic-slug notes with YAML frontmatter and wikilinks; cross-agent `[[links]]` resolve vault-wide. Frontmatter may optionally carry `freshness` (`timeless`/`slow`/`medium`/`fast`), `expires`, and `supersedes` — contradicted notes are invalidated and cross-linked to their replacement, never deleted out from under an inbound link. See the `memory-write` skill for the schema.
+`.claude/agent-memory/` is the memory vault, browsable in Obsidian. Notes live in the single canonical folder `conductor-main/` as topic-slug files with YAML frontmatter and wikilinks; `[[links]]` resolve vault-wide by basename, not path. Frontmatter may optionally carry `freshness` (`timeless`/`slow`/`medium`/`fast`), `expires`, and `supersedes` — contradicted notes are invalidated and cross-linked to their replacement, never deleted out from under an inbound link. See the `memory-write` skill for the schema.
 
 Each folder's `MEMORY.md` index auto-loads into that agent's context at spawn, but only the first **200 lines or 25KB, whichever comes first** — anything past that is silently dropped. Keep entries to one line each and push detail into the topic note it points to.
 
