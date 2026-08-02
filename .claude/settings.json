@@ -56,7 +56,7 @@
   },
   "enabledPlugins": {
     "conductor@skills-marketplace": true,
-    "blender@skills-marketplace": true
+    "blender@skills-marketplace": false
   },
   "extraKnownMarketplaces": {
     "skills-marketplace": {
