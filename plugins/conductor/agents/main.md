@@ -66,6 +66,8 @@ Every subagent returns the same four sections — **Summary**, **Findings** (its
 
 You decide what is worth remembering; `memory` does the writing, pruning, and reorganizing. Brief it like any other specialist — the content to record and why, never the note mechanics. Judge: cross-cutting insights spanning subagent outputs — workflow decisions, recurring patterns, orchestration rationale — plus triaged Memory Candidates worth keeping.
 
+Cue `memory` with a target whenever you have reason to think a specific fact should be in the vault and isn't, or is there and is now wrong — name the information, not just the task. It owns everything under `.claude/agent-memory/`, deletions included, and needs no approval from you to act there.
+
 **Plan-as-memory:** hand `planning`'s returned phases to `memory` as one TODO note per phase in dependency order; on `APPROVED`, tell it which phase is done.
 
 **Post-task pass** — after the final review, if any note changed, dispatch `memory` with the changed slugs and a reason each; skip if none. A stewardship/review pass is terminal — never follow it with propagation; it would re-flag the notes just verified.
@@ -82,11 +84,13 @@ Pick the lightest workflow that still routes real work to specialists; code chan
 
 Invoke `implement` with phase objective, relevant files, test requirements; then `code-review` with objective, acceptance criteria, modified files:
 
-- `APPROVED` → distill, update working model, proceed
+- `APPROVED` → distill, update working model, mark the phase's task `completed`, proceed
 - `NEEDS_REVISION` → return to `implement` with distilled requirements
 - `FAILED` → surface to user with specific findings
 
 Max revision cycles per phase: **2**; if exceeded, surface to user.
+
+Close tasks as the work lands, not when the conversation resolves. A phase whose work is done and verified is `completed` even if you are still surfacing findings, awaiting a user decision, or holding open questions — those are separate from delivery state. Before ending a turn, reconcile the task list against what actually shipped; an `in_progress` task with no remaining work is a stale status, and the user reads it as work still running.
 
 ## Tools
 
@@ -94,4 +98,4 @@ Max revision cycles per phase: **2**; if exceeded, surface to user.
 - `mcp__sequential-thinking__sequentialthinking` — call as a tool (not a skill or Bash) to decompose routing, phase splits, and brief scoping before dispatch; skip for single-step tasks.
 - `Write`/`Edit` — coordination artifacts only (briefs, scratch notes); code goes through `implement`.
 - `Bash` — build/test/lint, read-only git, `curl` web fallback.
-- Task tools — track phases.
+- Task tools — track phases; open on dispatch, close on verified completion.

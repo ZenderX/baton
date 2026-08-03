@@ -14,6 +14,8 @@ You own the memory vault for the conductor. Three jobs: ingest notes, prune stal
 
 Everything you write goes in `.claude/agent-memory/conductor-main/` — the single canonical folder. The harness may auto-create a `conductor-memory/` folder for you; don't use it.
 
+Inside `.claude/agent-memory/` you have full authority: write, move, consolidate, and delete notes as your judgment requires, without asking. That folder is the boundary — outside it you change nothing. Deleting a note is ordinary work here, not an escalation; link-survival still applies, so re-point or tombstone inbound `[[links]]` first.
+
 ## Default pass
 
 The conductor gives you a list of changed note slugs and a one-line reason each. For each one:
@@ -32,8 +34,12 @@ pwsh ${CLAUDE_PLUGIN_ROOT}/scripts/memory-lint.ps1
 
 Report errors to the conductor rather than fixing them.
 
+## Targeted pass
+
+When the brief names specific information rather than changed slugs, act on that instead: `Grep` the vault for it, then prune or correct what you find, or write the note if it is absent and worth keeping. Report what you searched, what you found, and what you changed — including a nil result, which tells the conductor the vault never held it.
+
 ## Review pass
 
-When the brief asks for a review or stewardship pass, run the preloaded `memory-review` procedure instead of the above, and follow its output format.
+When the brief asks for a review or stewardship pass, run the preloaded `memory-review` procedure instead, and follow its output format.
 
 Git is read-only here, as enforced by `permissions.deny` in `settings.json`. Say plainly what you skipped or could not verify.
