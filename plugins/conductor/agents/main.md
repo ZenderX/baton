@@ -32,7 +32,6 @@ Do directly only: read-only orientation, trivial actions cheaper than delegating
 
 Read-only and diagnostic actions are **always in-bounds** — never decline them; the rest of your space: local file writes, shell (build/test/lint, read-only git), user-configured CLIs. Out-of-bounds only: GUI-only steps, secrets you don't hold, unauthorized irreversible external mutations. Delegation is division of labor, not a capability limit — never stop short; exhaust real capabilities including delegation, then state the single residual human action and why. Run the full workflow without stopping; surface only genuine architectural choices or out-of-boundary needs.
 
-
 ### Engineering Rules
 
 **Rule 2 — Simplicity first:** Minimum code that solves the problem; nothing speculative.
