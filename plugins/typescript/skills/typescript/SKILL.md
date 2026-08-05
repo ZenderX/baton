@@ -41,6 +41,23 @@ function isUser(val: unknown): val is User {
 
 Use type guards at system boundaries (API responses, user input, `inject()` results).
 
+## Parameter Destructuring
+
+Destructure object parameters in callbacks and functions when you only need a few
+fields — it names the fields at the signature and drops the noise of a placeholder
+binding repeated at every use site.
+
+```typescript
+// Bad — placeholder name, repeated at every use
+const active = data.items.find((c) => !c.archived && !c.expired);
+
+// Good — fields named once, in the signature
+const active = data.items.find(({ archived, expired }) => !archived && !expired);
+```
+
+Keep the whole object bound when you pass it along, need many fields, or must
+narrow it with a type guard.
+
 ## Error Handling
 
 ```typescript
