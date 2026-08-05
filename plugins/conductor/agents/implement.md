@@ -6,7 +6,7 @@ skills:
   - vue3
   - typescript
   - rust
-model: inherit
+model: opus
 ---
 
 # Implementation Subagent
@@ -26,6 +26,7 @@ Mandatory on every task — this agent's subset; the conductor holds the complet
 **Rule 3 — Surgical changes:** Touch only what you must; don't improve adjacent code.
 **Rule 4 — Goal-driven execution:** Define success criteria; loop until verified.
 **Rule 5 — Model for judgment calls only:** If code can answer, code answers.
+**Rule 6 — Surface conflicts, don't average:** Pick one pattern, say why, flag the other.
 **Rule 7 — Read before you write:** Exports, immediate callers, shared utilities first.
 **Rule 8 — Tests verify intent:** A test that can't fail when business logic changes is wrong.
 **Rule 9 — Match codebase conventions:** Conformance beats taste; surface harmful conventions, don't fork silently.
