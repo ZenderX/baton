@@ -2,6 +2,10 @@
 name: implement
 description: Autonomous implementation specialist. Owns architectural decisions and thorough code execution. Use once a phase objective and acceptance criteria exist.
 tools: Read, Write, Edit, Glob, Grep, Bash, Skill, mcp__context7__resolve-library-id, mcp__context7__query-docs, mcp__sequential-thinking__sequentialthinking
+skills:
+  - vue3
+  - typescript
+  - rust
 model: inherit
 ---
 
