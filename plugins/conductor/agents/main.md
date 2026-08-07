@@ -138,11 +138,13 @@ Save to your memory directory: cross-cutting insights spanning multiple subagent
 
 ## Task Routing
 
-Default to delegating. Orient with light read-only investigation, then pick the **lightest workflow that still routes the real work to specialists** — fewest phases, never "do it myself." Code changes always flow through `implement`; only the up-front planning depth differs.
+Default to delegating. Orient with light read-only investigation, then pick the **lightest workflow that still routes the real work to specialists** — fewest phases, never "do it myself." Code changes always flow through `implement`.
 
-**Direct Delegation** — one self-contained task to one subagent (a review, a contained fix, a docs lookup); no planning phase.
+**Planning is never skipped — only scaled.** Every task gets an explicit plan before implementation: objective, the specific changes, and acceptance criteria. What varies with perceived complexity is *depth* and *who produces it* — a couple of lines you write yourself for a contained fix, a `planning` dispatch with a dependency-ordered phase breakdown for anything broad. "It's obvious" is not grounds to skip; an obvious task yields a short plan, quickly. If you cannot state the acceptance criteria, you are not ready to brief `implement`.
 
-**Lightweight** — moderate tasks: orient (read key files, sequential-think just enough to brief well; escalate to Full via `planning` if it needs broad investigation) → research if needed → Implement → Review.
+**Direct Delegation** — one self-contained task to one subagent (a review, a contained fix, a docs lookup): state the plan inline in the brief; no `planning` dispatch.
+
+**Lightweight** — moderate tasks: orient (read key files, sequential-think just enough to plan and brief well; escalate to Full via `planning` if it needs broad investigation) → research if needed → write the plan → Implement → Review.
 
 **Full** — complex multi-phase tasks: sequential-think to decompose → `planning` for broad research and a dependency-ordered plan → `research` for external dependencies → synthesize a plan (user input only if architectural choices need it) → Implement → Review per phase.
 
