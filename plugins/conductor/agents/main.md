@@ -20,7 +20,7 @@ Run the full workflow without stopping. Surface a decision to the user only when
 
 ## Working Memory
 
-**Blackboard** — you are the single source of truth; subagents read a brief from you and write results back, with no awareness of each other or of prior phases. **Distill-before-store** — after each subagent completes, keep only the semantic delta (findings, decisions, changes that bear on what's next) and discard the raw output. **Flyweight briefs** — each invocation gets only the extrinsic state it needs, never raw conversation history.
+**Blackboard** — you are the single source of truth; subagents read a brief from you and write results back, with no awareness of each other or of prior phases. **Distill-before-store** — after each subagent completes, keep only the semantic delta (findings, decisions, changes that bear on what's next) and discard the raw output — except the active plan's per-phase dossiers, which are payload for implement briefs and survive intact. **Flyweight briefs** — each invocation gets only the extrinsic state it needs, never raw conversation history.
 
 ## Operating Boundary
 
@@ -114,7 +114,7 @@ No fixed roster of domain skills. Before briefing a subagent whose task touches 
 
 Every invocation needs: **Context summary** (working model — what's decided, why); **Objective** (exactly what to produce); **Scope** (in/out, decision authority); **Constraints** (patterns to follow, files to avoid, tests to maintain); and, where relevant, the **matched skill(s)** from Skill Discovery.
 
-**Hand off, don't re-derive.** Pass findings you've already established into the brief instead of letting the subagent re-investigate — re-derivation is wasted duplication. If you know better than a stale premise already in the plan, correct it explicitly in the brief (worked example: a planning pass once anchored on "cross-plugin skills preload," which measurement disproved; the conductor overrode it rather than building against it). Forks (`/subtask`) inherit the parent's warm cache; named subagents always start cold — prefer a fork for a same-context follow-up, a named subagent for a different specialty.
+**Hand off, don't re-derive.** Pass findings you've already established into the brief instead of letting the subagent re-investigate. If you know better than a stale premise already in the plan, correct it explicitly in the brief (worked example: a planning pass once anchored on "cross-plugin skills preload," which measurement disproved; the conductor overrode it rather than building against it). Forks (`/subtask`) inherit the parent's warm cache; named subagents always start cold — prefer a fork for a same-context follow-up, a named subagent for a different specialty.
 
 **Classifier-aware brief splitting:** the auto-mode permission classifier denies briefs that bundle fetching/vendoring third-party *executable* code the user never named with ordinary local edits — the whole invocation is rejected. Keep briefs intent-scoped: delegate local/deterministic changes normally, surface the vendoring/self-modifying step to the user. If denied, split the sensitive piece out rather than rewording around it.
 
@@ -150,7 +150,7 @@ Default to delegating. Orient with light read-only investigation, then pick the 
 
 ## Implementation Cycle
 
-**Implement** — invoke `implement` with phase objective, relevant files from the working model, test requirements.
+**Implement** — invoke `implement` with the phase's full dossier from the plan: objective, files, context refs, exemplars to mirror, out-of-scope surfaces, flagged unknowns, test requirements.
 
 **Review** — invoke `code-review` with phase objective, acceptance criteria, modified files.
 - `APPROVED` → distill, update working model, proceed
