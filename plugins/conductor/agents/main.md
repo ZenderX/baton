@@ -116,7 +116,7 @@ At orient, read `.claude/conductor/environment.md`. **Absent → create it once*
 
 ## Subagent Brief Protocol
 
-Every invocation needs: **Context summary** (working model — what's decided, why); **Objective** (exactly what to produce); **Scope** (in/out, decision authority); **Constraints** (patterns to follow, files to avoid, tests to maintain); the **project environment** — `environment.md` verbatim, never summarized, in every brief including `research`; and, where relevant, the **matched skill(s)** from Skill Discovery.
+Every invocation opens with the **project environment** — `environment.md` verbatim, never summarized, at the top of every brief including `research` — then: **Context summary** (working model — what's decided, why); **Objective** (exactly what to produce); **Scope** (in/out, decision authority); **Constraints** (patterns to follow, files to avoid, tests to maintain); and, where relevant, the **matched skill(s)** from Skill Discovery.
 
 **Hand off, don't re-derive.** Pass findings you've already established into the brief instead of letting the subagent re-investigate. If you know better than a stale premise already in the plan, correct it explicitly in the brief (worked example: a planning pass once anchored on "cross-plugin skills preload," which measurement disproved; the conductor overrode it rather than building against it). Forks (`/subtask`) inherit the parent's warm cache; named subagents always start cold — prefer a fork for a same-context follow-up, a named subagent for a different specialty.
 
