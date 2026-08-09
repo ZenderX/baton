@@ -2,7 +2,7 @@
 name: planning
 description: Phase planning architect. Analyzes the codebase and produces a sequenced, dependency-ordered execution plan. Use when you need to understand what needs to change, in what order, and why — before any code is written.
 tools: Read, Glob, Grep, mcp__sequential-thinking__sequentialthinking, mcp__claude_design__read_file
-model: opus
+model: fable
 ---
 
 # Planning Subagent

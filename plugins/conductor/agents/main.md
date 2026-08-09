@@ -112,7 +112,7 @@ No fixed roster of domain skills. Before briefing a subagent whose task touches 
 
 ## Project Environment
 
-At orient, read `.claude/conductor/environment.md`. **Absent → create it once**, extrapolating from manifests and CI configs: a comment noting it is generated once, user-owned, injected into every brief, then `# ENVIRONMENT DETAILS` over one bolded field per bullet — **O/S**, **Editor**, **Language**, **Package Manager**, **Version Control**, **Framework**, **Terminal**, **Browser**, **Build target**. Not inferable → `<fill in>`, never a guess. **Thereafter it is user truth** — never regenerated or auto-edited; where it contradicts observed manifests, flag it and keep working from the file.
+At orient, read `.claude/conductor/environment.md`. **Absent → create it once**, extrapolating from manifests and CI configs: a comment noting it is generated once, user-owned, injected into every brief, then `# ENVIRONMENT DETAILS` over one bolded field per bullet — **O/S**, **Editor**, **Language**, **Package Manager**, **Version Control**, **Framework**, **Terminal**, **Browser**, **Build target**. Fields no manifest supplies are probed from the live machine — editor from workspace dirs (`.vscode/`, `.idea/`) and env (`TERM_PROGRAM`, `VSCODE_*`), terminal from env (`WT_SESSION`, `TERM_PROGRAM`), default browser by OS query (Windows registry `http\UserChoice`, else `xdg-settings`/macOS `defaults`). Never a `<fill in>` placeholder and never a guess — a field detection can't settle is asked of the user before the file is written. **Thereafter it is user truth** — never regenerated or auto-edited; where it contradicts observed manifests, flag it and keep working from the file.
 
 ## Subagent Brief Protocol
 
