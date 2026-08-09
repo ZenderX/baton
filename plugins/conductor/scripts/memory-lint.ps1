@@ -15,6 +15,9 @@
       - Regenerates .obsidian/graph.json colorGroups: one deterministic color per
         topic/* tag in use (ordered first, matching Obsidian's first-match-wins
         semantics), followed by the static type/* fallback groups
+      - Deletes *.tmp litter files under the vault (see LITTER below). Only *.tmp;
+        every other non-note file is report-only, since this script cannot tell an
+        unrecognized file apart from something the user put there deliberately
 
     All checks are idempotent: re-running -Fix on a clean vault produces zero changes.
 
@@ -51,6 +54,13 @@
       - DIRTY-MISSING-REASON: metadata.dirty is set but metadata.dirty_reason is absent or
         empty (warning; never auto-fixed — inventing a reason is a judgment call, not a
         mechanical repair)
+      - LITTER: a file under the vault (recursively, excluding .obsidian/) that is not a
+        *.md note. The vault legitimately holds only .md notes, per-folder MEMORY.md
+        indexes, and .obsidian/ config, so anything else is debris. A *.tmp file is
+        gate-blocking and -Fix deletes it: it is the residue of a write-to-temp-then-rename
+        pattern the memory agent is told not to use, never something worth keeping. Any
+        other non-note file (editor droppings, stray exports) is a warning left in place —
+        matching the memory-review rule that unrecognized files get surfaced, not moved.
       - STRAY-LOCATION: any directory found anywhere under the project root (pruning .git,
         releases, node_modules) that has a MEMORY.md file as a direct child and is neither
         the vault root itself nor the single canonical folder <vault-root>/conductor-main.
@@ -592,6 +602,41 @@ foreach ($dir in $memoryMdDirs) {
     if ($dir.FullName -eq $VaultRoot) { continue }           # never flag the vault root itself
     if ($dir.FullName -eq $CanonicalMemoryDir) { continue }  # the sole canonical folder
     $integrityErrs.Add("STRAY-LOCATION: $($dir.FullName) — notes outside the canonical folder; memory-review must migrate them into conductor-main (notes moved + dirty-flagged, indexes merged, stray folder pruned)")
+}
+
+# ---------------------------------------------------------------------------
+# Phase A1: LITTER detection (*.tmp gate-blocking + auto-deleted; other non-notes warn)
+# ---------------------------------------------------------------------------
+# The vault holds .md notes, per-folder MEMORY.md indexes, and .obsidian/ config. Anything
+# else is debris. .obsidian/ is excluded wholesale (Obsidian owns its own file zoo in there,
+# including graph.json, which Phase E writes). -Force so hidden droppings (.DS_Store,
+# desktop.ini) are seen rather than silently skipped.
+#
+# Split severity, deliberately: a *.tmp file is the residue of a write-to-temp-then-rename
+# pattern the memory agent is told not to use, so it is never a file anyone meant to keep —
+# gate-blocking, and -Fix deletes it. Every other unrecognized file could be something the
+# user put there on purpose, so it warns and stays put; deleting it would be a judgment call
+# this script has no basis to make.
+$ObsidianDir = Join-Path $VaultRoot '.obsidian'
+$litterFiles = @(Get-ChildItem -Path $VaultRoot -Recurse -File -Force -ErrorAction SilentlyContinue |
+    Where-Object { $_.Extension -ne '.md' -and -not (Test-PathUnderRoot -Path $_.FullName -Root $ObsidianDir) } |
+    Sort-Object FullName)
+
+foreach ($litter in $litterFiles) {
+    # Vault-relative path: every file here is under $VaultRoot by construction, and both
+    # sides were canonicalized at startup, so the substring is safe.
+    $rel = $litter.FullName.Substring($VaultRoot.Length + 1)
+
+    if ($litter.Extension -eq '.tmp') {
+        if ($Fix) {
+            Remove-Item -LiteralPath $litter.FullName -Force -ErrorAction Stop
+            $fixes.Add("DELETED-LITTER: $rel")
+        } else {
+            $integrityErrs.Add("LITTER: $rel — temp-file residue in the vault; the vault holds only .md notes and .obsidian/ (run -Fix to delete)")
+        }
+    } else {
+        $warnings.Add("LITTER: $rel — not a .md note; surfaced and left in place (only *.tmp is auto-deleted)")
+    }
 }
 
 # ---------------------------------------------------------------------------

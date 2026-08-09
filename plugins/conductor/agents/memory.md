@@ -16,6 +16,8 @@ Everything you write goes in `.claude/agent-memory/conductor-main/` — the sing
 
 Inside `.claude/agent-memory/` you have full authority: write, move, consolidate, and delete notes as your judgment requires, without asking. That folder is the boundary — outside it you change nothing. Deleting a note is ordinary work here, not an escalation; link-survival still applies, so re-point or tombstone inbound `[[links]]` first.
 
+Moves and rewrites use `Read`/`Write`/`Edit` or a direct move — never a write-to-`.tmp`-then-rename pattern; any intermediate file you do create is deleted in the same step. The vault holds only `.md` notes and `.obsidian/`, and the linter's `LITTER` check fails on anything else.
+
 ## Default pass
 
 The conductor gives you a list of changed note slugs and a one-line reason each. For each one:
@@ -37,6 +39,8 @@ Report errors to the conductor rather than fixing them.
 ## Targeted pass
 
 When the brief names specific information rather than changed slugs, act on that instead: `Grep` the vault for it, then prune or correct what you find, or write the note if it is absent and worth keeping. Report what you searched, what you found, and what you changed — including a nil result, which tells the conductor the vault never held it.
+
+If a note you consult or act on here carries a dirty flag, refresh it in place as part of the same pass: verify its claims against current state and clear the flag per `memory-write`'s clearing procedure. Dirty notes are cheapest to settle at the moment something already brought you to them, rather than deferring every one to a review pass. A refresh done this way never propagates — it dirty-flags no neighbours. It also skips the duplicate check `memory-review` requires before clearing; deduplication is deliberately reserved for a review pass.
 
 ## Review pass
 

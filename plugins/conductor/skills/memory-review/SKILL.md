@@ -60,7 +60,19 @@ Everything migrates into `.claude/agent-memory/conductor-main/` — the sole can
 
 **Files that are not memory notes** (no frontmatter, or clearly not vault content) are surfaced to the user in the summary and left where they are. Never auto-move them.
 
-### 3. Triage the Linter Report
+The vault legitimately contains only `.md` notes, `MEMORY.md` indexes, and `.obsidian/`. Anything else is litter, which the linter reports as `LITTER`. Delete `*.tmp` files outright — they are residue of a temp-file pattern nothing here should be using, and `-Fix` removes them for you. Other unknown non-note files stay surfaced-and-left-in-place per the rule above.
+
+### 3. Plan the Epoch
+
+Snapshot the full flagged/dirty worklist once, from step 1's linter run. That snapshot is the entire work plan for this pass — nothing joins it later.
+
+Every note edited during the pass is **settled**: never re-verified, re-flagged, or rewritten again in the same pass, even if a later edit changes one of its neighbours. Without this, a pass processing flagged notes in arbitrary order rewrites a note, then its neighbour, then decides the first needs touching again — cycles and rework that never converge. A genuine late finding that would invalidate a settled note goes into the summary's **Deferred** list, to be picked up by the next pass; it does not reopen the note.
+
+Within a linked cluster of dirty notes, do all the reads first — verify the whole cluster against repo state and decide survivors and merges — then write each note exactly once.
+
+Within-pass edits never dirty-flag neighbours. Dirty flags originate only from a conductor-briefed propagation pass, which is the same reason a review pass is terminal (step 10).
+
+### 4. Triage the Linter Report
 
 For each flagged item, classify:
 
@@ -68,7 +80,7 @@ For each flagged item, classify:
 |------|----------------|
 | `ORPHAN` | Check whether the note has value; if yes, cross-link to a related note or MEMORY.md; if not, prune with link-survival rule |
 | `STALE` | Read note; verify claim against current repo state; update body + `metadata.updated`, or prune |
-| `DIRTY` | Read note → verify against current repo state → check for duplicates (Grep the vault for same-topic/overlapping notes); if a duplicate exists, merge the relevant content into one survivor and delete the other (link-survival rule, step 7, applies to the deleted note's inbound links) → re-link outbound links → clear the dirty flag on the survivor; or escalate if the content cannot be verified |
+| `DIRTY` | Read note → verify against current repo state → check for duplicates (Grep the vault for same-topic/overlapping notes); if a duplicate exists, merge the relevant content into one survivor and delete the other (link-survival rule, step 8, applies to the deleted note's inbound links) → re-link outbound links → clear the dirty flag on the survivor; or escalate if the content cannot be verified |
 | `MISSING-TAG` | Add missing tags; classify correctly |
 | `MISSING-UPDATED` | Set `metadata.updated` to today if the content is still accurate; otherwise prune |
 | `DUPLICATE-BASENAME` | Keep the more recent or more specific note; tombstone or delete the other |
@@ -81,7 +93,7 @@ For each flagged item, classify:
 | `TYPE-MISMATCH` | `metadata.type` disagrees with the `type/*` tag; retag both to whichever type actually fits (see Fix Categorization) |
 | `BROKEN-LINK` / `BROKEN-LINK-NAME` | Warnings, not gate-blockers. A link to a slug that was never written is an intentional forward link — leave it. A link whose target you can tell was removed gets re-pointed to the successor or to a tombstone |
 
-### 4. Fix Categorization
+### 5. Fix Categorization
 
 The linter only checks that `type/*` and `topic/*` tags are *present* — it cannot judge whether they're *correct*. For every note flagged during triage, or otherwise touched during this review, verify categorization by reading the note:
 
@@ -89,7 +101,7 @@ The linter only checks that `type/*` and `topic/*` tags are *present* — it can
 - **Topic:** confirm the `topic/*` tag actually describes the content. If it's a synonym or near-duplicate of an established topic (e.g. `topic/state-mgmt` vs an existing `topic/state-management`), retag to the established one rather than letting the taxonomy fragment.
 - After any retag, update `metadata.updated` to today.
 
-### 5. Verify Against Repo State
+### 6. Verify Against Repo State
 
 For each note flagged as stale, freshly migrated, or carrying a load-bearing claim, verify it reflects current reality: `Grep` with pattern `<keyword>` and path `.claude/` to check whether the described file/pattern still exists, and cross-check recent history:
 
@@ -104,16 +116,16 @@ If it's outdated: update the body OR prune with the link-survival rule below.
 
 Never clear without verifying. Never leave the banner line inside the `metadata:` block — that is invalid YAML, not a partially-cleared flag.
 
-**Dedup obligation for dirty notes:** before clearing a dirty flag, check whether the note duplicates another already in the vault. This is the common case for notes arriving dirty via step 2's migration, where the same content may already exist under a different slug. `Grep` the note's key terms across `.claude/agent-memory/`; if a duplicate exists, merge into one survivor, delete the other via the link-survival rule (step 7), and only then clear the flag on the survivor.
+**Dedup obligation for dirty notes:** before clearing a dirty flag, check whether the note duplicates another already in the vault. This is the common case for notes arriving dirty via step 2's migration, where the same content may already exist under a different slug. `Grep` the note's key terms across `.claude/agent-memory/`; if a duplicate exists, merge into one survivor, delete the other via the link-survival rule (step 8), and only then clear the flag on the survivor.
 
-### 6. Reconcile Contradictions
+### 7. Reconcile Contradictions
 
 If two notes make conflicting claims about the same topic, surface the conflict — don't average it:
 1. Determine which is more recent or more battle-tested (check `metadata.updated`, git log).
 2. Keep the authoritative note; update it to acknowledge the resolved conflict.
 3. Tombstone the superseded note.
 
-### 7. Connect Orphans and Prune with Link Survival
+### 8. Connect Orphans and Prune with Link Survival
 
 Before pruning an orphan, check whether it is genuinely valueless or merely disconnected. If valuable: add a `[[wikilink]]` from a related note, or add it to `MEMORY.md`. If not: prune.
 
@@ -139,7 +151,7 @@ metadata:
 Superseded by [[successor-slug]]. Removed because: <reason>.
 ```
 
-### 8. Reorganize MEMORY.md
+### 9. Reorganize MEMORY.md
 
 `conductor-main/MEMORY.md` is the always-loaded index and the deliverable of this pass. After every add, rename, merge, and prune above:
 
@@ -148,7 +160,7 @@ Superseded by [[successor-slug]]. Removed because: <reason>.
 - Group related entries together and drop entries for notes that no longer exist.
 - Keep the whole file within its hard budget: the first **200 lines or 25KB, whichever comes first**, auto-loads — past that is silently dropped, and an over-limit write is a hard error. If the index is approaching either ceiling, tighten entry wording; the fix is never to let it overflow.
 
-### 9. Final Lint
+### 10. Final Lint
 
 Run the linter once more to confirm the vault is clean:
 
@@ -179,15 +191,17 @@ Expected output: `OK  Vault is clean.` with exit code 0.
 - Tombstoned: <file> — <reason>; inbound re-pointed to [[<successor>]]
 - Deleted: <file> — <reason>; had no inbound links
 - Reconciled: kept <file-A> over <file-B>; <file-B> tombstoned
+- Litter removed: <N *.tmp files — or "none">
 
 **Reorganized:**
 - MEMORY.md entries added / rewritten / removed: <N / N / N>
 - Index size: <N lines, N KB> (budget: 200 lines / 25KB)
 
 **Verified:** <N notes checked against repo state; N dirty flags cleared>
+**Settled:** <N notes edited exactly once; none reopened>
 **Connected:** added [[<link>]] in <file> to resolve orphan
 **Vault status:** Clean / <N> items deferred for human judgment
-**Propagation:** Suppressed — a review pass is terminal (step 9)
+**Propagation:** Suppressed — a review pass is terminal (step 10)
 **Deferred:** <items needing human input, and why>
 ```
 
@@ -199,4 +213,5 @@ Expected output: `OK  Vault is clean.` with exit code 0.
 - Never overwrite a note's body based solely on linter output — verify against repo state first.
 - When uncertain whether a memory is stale, update `metadata.updated` and add a note in the body rather than pruning.
 - Do not prune a note merely because it is old; prune when it is inaccurate or superseded.
-- Never follow a review pass with a propagation pass — state the suppression in the summary (step 9).
+- Never follow a review pass with a propagation pass — state the suppression in the summary (step 10).
+- Never reopen a note already edited in this pass — a late finding goes to **Deferred** (step 3).
