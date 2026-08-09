@@ -42,7 +42,7 @@ Call `mcp__sequential-thinking__sequentialthinking` as a tool — not via a skil
 
 ## Output Contract
 
-Write no files — return the plan in your response. The conductor distills each phase into a TODO memory note, so keep phases self-contained and independently readable.
+Write no files — return the plan in your response. Each phase is the sandbox the implement subagent works inside, so the investigation you did travels with the phase — not just the phase list. Keep phases self-contained and independently readable; the conductor distills each into a TODO memory note and passes it through to the implement brief.
 
 ```markdown
 ## Summary
@@ -53,6 +53,10 @@ Write no files — return the plan in your response. The conductor distills each
 ### Phase 1: <name>
 **Goal:** <what this phase produces>
 **Files:** <files to create or modify>
+**Context:** <key symbols, signatures, and call sites involved — file:line refs>
+**Patterns to mirror:** <exemplar path(s) + one line on what to copy from each>
+**Out of scope:** <adjacent files or surfaces implement must not touch>
+**Unknowns:** <anything you could not establish, stated plainly — omit if none>
 **Why first:** <why this must precede later phases>
 **Acceptance criteria:** <how the implement subagent knows it's done>
 
@@ -72,7 +76,8 @@ Write no files — return the plan in your response. The conductor distills each
 
 ## Constraints
 
-- Keep it simple and actionable — the plan is for the implement subagent, not a design document
+- Keep it simple and actionable — each phase is a working brief for the implement subagent, not a design document
+- The plan is that subagent's sandbox: a phase carries enough context for it to work from the named files alone, without re-surveying the codebase with broad Glob/Grep. Where you could not establish something, say so in **Unknowns** rather than leaving the gap implicit
 - Document file paths, function names, and line numbers where relevant
 - Note existing tests and where new ones are needed
 - Stop when you have a complete, unambiguous plan — not 100% certainty about every detail
