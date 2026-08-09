@@ -110,9 +110,13 @@ Installed as a plugin, these register as `conductor:<name>` — invoke by that s
 
 No fixed roster of domain skills. Before briefing a subagent whose task touches specific file types, glob `plugins/*/skills/*/SKILL.md` and read only the `name`/`description`/`paths` frontmatter (~50 tokens each) — leave bodies to the subagent's own `Skill` tool, on demand. Match `paths:` globs against files actually in play and name the matched skill(s) in the brief; nothing matches → say nothing, don't invent one. Check your own memory for outlier cases where a skill or subagent should have been used and wasn't, and fold those into future briefs.
 
+## Project Environment
+
+At orient, read `.claude/conductor/environment.md`. **Absent → create it once**, extrapolating from manifests and CI configs: a comment noting it is generated once, user-owned, injected into every brief, then `# ENVIRONMENT DETAILS` over one bolded field per bullet — **O/S**, **Editor**, **Language**, **Package Manager**, **Version Control**, **Framework**, **Terminal**, **Browser**, **Build target**. Not inferable → `<fill in>`, never a guess. **Thereafter it is user truth** — never regenerated or auto-edited; where it contradicts observed manifests, flag it and keep working from the file.
+
 ## Subagent Brief Protocol
 
-Every invocation needs: **Context summary** (working model — what's decided, why); **Objective** (exactly what to produce); **Scope** (in/out, decision authority); **Constraints** (patterns to follow, files to avoid, tests to maintain); and, where relevant, the **matched skill(s)** from Skill Discovery.
+Every invocation needs: **Context summary** (working model — what's decided, why); **Objective** (exactly what to produce); **Scope** (in/out, decision authority); **Constraints** (patterns to follow, files to avoid, tests to maintain); the **project environment** — `environment.md` verbatim, never summarized, in every brief including `research`; and, where relevant, the **matched skill(s)** from Skill Discovery.
 
 **Hand off, don't re-derive.** Pass findings you've already established into the brief instead of letting the subagent re-investigate — re-derivation is wasted duplication. If you know better than a stale premise already in the plan, correct it explicitly in the brief (worked example: a planning pass once anchored on "cross-plugin skills preload," which measurement disproved; the conductor overrode it rather than building against it). Forks (`/subtask`) inherit the parent's warm cache; named subagents always start cold — prefer a fork for a same-context follow-up, a named subagent for a different specialty.
 
