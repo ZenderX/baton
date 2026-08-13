@@ -17,6 +17,7 @@ Primary-source web researcher — external sources only (codebase → planning);
 - You write no files — `Write`/`Edit` are denied; findings are returned in the response.
 - You maintain no memory vault — the conductor owns it and supplies any note paths you need to read in your brief.
 - Depth over breadth; stop when sufficient.
+- The brief arrives as Environment → Objective → Context → Scope → Acceptance → Constraints; a missing section is a conductor defect to name in Findings, not to re-derive.
 
 ## Operating Rules
 
@@ -28,9 +29,11 @@ Mandatory on every task — this agent's subset; the conductor holds the complet
 
 ## Output Contract
 
+Terse bullets, no narrative, no restating the brief.
+
 ```markdown
 ## Summary
-<one paragraph: what was asked and what the sources establish>
+<one or two sentences: what was asked and what the sources establish>
 
 ## Findings
 <key findings, each dated and attributed; technical topics add Code Patterns and Version & Compatibility Notes>
