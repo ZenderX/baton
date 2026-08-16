@@ -84,7 +84,9 @@ C_DIMV='\033[38;2;90;96;107m'       # #5A606B  dim trailing values
 C_GREEN='\033[38;2;99;190;139m'     # #63BE8B  gauge fill, calm
 C_AMBER='\033[38;2;226;166;60m'     # #E2A63C  gauge fill, past 60%
 C_RED='\033[38;2;224;86;63m'        # #E0563F  gauge fill, past 85%
-C_REDB='\033[1;38;2;224;86;63m'     # bold red pct / time-critical value
+C_REDB='\033[1;38;2;224;86;63m'     # bold red pct
+C_TIME='\033[38;2;123;163;204m'     # #7BA3CC  reset countdowns — severity-independent
+                                    # (low time-left is GOOD; never inherits bar red)
 SEP_G=$(printf '%b │ %b' '\033[38;2;74;80;88m' "$R")   # #4A5058 group separator
 SEP_I=$(printf '%b · %b' '\033[38;2;63;68;77m' "$R")   # #3F444D item separator
 
@@ -114,9 +116,10 @@ gauge() {
   if   [ "$p" -ge 85 ]; then fill_c=$C_RED;   pct_c=$C_REDB
   elif [ "$p" -ge 60 ]; then fill_c=$C_AMBER; pct_c=$C_AMBER
   else                       fill_c=$C_GREEN; pct_c=$C_GREEN; fi
-  # trailing value colour: dim by default, brightens with severity;
-  # time-critical (red) countdowns go bold red, token figures only brighten
-  if   [ "$p" -ge 85 ] && [ "$kind" = "time" ]; then trail_c=$C_REDB
+  # trailing value colour: countdowns are always the complementary blue
+  # (low time-left is good — decoupled from bar severity); token figures
+  # stay dim and brighten with severity
+  if   [ "$kind" = "time" ]; then trail_c=$C_TIME
   elif [ "$p" -ge 60 ]; then trail_c=$C_MODEL
   else                       trail_c=$C_DIMV; fi
   i=0; while [ "$i" -lt "$fulls" ];   do fills+="█"; i=$((i+1)); done
@@ -214,17 +217,19 @@ if [ -f "$cache" ] && command -v jq >/dev/null 2>&1; then
     else printf '%dm' "$m"; fi
   }
 
-  # 5h: countdown right-aligned to 5 chars so crunch ("  18m") keeps the column
+  # countdowns in parentheses, single space after the percentage
   if [ "${s_pct:--1}" != "-1" ]; then
     v=$(countdown "${s_reset:--}")
-    [ -n "$v" ] && v=$(printf '%5s' "$v")
+    [ -n "$v" ] && v="($v)"
     seg_5h=$(gauge "5h" "$s_pct" "$v" time)
   fi
   if [ "${w_pct:--1}" != "-1" ]; then
     seg_wk=$(gauge "wk" "$w_pct" "" time)
   fi
   if [ "${f_pct:--1}" != "-1" ]; then
-    seg_fable=$(gauge "Fable" "$f_pct" "$(countdown "${f_reset:--}")" time)
+    v=$(countdown "${f_reset:--}")
+    [ -n "$v" ] && v="($v)"
+    seg_fable=$(gauge "Fable" "$f_pct" "$v" time)
   fi
 fi
 
