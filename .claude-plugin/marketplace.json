@@ -12,6 +12,11 @@
       "description": "Conductor orchestrator + 5 subagents (planning, research, implement, code-review, memory) with their preloaded skills and MCP servers."
     },
     {
+      "name": "statusline",
+      "source": "./plugins/statusline",
+      "description": "Starship-style powerline statusline: repo/branch + git flags, model + context usage, plan usage with reset countdowns. Wire it in with /statusline:setup."
+    },
+    {
       "name": "bevy",
       "source": "./plugins/bevy",
       "description": "Bevy 0.18.1 ECS conventions, plugin architecture, and gameplay patterns. Apply when writing or reviewing Bevy game code."
