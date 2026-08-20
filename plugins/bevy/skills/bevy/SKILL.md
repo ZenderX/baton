@@ -1,18 +1,29 @@
 ---
 name: bevy
-description: Bevy 0.18.1 ECS conventions, plugin architecture, and gameplay patterns. Apply when writing or reviewing Bevy game code.
+description: Bevy 0.19.1 ECS conventions, plugin architecture, and gameplay patterns. Apply when writing or reviewing Bevy game code.
 paths: "**/*.rs"
 ---
 
-# Bevy 0.18.1 Conventions
+# Bevy 0.19.1 Conventions
 
 Scope: Bevy engine conventions, ECS architecture, and gameplay patterns. Pure Rust standards live in the `rust` skill. All Bevy-touching `.rs` files must adhere to these.
 
 ## Version & Documentation
-- Bevy **0.18.1** pinned — do not upgrade without migration review.
-- Primary reference: <https://docs.rs/bevy/0.18.1/bevy/>
-- Migration guides: <https://bevyengine.org/learn/migration-guides/>
+- Bevy **0.19.1** pinned — do not upgrade without migration review.
+- Primary reference: <https://docs.rs/bevy/0.19.1/bevy/>
+- Migration guides: <https://bevy.org/learn/migration-guides/>
+- `bevy_egui` must be pinned at **0.40** for Bevy 0.19 — it is the only bevy_egui release that explicitly declares Bevy 0.19 compatibility (0.41/0.42 changelogs bump egui only).
 - **Always consult official documentation before using any Bevy API.** Do not assume patterns from previous versions are still valid.
+
+## 0.18 → 0.19 API changes (verified in migration)
+- `DirectionalLight.shadows_enabled` → `shadow_maps_enabled` (0.19 also adds a separate `contact_shadows_enabled`).
+- `Skybox.image` is now `Option<Handle<Image>>` — wrap assignments in `Some(..)`.
+- `RenderCreation::Automatic` now takes `Box<WgpuSettings>`.
+- `TextFont.font_size` is now the `FontSize` enum — use `FontSize::Px(n)` to preserve prior pixel values.
+- `Camera3d` transmission fields moved to a separate `ScreenSpaceTransmission` component in `bevy_pbr`.
+- `DespawnOnExit`/`DespawnOnEnter` can now trigger during **same-state** transitions — audit identity transitions before relying on despawn timing.
+- `WGPU_SETTINGS_PRIO` env value renamed: `compatibility` → `webgpu` (old value silently no-ops).
+- Text backend migrated Cosmic Text → Parley — re-verify any text rendering assumptions.
 
 ## Plugin Architecture
 - Each gameplay domain gets its own plugin in `src/plugins/`.
@@ -45,7 +56,7 @@ Scope: Bevy engine conventions, ECS architecture, and gameplay patterns. Pure Ru
 
 ## State Management
 - Use Bevy states for game flow (menu, playing, paused).
-- Use `set_if_neq()` to avoid redundant same-state transitions — `set()` always fires transition logic in 0.18.1.
+- Use `set_if_neq()` to avoid redundant same-state transitions — `set()` always fires transition logic, and in 0.19 `DespawnOnExit`/`DespawnOnEnter` fire on same-state transitions too.
 - Gate systems with `in_state()` run conditions.
 
 ## Query Patterns
@@ -62,7 +73,7 @@ Scope: Bevy engine conventions, ECS architecture, and gameplay patterns. Pure Ru
 ## Asset Handling
 - Load via `AssetServer`; store handles in resource structs — do not hold raw paths at runtime.
 - Validate asset presence; log missing assets at `warn!` level.
-- Consult 0.18.1 docs — asset APIs changed significantly from previous versions.
+- Consult 0.19.1 docs — asset APIs changed significantly from previous versions. `AssetServer::load_with_settings` is deprecated in 0.19: use `load_builder().with_settings(..).load(path)`.
 
 ## Input Handling
 - Use `ButtonInput<KeyCode>` for keyboard, `ButtonInput<MouseButton>` for mouse.
@@ -73,11 +84,13 @@ Scope: Bevy engine conventions, ECS architecture, and gameplay patterns. Pure Ru
 - Minimize allocation churn in hot loops; reuse buffers.
 - Avoid large recursion — WASM has limited stack size.
 - Use `console_error_panic_hook` for error reporting in browser builds.
+- **Dropping a `Task<T>` in web builds cancels it** (0.19 change) — call `Task::detach()` if you need the old run-to-completion behavior.
 - Consult Bevy WASM documentation for build setup and feature flags.
 - Test in browser regularly — do not defer WASM validation to the end.
 
 ## Rendering Conventions
-- Consult 0.18.1 docs — several rendering APIs changed (`RenderTarget`, `AmbientLight`, camera APIs, etc.).
+- Consult 0.19.1 docs — several rendering APIs changed (`RenderTarget`, `AmbientLight`, camera APIs, render graph now systems-based, etc.).
+- WGSL shader imports of `bevy_pbr::` modules break at **runtime only** — a Bevy upgrade must include a visual smoke test; `cargo check` cannot catch shader import breakage.
 - Do not assume previous Bevy version patterns for rendering.
 - Use feature collections (`"3d"`) for dependency management — pin features explicitly, e.g. `features = ["3d"]`.
 
@@ -95,7 +108,7 @@ Scope: Bevy engine conventions, ECS architecture, and gameplay patterns. Pure Ru
 - All systems registered in a plugin — no orphan systems.
 - Events registered before use.
 - States initialized with a default value.
-- No deprecated APIs — verify against 0.18.1 docs.
+- No deprecated APIs — verify against 0.19.1 docs.
 - Clippy clean (`cargo clippy --all-targets --all-features -D warnings`).
 - Tests pass (`cargo test`).
 - WASM build compiles if targeting web (`cargo build --target wasm32-unknown-unknown`).
