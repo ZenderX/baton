@@ -177,13 +177,25 @@ seg_5h=""; seg_wk=""; seg_fable=""
 cache="$HOME/.claude/.statusline-usage.json"
 creds="$HOME/.claude/.credentials.json"
 
+mtime() { # file -> epoch seconds; GNU stat then BSD stat
+  stat -c %Y "$1" 2>/dev/null || stat -f %m "$1" 2>/dev/null || echo 0
+}
+
 cache_age=999999
 if [ -f "$cache" ]; then
-  cache_age=$(( $(date +%s) - $(date -r "$cache" +%s 2>/dev/null || echo 0) ))
+  cache_age=$(( $(date +%s) - $(mtime "$cache") ))
 fi
 
-if [ "$cache_age" -gt 60 ] && [ -f "$creds" ]; then
-  tok=$(grep -o '"accessToken":"[^"]*"' "$creds" | cut -d'"' -f4)
+if [ "$cache_age" -gt 60 ]; then
+  # Token source is platform-dependent: Git Bash/Linux keep a credentials file,
+  # macOS stores the identical JSON in the login Keychain. File wins when present.
+  tok=""
+  if [ -f "$creds" ]; then
+    tok=$(grep -o '"accessToken":"[^"]*"' "$creds" | cut -d'"' -f4)
+  elif command -v security >/dev/null 2>&1; then
+    tok=$(security find-generic-password -s "Claude Code-credentials" -w 2>/dev/null \
+          | grep -o '"accessToken":"[^"]*"' | head -n1 | cut -d'"' -f4)
+  fi
   if [ -n "$tok" ]; then
     fresh=$(curl -s -m 4 "https://api.anthropic.com/api/oauth/usage" \
       -H "Authorization: Bearer $tok" \
@@ -206,8 +218,15 @@ if [ -f "$cache" ] && command -v jq >/dev/null 2>&1; then
 
   countdown() { # ISO timestamp -> "2h13m" / "4d2h" / ""
     [ "$1" = "-" ] && return
-    local target now diff d h m
-    target=$(date -d "$1" +%s 2>/dev/null) || return
+    local target now diff d h m ts
+    target=$(date -d "$1" +%s 2>/dev/null)
+    if [ -z "$target" ]; then
+      # BSD date: no -d. Strip fractional seconds and the zone suffix, then parse
+      # as UTC — the API emits +00:00, so dropping the offset is lossless here.
+      ts=$(printf '%s' "$1" | sed -e 's/\.[0-9]*//' -e 's/Z$//' -e 's/[+-][0-9][0-9]:*[0-9][0-9]$//')
+      target=$(date -j -u -f "%Y-%m-%dT%H:%M:%S" "$ts" +%s 2>/dev/null)
+    fi
+    [ -z "$target" ] && return
     now=$(date +%s)
     diff=$(( target - now ))
     [ "$diff" -le 0 ] && { printf 'now'; return; }

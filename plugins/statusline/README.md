@@ -32,10 +32,10 @@ Enabling and disabling the plugin (`/plugin`) is the whole lifecycle; global sco
 
 ## Requirements
 
-- Git Bash (script is bash + GNU coreutils `date -d`)
+- Bash (Git Bash on Windows, or macOS — the script probes GNU `date`/`stat` and falls back to BSD)
 - `jq`, `curl`
 - Truecolor terminal (Windows Terminal is). **No Nerd Font needed** — `▌ █ ░ │` are standard Unicode.
-- Claude Code OAuth login for the plan-usage gauges (`~/.claude/.credentials.json`)
+- Claude Code OAuth login for the plan-usage gauges. Token is read from `~/.claude/.credentials.json` when present (Windows/Linux), otherwise from the macOS login Keychain (`Claude Code-credentials`).
 
 ## Caveats
 
