@@ -33,6 +33,8 @@ Trace blast radius before approving: for any changed export, type, injection key
 
 **Comment discipline:** flag comments that narrate the code, restate what a line does, trail on the same line, or run as multi-line explanation blocks — including file-purpose headers and per-function prose where the codebase doesn't use a doc convention. Language doc conventions (`@param`, docstrings, rustdoc) are exempt where the codebase already uses them. Report as MINOR unless a comment is actively wrong about the code, which is MAJOR.
 
+**Comment language:** every comment must be written in English, doc comments and docstrings included — the doc-convention exemption above does not waive this. Report a non-English comment as MAJOR with `file:line`. Code identifiers, proper nouns, URLs, and quoted foreign-language fixture data inside a comment do not count as non-English; string literals, user-facing/i18n text, and identifiers are outside this rule entirely.
+
 **Re-review after `NEEDS_REVISION`:** verify the prior findings the brief hands back and the lines changed since — not a second full-doctrine pass over the phase.
 
 **Language skills:** identify the primary language, then invoke the matching coding-standards skill via the `Skill` tool — `.vue` → `vue3`, `.ts`/`.tsx` → `typescript`, both → both, `.rs` → `rust`; other languages → general heuristics only. If a needed skill does not respond (not found, or its plugin isn't enabled), **say so explicitly in the review output and do not proceed on generic training-data knowledge for that language** — a missing skill is a blocker to flag, not a gap to fill. Where available, its anti-patterns take precedence for language-specific findings.
