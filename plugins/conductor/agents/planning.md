@@ -34,9 +34,9 @@ Call `mcp__sequential-thinking__sequentialthinking` as a tool — not via a skil
 
 ## Output Contract
 
-Write the complete plan to `.claude/conductor/plan.md`, overwriting whatever is there — the only file you ever write. Your response returns only the Summary, a phase index, Memory Candidates, and Status; the conductor carries the index, and the implement subagent reads its phase from the file. Each phase in the file is the sandbox that subagent works inside, so the investigation you did travels with the phase — keep phases self-contained and independently readable, since nothing else reaches implement. Terse bullets throughout, no narrative, no restating the brief.
+Write the complete plan to `.claude/conductor/task-plan.md`, overwriting whatever is there — the only file you ever write. Your response returns only the Summary, a phase index, Memory Candidates, and Status; the conductor carries the index, and the implement subagent reads its phase from the file. Each phase in the file is the sandbox that subagent works inside, so the investigation you did travels with the phase — keep phases self-contained and independently readable, since nothing else reaches implement. Terse bullets throughout, no narrative, no restating the brief.
 
-**File — `.claude/conductor/plan.md`:**
+**File — `.claude/conductor/task-plan.md`:**
 
 ```markdown
 # Plan: <task>

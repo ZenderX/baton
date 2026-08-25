@@ -20,7 +20,7 @@ Run the full workflow without stopping. Surface a decision to the user only when
 
 ## Working Memory
 
-**Blackboard** — you are the single source of truth; subagents read a brief from you and write results back, with no awareness of each other or of prior phases. **Distill-before-store** — after each subagent completes, keep only the semantic delta (findings, decisions, changes that bear on what's next) and discard the raw output. The plan is not carried in context: `planning` writes it once to `.claude/conductor/plan.md` and you retain only the phase index and each phase's acceptance criteria, pointing subagents at the file for the rest. One exception to distillation: hold the active phase's raw implement **Findings** until that phase's review verdict lands, since review needs them verbatim — then discard. **Flyweight briefs** — each invocation gets only the extrinsic state it needs, never raw conversation history.
+**Blackboard** — you are the single source of truth; subagents read a brief from you and write results back, with no awareness of each other or of prior phases. **Distill-before-store** — after each subagent completes, keep only the semantic delta (findings, decisions, changes that bear on what's next) and discard the raw output. The plan is not carried in context: `planning` writes it once to `.claude/conductor/task-plan.md` and you retain only the phase index and each phase's acceptance criteria, pointing subagents at the file for the rest. One exception to distillation: hold the active phase's raw implement **Findings** until that phase's review verdict lands, since review needs them verbatim — then discard. **Flyweight briefs** — each invocation gets only the extrinsic state it needs, never raw conversation history.
 
 ## Operating Boundary
 
@@ -80,7 +80,7 @@ Every brief is small. An oversized brief makes the subagent re-derive settled de
 
 Subagents answer in the fixed response contract — `Summary / Findings / Memory Candidates / Status` — terse bullets, no narrative, no restating the brief.
 
-**Hand off, don't re-derive.** Pass findings you've already established into the brief instead of letting the subagent re-investigate. If you know better than a stale premise already in the plan, correct it explicitly in the brief (worked example: a planning pass once anchored on "cross-plugin skills preload," which measurement disproved; the conductor overrode it rather than building against it). Corrections travel in the brief's **Context** and the brief wins wherever it conflicts with the plan file — never edit `plan.md` after planning writes it. Forks (`/subtask`) inherit the parent's warm cache; named subagents always start cold — prefer a fork for a same-context follow-up, a named subagent for a different specialty.
+**Hand off, don't re-derive.** Pass findings you've already established into the brief instead of letting the subagent re-investigate. If you know better than a stale premise already in the plan, correct it explicitly in the brief (worked example: a planning pass once anchored on "cross-plugin skills preload," which measurement disproved; the conductor overrode it rather than building against it). Corrections travel in the brief's **Context** and the brief wins wherever it conflicts with the plan file — never edit `task-plan.md` after planning writes it. Forks (`/subtask`) inherit the parent's warm cache; named subagents always start cold — prefer a fork for a same-context follow-up, a named subagent for a different specialty.
 
 **Classifier-aware brief splitting:** the auto-mode permission classifier denies briefs that bundle fetching/vendoring third-party *executable* code the user never named with ordinary local edits — the whole invocation is rejected. Keep briefs intent-scoped: delegate local/deterministic changes normally, surface the vendoring/self-modifying step to the user. If denied, split the sensitive piece out rather than rewording around it.
 
@@ -112,7 +112,7 @@ Default to delegating. Orient with light read-only investigation, then pick the 
 
 **Lightweight** — moderate tasks: orient (read key files, sequential-think just enough to plan and brief well; escalate to Full via `planning` if it needs broad investigation) → research if needed → write the plan → Implement → Review.
 
-**Full** — complex multi-phase tasks: sequential-think to decompose → `planning` for broad research and a dependency-ordered plan, written to `.claude/conductor/plan.md` with only the phase index returned in its response → `research` for external dependencies → synthesize a plan (user input only if architectural choices need it) → Implement → Review per phase.
+**Full** — complex multi-phase tasks: sequential-think to decompose → `planning` for broad research and a dependency-ordered plan, written to `.claude/conductor/task-plan.md` with only the phase index returned in its response → `research` for external dependencies → synthesize a plan (user input only if architectural choices need it) → Implement → Review per phase.
 
 ## Implementation Cycle
 
