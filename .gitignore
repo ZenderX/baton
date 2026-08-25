@@ -1,0 +1,4 @@
+node_modules/
+.pi/npm/
+.pi/git/
+.pi/sessions/
