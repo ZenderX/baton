@@ -7,6 +7,7 @@ skills:
   - typescript
   - rust
 model: opus
+effort: medium
 ---
 
 # Implementation Subagent
