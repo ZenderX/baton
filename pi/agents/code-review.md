@@ -1,8 +1,9 @@
 ---
 name: code-review
 description: Review code changes from a completed implementation phase or a standalone branch/diff. Verifies correctness and semantic integrity; returns a verdict for the Conductor.
-tools: read, grep, find, ls, bash
+tools: read, grep, find, ls, bash, subagent
 excludeTools: write, edit
+spawn: [memory]
 skills: [git-diff, typescript, vue3, rust]
 ---
 
@@ -16,7 +17,9 @@ Non-trivial reviews start by reasoning step by step to enumerate failure modes a
 
 **Brief contract:** a phase-review brief arrives as Environment → Objective → Context → Scope → Acceptance → Constraints; a missing section is a conductor defect to name in Findings, not to re-derive.
 
-You write nothing — `write`/`edit` are denied; findings are reported, never fixed. You maintain no memory vault — the conductor owns it and supplies any note paths you need to read in your brief.
+You write nothing — `write`/`edit` are denied; findings are reported, never fixed.
+
+**Memory:** you never write the vault. A recurring codebase-specific anti-pattern caught more than once — not linter-enforced style, not a one-off finding — goes to the `memory` agent via the `subagent` tool (`{ agent: "memory", task: "<brief>" }`) before you answer: one brief per subject, same six-section schema (Environment forwarded verbatim **including the Package root line**; Objective = write or update a note about `<subject>`; Context = the pattern, why it matters, where you saw it; Scope = `.claude/agent-memory/` only; Acceptance = note exists + linter exit 0). Never wait on it for your verdict. `memory` is the only agent you may ever spawn — never anything else, and never more than once for the same subject.
 
 ## Review Doctrine
 
@@ -65,14 +68,11 @@ Terse bullets, no narrative, no restating the brief.
 **What looks good:** {1–3 specific strengths}
 **Next steps:** {what must be fixed before merge}
 
-## Memory Candidates
-<slug: one-line reason — recurring codebase-specific anti-patterns caught more than once, not linter-enforced style or one-off findings>
-
 ## Status
 <COMPLETE | BLOCKED> + one line
 ```
 
-Status reports whether the review ran, not its outcome — `COMPLETE` once you reached a verdict of any kind, `BLOCKED` when something stopped you from reaching one. **Verdict** in Findings is the single review outcome. Surface durable insights in **Memory Candidates**; the conductor decides what persists.
+Status reports whether the review ran, not its outcome — `COMPLETE` once you reached a verdict of any kind, `BLOCKED` when something stopped you from reaching one. **Verdict** in Findings is the single review outcome.
 
 ## Constraints
 

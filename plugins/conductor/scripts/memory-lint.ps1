@@ -42,7 +42,7 @@
         INDEX-DEAD-LINK (a MEMORY.md entry pointing at a missing file) stays gate-blocking:
         an index entry is a path assertion, never a placeholder.
       - DIRTY-BANNER-IN-FRONTMATTER: the dirty banner line (inserted by the memory agent's
-        default pass) landed before the frontmatter's closing --- instead of after it, corrupting
+        propagation pass) landed before the frontmatter's closing --- instead of after it, corrupting
         the YAML block (gate-blocking; -Fix relocates it deterministically,
         preserving the file's original CRLF/LF convention). Scope boundary: detection relies
         on Get-FrontmatterBlock finding a closing ---; a note missing the closing delimiter
@@ -64,9 +64,10 @@
       - STRAY-LOCATION: any directory found anywhere under the project root (pruning .git,
         releases, node_modules) that has a MEMORY.md file as a direct child and is neither
         the vault root itself nor the single canonical folder <vault-root>/conductor-main.
-        conductor-main is the ONLY canonical memory folder; per-agent folders are not
-        canonical and are flagged like any other stray. Detection is purely by MEMORY.md
-        presence — no plugin/agent name roster involved, so it's rename-proof.
+        conductor-main is the ONLY canonical memory folder; per-agent and harness-created
+        folders are not canonical and are flagged like any other stray. Detection is
+        purely by MEMORY.md presence — no plugin/agent name roster involved, so it's
+        rename-proof.
         Found via a manual, symlink-safe directory walk (not Get-ChildItem -Recurse), so a
         cyclic symlink/junction cannot cause an infinite walk. Read-only: detected and
         reported only, never moved or deleted — the memory-review skill's consolidation step
@@ -150,7 +151,7 @@ $TypePrefixPattern = '^(' + ($KnownPrefixes -join '|') + ')_(.+)$'
 # Metadata types that are subject to staleness checks.
 [string[]]$DecayingTypes = @('research')
 
-# Dirty banner line, as inserted by the memory agent's default pass / cleared by memory-write's
+# Dirty banner line, as inserted by the memory agent's propagation pass / cleared by memory-write's
 # "Clearing a Dirty Flag". Matched by both DIRTY-BANNER-IN-FRONTMATTER (detects it stranded
 # inside the YAML block, which corrupts frontmatter) and the -Fix relocation repair.
 # Deliberately tolerant of the date and the free-text reason varying — only the fixed

@@ -26,6 +26,8 @@ export interface AgentConfig {
 	excludeTools?: string[];
 	model?: string;
 	thinking?: ThinkingLevel;
+	/** Agents this one may dispatch via `subagent`; undefined means it gets no `subagent` tool at all. */
+	spawn?: string[];
 	skillDirs: string[];
 	systemPrompt: string;
 	source: AgentSource;
@@ -52,6 +54,7 @@ type AgentFrontmatter = {
 	excludeTools?: unknown;
 	model?: unknown;
 	thinking?: unknown;
+	spawn?: unknown;
 	skills?: unknown;
 };
 
@@ -144,6 +147,7 @@ function loadAgentsFromDir(dir: string, source: AgentSource, packageRoot: string
 			excludeTools: parseToolList(frontmatter.excludeTools),
 			model: typeof frontmatter.model === "string" ? frontmatter.model : undefined,
 			thinking: parseThinking(frontmatter.thinking),
+			spawn: parseToolList(frontmatter.spawn),
 			skillDirs: resolveSkillDirs(parseToolList(frontmatter.skills) ?? [], packageRoot),
 			systemPrompt: body,
 			source,

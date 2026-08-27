@@ -53,7 +53,7 @@ The live roster with descriptions is listed under *Conductor runtime* at the end
 | `research` | Web research — docs, current events, versions, regulations, statistics, prices | Task needs information from the web rather than the codebase |
 | `implement` | Code generation, refactoring, file creation | Clear spec exists, ready for code changes |
 | `code-review` | Build/lint/test verification, code quality | Verify implementation quality after each phase |
-| `memory` | All memory-vault work — post-task dirty propagation, vault stewardship/review passes | After any task where memory notes were written or edited; or when vault quality work is needed |
+| `memory` | Memory vault writes and review passes | Any durable insight, or a vault review the user asks for |
 
 ## Skill Discovery
 
@@ -76,7 +76,7 @@ Every brief is small. An oversized brief makes the subagent re-derive settled de
 
 `implement` briefs additionally name every file **and location** (symbol or line anchor) to change — implement is pure action and never searches for where; an unnamed location is a planning gap to close before dispatch, not to delegate.
 
-Subagents answer in the fixed response contract — `Summary / Findings / Memory Candidates / Status` — terse bullets, no narrative, no restating the brief.
+Subagents answer in the fixed response contract — `Summary / Findings / Status` — terse bullets, no narrative, no restating the brief.
 
 **Hand off, don't re-derive.** Pass findings you've already established into the brief instead of letting the subagent re-investigate. If you know better than a stale premise already in the plan, correct it explicitly in the brief (worked example: a planning pass once anchored on "cross-plugin skills preload," which measurement disproved; the conductor overrode it rather than building against it). Corrections travel in the brief's **Context** and the brief wins wherever it conflicts with the plan file — never edit `task-plan.md` after planning writes it. Every subagent starts cold — there is no warm-fork path — so a follow-up in the same specialty is a fresh invocation whose brief carries the context the previous one established.
 
@@ -88,15 +88,9 @@ Independent invocations go in a **single `subagent` call with `tasks: [...]`** �
 
 Fan-out without crisp scope causes Step Repetition — per MAST (1,600+ traces), 15.7% of all multi-agent failures. Counterweight: every parallel brief carries an explicit, non-overlapping **ownership list** — paths it owns, plus a "do not touch, report instead" list for the rest. (Worked example: this document's own drafting — four phases dispatched concurrently across disjoint file sets, each told exactly what it owns and to report rather than edit outside it.)
 
-## Memory Discipline
+## Memory
 
-Save to your memory directory `.claude/agent-memory/conductor-main/`: cross-cutting insights spanning multiple subagent outputs — workflow-level architectural decisions, patterns in how tasks recur, why an orchestration choice was made.
-
-**Mechanics:** bare slug filename (e.g., `auth-refactor-sequencing.md`); tags `type/<kind>`, `topic/<x>`, `agent/main` (`<kind>` matches the note's type); `metadata.type: <kind>`; `metadata.updated: <today's date>`; cross-link with `[[slug]]`.
-
-**Vault stewardship** belongs to `memory` — delegate a review/stewardship pass to it like any other brief, rather than running vault tooling yourself.
-
-**Memory Subagent Trigger:** once a task is fully complete (after the final review pass), if any memory note was written or edited during the task, invoke `memory` with the changed slugs and a one-line reason each. Conductor-only prerogative — subagents never trigger it directly. Skip if nothing changed. **Exception:** a vault-review/stewardship pass delegated to `memory` is terminal — never follow it with another `memory` propagation invocation, which would re-flag the very notes just verified.
+You never write the vault yourself. When a durable, non-obvious orchestration insight, integration quirk, or why-this-way decision that survives the diff surfaces, invoke `memory` via the `subagent` tool — one brief per subject, same six-section schema (Environment forwarded verbatim with its Package root line; Objective = write or update a note about `<subject>`; Context = the fact, why it matters, where it came from; Scope = `.claude/agent-memory/` only; Acceptance = note exists + linter exit 0). Fire it the moment the insight lands; never wait on it, and never more than once for the same subject. Derivable-from-code facts are not memory; a review/stewardship pass is dispatched only when the user asks for one.
 
 ## Task Routing
 
@@ -123,6 +117,6 @@ Act on the review's **Verdict**:
 - `NEEDS_REVISION` → re-brief implement with code-review's **Issues** block verbatim — `file:line` and Fix lines passed through unchanged, never re-summarized — plus a one-line list of what already passed. The re-review scopes to those findings and the newly changed lines, not a second full pass
 - `FAILED` → surface to user with specific findings
 
-Max revision cycles per phase: **2**. If exceeded, surface to user. At task end the plan file stays where it is; the next `planning` dispatch overwrites it.
+Max revision cycles per phase: **2**. If exceeded, surface to user. Once the final review verdict lands, delete `.claude/conductor/task-plan.md` — a spent plan left on disk gets committed and read as current.
 
 Close tasks as the work lands, not when the conversation resolves. A phase whose work is done and verified is complete even if you are still surfacing findings, awaiting a user decision, or holding open questions — those are separate from delivery state. Before ending a turn, reconcile your phase index against what actually shipped; a phase reported as still running with no remaining work is a stale status, and the user reads it as work still in flight.

@@ -10,6 +10,9 @@
  *   - Chain: { chain: [{ agent: "name", task: "... {previous} ..." }, ...] }
  *
  * Uses JSON mode to capture structured output from subagents.
+ *
+ * A child keeps this tool only if its frontmatter declares a `spawn:` allow-list;
+ * the list reaches it as PI_CONDUCTOR_SPAWN_ALLOW and bounds what it may dispatch.
  */
 
 import { spawn } from "node:child_process";
@@ -68,6 +71,17 @@ function envThinkingOverride(): ThinkingLevel | undefined {
 		return undefined;
 	}
 	return value;
+}
+
+/** Set by the parent conductor process on every child: the agents this child may dispatch. Unset at the top level, where no allow-list applies. */
+function envSpawnAllow(): Set<string> | undefined {
+	const value = process.env.PI_CONDUCTOR_SPAWN_ALLOW;
+	if (value === undefined) return undefined;
+	const names = value
+		.split(",")
+		.map((n) => n.trim())
+		.filter(Boolean);
+	return new Set(names);
 }
 
 const MAX_PARALLEL_TASKS = 8;
@@ -370,9 +384,19 @@ async function runSingleAgent(
 	else if (inheritsDispatchConfig && dispatchDefaults.thinkingLevel) {
 		args.push("--thinking", dispatchDefaults.thinkingLevel);
 	}
-	if (agent.tools && agent.tools.length > 0) args.push("--tools", agent.tools.join(","));
-	// Unconditional: a child that can call `subagent` can spawn its own children without bound.
-	args.push("--exclude-tools", ["subagent", ...(agent.excludeTools ?? [])].join(","));
+	const allowed = agent.spawn ?? [];
+	// `--tools` is a strict allowlist, so `subagent` must be named there too when the agent pins its tools.
+	const tools =
+		allowed.length > 0 && agent.tools && !agent.tools.includes("subagent")
+			? [...agent.tools, "subagent"]
+			: agent.tools;
+	if (tools && tools.length > 0) args.push("--tools", tools.join(","));
+	if (allowed.length === 0) {
+		// No allow-list: a child that can call `subagent` would spawn its own children without bound.
+		args.push("--exclude-tools", ["subagent", ...(agent.excludeTools ?? [])].join(","));
+	} else if (agent.excludeTools && agent.excludeTools.length > 0) {
+		args.push("--exclude-tools", agent.excludeTools.join(","));
+	}
 	for (const dir of agent.skillDirs) args.push("--skill", dir);
 	if (projectTrusted) args.push("--approve");
 
@@ -419,6 +443,8 @@ async function runSingleAgent(
 				cwd: cwd ?? defaultCwd,
 				shell: false,
 				stdio: ["ignore", "pipe", "pipe"],
+				// Always set, empty included, so a grandchild never inherits its parent's allow-list.
+				env: { ...process.env, PI_CONDUCTOR_SPAWN_ALLOW: allowed.join(",") },
 			});
 			let buffer = "";
 
@@ -552,6 +578,7 @@ export default function (pi: ExtensionAPI) {
 			`To enable project-local agents in ${CONFIG_DIR_NAME}/agents, set agentScope: "both" (or "project").`,
 			"If PI_CONDUCTOR_MODEL or PI_CONDUCTOR_THINKING is set in the environment, it overrides every agent's own model or thinking level.",
 			"If an agent pins a model whose provider has no credentials in this session, it falls back to the session's own model and thinking level with a warning.",
+			"Inside a conductor child, only the agents in its `spawn:` allow-list can be dispatched; the list is exported as PI_CONDUCTOR_SPAWN_ALLOW.",
 		].join(" "),
 		parameters: SubagentParams,
 
@@ -581,6 +608,29 @@ export default function (pi: ExtensionAPI) {
 					projectAgentsDir: discovery.projectAgentsDir,
 					results,
 				});
+
+			const spawnAllow = envSpawnAllow();
+			if (spawnAllow) {
+				const requested = new Set<string>();
+				if (params.chain) for (const step of params.chain) requested.add(step.agent);
+				if (params.tasks) for (const t of params.tasks) requested.add(t.agent);
+				if (params.agent) requested.add(params.agent);
+
+				const list = Array.from(spawnAllow).join(", ") || "none";
+				const denied = Array.from(requested).find((name) => !spawnAllow.has(name));
+				if (denied !== undefined) {
+					return {
+						content: [
+							{
+								type: "text",
+								text: `Agent "${denied}" is not in this agent's spawn allow-list (${list})`,
+							},
+						],
+						details: makeDetails(hasChain ? "chain" : hasTasks ? "parallel" : "single")([]),
+						isError: true,
+					};
+				}
+			}
 
 			if (modeCount !== 1) {
 				const available = agents.map((a) => `${a.name} (${a.source})`).join(", ") || "none";

@@ -21,10 +21,27 @@ esac
 
 cur=$(jq -r '.statusLine.command // ""' "$settings" 2>/dev/null)
 interval=$(jq -r '.statusLine.refreshInterval // ""' "$settings" 2>/dev/null)
-[ "$cur" = "$cmd" ] && [ "$interval" = "60" ] && exit 0
+if [ "$cur" != "$cmd" ] || [ "$interval" != "60" ]; then
+  tmp=$(mktemp) || exit 0
+  if jq --arg c "$cmd" '.statusLine = {type: "command", command: $c, refreshInterval: 60}' "$settings" > "$tmp" 2>/dev/null \
+     && jq -e . "$tmp" >/dev/null 2>&1; then
+    mv "$tmp" "$settings"
+  else
+    rm -f "$tmp"
+  fi
+fi
+
+# MSYS=error_start: stops Git Bash writing bash.exe.stackdump on forks that die
+# at startup; empty value suppresses the file without launching a debugger.
+msys=$(jq -r '.env.MSYS // ""' "$settings" 2>/dev/null)
+case "$msys" in
+  *error_start*) exit 0 ;;
+  "")  new_msys="error_start:" ;;
+  *)   new_msys="error_start: $msys" ;;
+esac
 
 tmp=$(mktemp) || exit 0
-if jq --arg c "$cmd" '.statusLine = {type: "command", command: $c, refreshInterval: 60}' "$settings" > "$tmp" 2>/dev/null \
+if jq --arg m "$new_msys" '.env.MSYS = $m' "$settings" > "$tmp" 2>/dev/null \
    && jq -e . "$tmp" >/dev/null 2>&1; then
   mv "$tmp" "$settings"
 else

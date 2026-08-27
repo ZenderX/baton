@@ -129,6 +129,8 @@ PI_CONDUCTOR_MODEL=lmstudio/<model> PI_CONDUCTOR_THINKING=high pi --conductor
 
 For per-agent tiering, add a `model: <provider/id>` line in a user override agent (`~/.pi/agent/agents/<name>.md`) or project one (`.pi/agents/<name>.md`): this pin wins over inheritance, and the variables above win over it.
 
+Workers (`planning`, `research`, `implement`, `code-review`) declare `spawn: [memory]` in their frontmatter: they keep the `subagent` tool and use it to call the `memory` agent directly when they learn something durable. A child may only dispatch the agents in its own `spawn:` list, exported to it as `PI_CONDUCTOR_SPAWN_ALLOW`; anything else comes back as an error. `memory` declares no list, so nesting stops there — as does any agent without a `spawn:` line, which has no `subagent` tool at all.
+
 `/statusline` (or `--statusline`) displays a footer: folder + branch, model + context bar, tokens and cost.
 
 ### Development
@@ -198,7 +200,7 @@ The conductor keeps a memory *vault* per project, in:
 
 These are Markdown files with wikilinks — you can open the folder as an **Obsidian** vault to browse it visually.
 
-For now this memory mostly serves the agent itself. You have nothing to write in it by hand.
+For now this memory mostly serves the agent itself. You have nothing to write in it by hand. Notes are written by the `memory` subagent, which every conductor worker calls directly when it learns something durable; `MEMORY.md` reaches the orchestrator through its `memory: project` setting (Claude Code) or inlined in its runtime block (pi).
 
 ---
 
@@ -240,7 +242,7 @@ If you were using the old version with file synchronization, clean up — otherw
    /memory-review
    ```
 
-   This moves an existing vault over to the new model.
+   This migrates any stray `.claude/agent-memory/*` folder into the canonical `conductor-main/`.
 
 ---
 
