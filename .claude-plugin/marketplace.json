@@ -9,7 +9,7 @@
     {
       "name": "conductor",
       "source": "./plugins/conductor",
-      "description": "Conductor orchestrator + 5 subagents (planning, research, implement, code-review, memory) with their preloaded skills and MCP servers."
+      "description": "Conductor orchestrator + 5 subagents (planning, research, implement, code-review, memory) with their preloaded skills and MCP servers. Run /conductor:setup to enable the Task tools (CLAUDE_CODE_ENABLE_TODO_TOOLS) in the project's .claude/settings.json."
     },
     {
       "name": "statusline",
