@@ -6,7 +6,7 @@ skills:
   - vue3
   - typescript
   - rust
-model: opus
+model: sonnet
 effort: medium
 ---
 
