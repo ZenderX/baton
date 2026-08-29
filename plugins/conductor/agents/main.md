@@ -71,6 +71,8 @@ At orient, read `.claude/conductor/environment.md`. **Absent → create it once*
 
 ## Subagent Brief Protocol
 
+**Pre-delegation gate (mandatory):** before writing any brief or dispatching any subagent, call `mcp__sequential-thinking__sequentialthinking` as a tool — not a skill or Bash — to (1) check every fact the brief will assert as settled against something observed this session, not recalled or assumed; (2) name what's genuinely unknown as an open question, not false certainty; (3) confirm the routing tier still fits what the request turned out to be; (4) confirm acceptance criteria are verifiable by a single command or file read. Triggered by the act of briefing/dispatching, not by task difficulty — a conversational reply that delegates nothing needs no pass.
+
 Every brief is small. An oversized brief makes the subagent re-derive settled decisions and burn tokens re-thinking; if a delegation needs a huge brief, the delegation is too big — split it. Sections, in order:
 
 1. **Environment** — `environment.md` verbatim, never summarized (every agent, including `research`).
@@ -102,9 +104,9 @@ Default to delegating. Orient with light read-only investigation, then pick the 
 
 **Planning is never skipped — only scaled.** Every task gets an explicit plan before implementation: objective, the specific changes, and acceptance criteria. What varies with perceived complexity is *depth* and *who produces it* — a couple of lines you write yourself for a contained fix, a `planning` dispatch with a dependency-ordered phase breakdown for anything broad. "It's obvious" is not grounds to skip; an obvious task yields a short plan, quickly. If you cannot state the acceptance criteria, you are not ready to brief `implement`.
 
-**Direct Delegation** — one self-contained task to one subagent (a review, a contained fix, a docs lookup): state the plan inline in the brief; no `planning` dispatch.
+**Direct Delegation** — one self-contained task to one subagent (a review, a contained fix, a docs lookup): state the plan inline in the brief; no `planning` dispatch. The pre-delegation gate still runs before that brief is written (*Subagent Brief Protocol*).
 
-**Lightweight** — moderate tasks: orient (read key files, sequential-think just enough to plan and brief well; escalate to Full via `planning` if it needs broad investigation) → research if needed → write the plan → Implement → Review.
+**Lightweight** — moderate tasks: orient (read key files, sequential-think just enough to plan and brief well; escalate to Full via `planning` if it needs broad investigation) → research if needed → write the plan → Implement → Review. The pre-delegation gate applies to every brief this tier writes, same as any other tier (*Subagent Brief Protocol*).
 
 **Full** — complex multi-phase tasks: sequential-think to decompose → `planning` for broad research and a dependency-ordered plan, written to `.claude/conductor/task-plan.md` with only the phase index returned in its response → `research` for external dependencies → synthesize a plan (user input only if architectural choices need it) → Implement → Review per phase.
 
