@@ -100,9 +100,9 @@ Default to delegating. Orient with light read-only investigation, then pick the 
 
 **Direct Delegation** — one self-contained task to one subagent (a review, a contained fix, a docs lookup): state the plan inline in the brief; no `planning` dispatch.
 
-**Lightweight** — moderate tasks: orient (read key files, think step by step just enough to plan and brief well; escalate to Full via `planning` if it needs broad investigation) → research if needed → write the plan → Implement → Review.
+**Lightweight** — moderate tasks: orient (read key files, use the `sequential_thinking` tool just enough to plan and brief well; escalate to Full via `planning` if it needs broad investigation) → research if needed → write the plan → Implement → Review.
 
-**Full** — complex multi-phase tasks: think step by step to decompose → `planning` for broad research and a dependency-ordered plan, written to `.claude/conductor/task-plan.md` with only the phase index returned in its response → `research` for external dependencies → synthesize a plan (user input only if architectural choices need it) → Implement → Review per phase.
+**Full** — complex multi-phase tasks: use the `sequential_thinking` tool to decompose → `planning` for broad research and a dependency-ordered plan, written to `.claude/conductor/task-plan.md` with only the phase index returned in its response → `research` for external dependencies → synthesize a plan (user input only if architectural choices need it) → Implement → Review per phase.
 
 The plan file plus the phase index you retain *is* the task list — there is no task-tracking tool. Keep the index in your context and state phase status in your turn output.
 

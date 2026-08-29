@@ -131,6 +131,8 @@ For per-agent tiering, add a `model: <provider/id>` line in a user override agen
 
 Workers (`planning`, `research`, `implement`, `code-review`) declare `spawn: [memory]` in their frontmatter: they keep the `subagent` tool and use it to call the `memory` agent directly when they learn something durable. A child may only dispatch the agents in its own `spawn:` list, exported to it as `PI_CONDUCTOR_SPAWN_ALLOW`; anything else comes back as an error. `memory` declares no list, so nesting stops there — as does any agent without a `spawn:` line, which has no `subagent` tool at all.
 
+`sequential_thinking` is a native reimplementation of the upstream MCP tool inside the conductor extension, same parameters, with per-session in-memory state. It's named in the pinned `tools:` of `planning`, `research`, and `code-review`; `memory` doesn't pin it, matching Claude's memory agent, which never grants it either. `implement` pins no `tools:` line, so it inherits the tool too.
+
 `/statusline` (or `--statusline`) displays a footer: folder + branch, model + context bar, tokens and cost.
 
 ### Development
@@ -186,7 +188,7 @@ Omitting a key loads everything of that type; `[]` loads none; `!pattern` exclud
 
 ### Not ported
 
-MCP (context7, sequential-thinking) — pi has no MCP; the statusline's plan-usage segment; `TaskCreate`; the `permissions.deny` guardrails, now plain prompt instructions.
+MCP (context7) — pi has no MCP; the statusline's plan-usage segment; `TaskCreate`; the `permissions.deny` guardrails, now plain prompt instructions.
 
 ---
 

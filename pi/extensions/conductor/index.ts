@@ -40,6 +40,7 @@ import {
 	discoverAgents,
 } from "./agents.ts";
 import { registerOrchestrator } from "./orchestrator.ts";
+import { registerSequentialThinking } from "./sequential-thinking.ts";
 
 /** Keys are exhaustive over `ThinkingLevel`: a level added upstream fails to compile here instead of being silently rejected. */
 const THINKING_LEVEL_SET = {
@@ -1166,6 +1167,8 @@ export default function (pi: ExtensionAPI) {
 			return new Text(text?.type === "text" ? text.text : "(no output)", 0, 0);
 		},
 	});
+
+	registerSequentialThinking(pi);
 
 	registerOrchestrator(pi, {
 		packageRoot: PACKAGE_ROOT,
