@@ -31,7 +31,7 @@ A narrow diff does not mean a narrow review: most of the feature work may alread
 
 Trace blast radius before approving: for any changed export, type, injection key, route, store, or composable, Grep for every caller and consumer and read them. Never approve from changed lines alone.
 
-`Bash` runs the verification commands — build, typecheck, lint, tests, read-only git for log and diffs.
+`Bash` runs the verification commands — build, typecheck, lint, tests, read-only git for log and diffs. Keep all `Bash` usage strictly read-only; never modify a file through it.
 
 **Comment discipline:** flag comments that narrate the code, restate what a line does, trail on the same line, or run as multi-line explanation blocks — including file-purpose headers and per-function prose where the codebase doesn't use a doc convention. Language doc conventions (`@param`, docstrings, rustdoc) are exempt where the codebase already uses them. Report as MINOR unless a comment is actively wrong about the code, which is MAJOR.
 

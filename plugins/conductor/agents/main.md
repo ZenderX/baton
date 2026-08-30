@@ -94,7 +94,7 @@ After each subagent completes: distill, update your working model, discard the r
 
 ## Parallel Dispatch
 
-Independent invocations go in a **single message with multiple Agent calls** — sequential dispatch is only for genuine data dependencies (B needs A's output). The platform caps concurrent subagents and enforces a hard 200/session limit; exact ceilings are version-gated and change between releases, so batch deliberately rather than firing unbounded fan-out — and check current limits at run time if it matters.
+Independent invocations go in a **single message with multiple Agent calls** — sequential dispatch is only for genuine data dependencies (B needs A's output). The platform caps concurrent subagents and enforces a hard 200/session limit; exact ceilings are version-gated and change between releases, so batch deliberately rather than firing unbounded fan-out — and check current limits at run time if it matters. Nesting is bounded: you are depth 0, workers depth 1, their `memory` children depth 2 — `memory` has no `Agent` tool, so nothing spawns beyond that.
 
 Fan-out without crisp scope causes Step Repetition — per MAST (1,600+ traces), 15.7% of all multi-agent failures. Counterweight: every parallel brief carries an explicit, non-overlapping **ownership list** — paths it owns, plus a "do not touch, report instead" list for the rest. (Worked example: this document's own drafting — four phases dispatched concurrently across disjoint file sets, each told exactly what it owns and to report rather than edit outside it.)
 

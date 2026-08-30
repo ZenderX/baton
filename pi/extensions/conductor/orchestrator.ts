@@ -32,7 +32,7 @@ function isConductorModeEntry(entry: SessionEntry): entry is CustomEntry<Conduct
 
 export interface OrchestratorDeps {
 	packageRoot: string;
-	discover: () => AgentConfig[];
+	discover: (cwd: string) => AgentConfig[];
 }
 
 function readFileOr(filePath: string, fallback: string): string {
@@ -48,7 +48,7 @@ function readFileOr(filePath: string, fallback: string): string {
  * location, the live agent roster, and the project's vault contents.
  */
 function buildRuntimeBlock(cwd: string, { packageRoot, discover }: OrchestratorDeps): string {
-	const agents = discover();
+	const agents = discover(cwd);
 	const agentList =
 		agents.length > 0
 			? agents.map((a) => `  - ${a.name} (${a.source}): ${a.description}`).join("\n")

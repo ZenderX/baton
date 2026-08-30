@@ -13,6 +13,9 @@
  *
  * A child keeps this tool only if its frontmatter declares a `spawn:` allow-list;
  * the list reaches it as PI_CONDUCTOR_SPAWN_ALLOW and bounds what it may dispatch.
+ * Independently of that list, PI_CONDUCTOR_SPAWN_DEPTH bounds how deep the tree
+ * may nest: the root conductor is depth 0 and MAX_SPAWN_DEPTH is the first level
+ * refused.
  */
 
 import { spawn } from "node:child_process";
@@ -83,6 +86,15 @@ function envSpawnAllow(): Set<string> | undefined {
 		.map((n) => n.trim())
 		.filter(Boolean);
 	return new Set(names);
+}
+
+/** Root conductor is 0, its workers 1, their `memory` children 2 — nothing spawns beyond that. */
+const MAX_SPAWN_DEPTH = 2;
+
+/** Depth of this process in the conductor tree. Unset at the top level, where nothing has spawned us yet. */
+function envSpawnDepth(): number {
+	const parsed = Number.parseInt(process.env.PI_CONDUCTOR_SPAWN_DEPTH ?? "", 10);
+	return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
 }
 
 const MAX_PARALLEL_TASKS = 8;
@@ -445,7 +457,11 @@ async function runSingleAgent(
 				shell: false,
 				stdio: ["ignore", "pipe", "pipe"],
 				// Always set, empty included, so a grandchild never inherits its parent's allow-list.
-				env: { ...process.env, PI_CONDUCTOR_SPAWN_ALLOW: allowed.join(",") },
+				env: {
+					...process.env,
+					PI_CONDUCTOR_SPAWN_ALLOW: allowed.join(","),
+					PI_CONDUCTOR_SPAWN_DEPTH: String(envSpawnDepth() + 1),
+				},
 			});
 			let buffer = "";
 
@@ -502,7 +518,8 @@ async function runSingleAgent(
 				resolve(code ?? 0);
 			});
 
-			proc.on("error", () => {
+			proc.on("error", (err) => {
+				currentResult.stderr += `spawn error: ${err.message}\n`;
 				resolve(1);
 			});
 
@@ -580,6 +597,7 @@ export default function (pi: ExtensionAPI) {
 			"If PI_CONDUCTOR_MODEL or PI_CONDUCTOR_THINKING is set in the environment, it overrides every agent's own model or thinking level.",
 			"If an agent pins a model whose provider has no credentials in this session, it falls back to the session's own model and thinking level with a warning.",
 			"Inside a conductor child, only the agents in its `spawn:` allow-list can be dispatched; the list is exported as PI_CONDUCTOR_SPAWN_ALLOW.",
+			`Nesting is capped at ${MAX_SPAWN_DEPTH} levels below the root conductor, tracked as PI_CONDUCTOR_SPAWN_DEPTH; a call from the deepest level is refused.`,
 		].join(" "),
 		parameters: SubagentParams,
 
@@ -609,6 +627,20 @@ export default function (pi: ExtensionAPI) {
 					projectAgentsDir: discovery.projectAgentsDir,
 					results,
 				});
+
+			const currentDepth = envSpawnDepth();
+			if (currentDepth >= MAX_SPAWN_DEPTH) {
+				return {
+					content: [
+						{
+							type: "text",
+							text: `Spawn depth limit reached (depth ${currentDepth} of ${MAX_SPAWN_DEPTH}); this agent cannot dispatch subagents. Report back to the agent that spawned you instead.`,
+						},
+					],
+					details: makeDetails(hasChain ? "chain" : hasTasks ? "parallel" : "single")([]),
+					isError: true,
+				};
+			}
 
 			const spawnAllow = envSpawnAllow();
 			if (spawnAllow) {
@@ -1172,6 +1204,6 @@ export default function (pi: ExtensionAPI) {
 
 	registerOrchestrator(pi, {
 		packageRoot: PACKAGE_ROOT,
-		discover: () => discoverAgents(process.cwd(), "user", PACKAGE_AGENTS_DIR).agents,
+		discover: (cwd) => discoverAgents(cwd, "user", PACKAGE_AGENTS_DIR).agents,
 	});
 }
