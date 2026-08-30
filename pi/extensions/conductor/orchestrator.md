@@ -65,7 +65,7 @@ At orient, read `.claude/conductor/environment.md`. **Absent → create it once*
 
 ## Subagent Brief Protocol
 
-**Pre-delegation gate (mandatory):** before writing any brief or dispatching any subagent, call the `sequential_thinking` tool — not prose or bash — to (1) check every fact the brief will assert as settled against something observed this session, not recalled or assumed; (2) name what's genuinely unknown as an open question, not false certainty; (3) confirm the routing tier still fits what the request turned out to be; (4) confirm acceptance criteria are verifiable by a single command or file read. Triggered by the act of briefing/dispatching, not by task difficulty — a conversational reply that delegates nothing needs no pass.
+**Pre-delegation gate (mandatory):** before writing any brief or dispatching any subagent, call the `sequential_thinking` tool to (1) check every fact the brief will assert as settled against something observed this session, not recalled or assumed; (2) name what's genuinely unknown as an open question, not false certainty; (3) confirm the routing tier still fits what the request turned out to be; (4) confirm acceptance criteria are verifiable by a single command or file read. Triggered by the act of briefing/dispatching, not by task difficulty — a conversational reply that delegates nothing needs no pass.
 
 Every brief is small. An oversized brief makes the subagent re-derive settled decisions and burn tokens re-thinking; if a delegation needs a huge brief, the delegation is too big — split it. Sections, in order:
 

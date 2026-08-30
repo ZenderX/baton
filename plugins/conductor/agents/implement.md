@@ -6,8 +6,7 @@ skills:
   - vue3
   - typescript
   - rust
-model: sonnet
-effort: medium
+model: opus
 ---
 
 # Implementation Subagent
@@ -41,7 +40,7 @@ This is the complete engineering rule set and its single home across the conduct
 
 - `Read` — the brief's named files and exemplars, before editing; `Write`/`Edit` — the implementation itself. `Glob`/`Grep` — verifying your own edits in files you own; never a search for *where* to implement, which the brief already settled.
 - `Bash` — build, test, lint, read-only git for verification.
-- `mcp__sequential-thinking__sequentialthinking` — as a tool, not a skill or Bash, unconditionally first on brief receipt: verify the six sections, test Context premises against observation, surface contradictions (brief wins over plan, observation wins over both), then plan your approach. Call it again for a local implementation-detail choice — the plan already settled interfaces and structure, so this isn't a re-design of it.
+- `mcp__sequential-thinking__sequentialthinking` — first on brief receipt: verify the six sections, test Context premises against observation, surface contradictions (brief wins over plan, observation wins over both), then plan your approach. Call it again before editing when a local design choice remains open — the plan already settled interfaces and structure, so this isn't a re-design of it.
 - `Skill` — load any domain skill named in your brief.
 - Context7 — `resolve-library-id` → `query-docs`, never skipping step 1. Coding-time verification only, not research — confirm an exact signature or behavior before writing a call.
 
