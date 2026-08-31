@@ -1,6 +1,6 @@
-# Skills Marketplace
+# the-conductor
 
-Private marketplace of Claude Code plugins: the **conductor** agent (orchestrator + 5 subagents) and its domain skills (Bevy, Blender, Rust, TypeScript, Vue 3).
+Marketplace of Claude Code plugins: the **conductor** agent (orchestrator + 5 subagents) and its domain skills (Bevy, Blender, Rust, TypeScript, Vue 3).
 
 Everything lives in this folder. There is nothing left to synchronize: when this folder changes, your agents are up to date in **all** your projects at the next Claude restart.
 
@@ -45,8 +45,9 @@ Everything lives in this folder. There is nothing left to synchronize: when this
 | Plugin | Description |
 |---|---|
 | `conductor` | Conductor orchestrator + 5 subagents (planning, research, implement, code-review, memory) with their preloaded skills and MCP servers. |
+| `statusline` | Starship-style powerline statusline: repo/branch + git flags, model + context usage, plan usage with reset countdowns. Wire it in with `/statusline:setup`. |
 | `bevy` | Bevy 0.19.1 ECS conventions, plugin architecture and gameplay patterns. For writing or reviewing Bevy game code. |
-| `blender` | Blender → Bevy workflow conventions with bevy_skein 0.5. For code that integrates with Blender or uses bevy_skein. |
+| `blender` | Blender → Bevy workflow conventions with bevy_skein 0.6.0. For code that integrates with Blender or uses bevy_skein. |
 | `rust` | Rust coding standards and conventions. For writing or reviewing Rust files. |
 | `typescript` | TypeScript coding standards. For writing or reviewing TypeScript or TSX files. |
 | `vue3` | Vue 3 coding standards with Composition API, Pinia and TypeScript. For writing or reviewing `.vue` files and their associated composables. |
@@ -67,7 +68,7 @@ The same folder also serves as a **pi package**: the conductor, its 5 subagents 
   pi --version
   ```
 
-In the commands below, replace `<absolute-repo-path>` with the path to this folder — for example `/absolute/path/to/baton`.
+In the commands below, replace `<absolute-repo-path>` with the path to this folder — for example `C:/path/to/the-conductor`.
 
 ### Model providers
 
@@ -188,7 +189,7 @@ Omitting a key loads everything of that type; `[]` loads none; `!pattern` exclud
 
 ### Not ported
 
-MCP (context7) — pi has no MCP; the statusline's plan-usage segment; `TaskCreate`; the `permissions.deny` guardrails, now plain prompt instructions.
+MCP (context7) — pi has no MCP; the statusline's plan-usage segment; `TaskCreate`. Agent guardrails are prompt-level instructions in both harnesses — no `permissions.deny` rules are configured.
 
 ---
 
@@ -240,11 +241,7 @@ If you were using the old version with file synchronization, clean up — otherw
    claude --agent conductor:main
    ```
 
-   ```
-   /memory-review
-   ```
-
-   This migrates any stray `.claude/agent-memory/*` folder into the canonical `conductor-main/`.
+   Then ask it to run the `conductor:memory-review` skill. This migrates any stray `.claude/agent-memory/*` folder into the canonical `conductor-main/`.
 
 ---
 

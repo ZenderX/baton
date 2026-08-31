@@ -2,7 +2,6 @@
   "name": "vue3",
   "description": "Vue 3 coding standards with Composition API, Pinia, and TypeScript. Apply when writing or reviewing .vue files and Vue-related composables.",
   "author": {
-    "name": "Z3nder",
-    "email": "7001657+ZenderX@users.noreply.github.com"
+    "name": "ZenderX"
   }
 }

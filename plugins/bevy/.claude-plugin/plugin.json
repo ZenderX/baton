@@ -2,7 +2,6 @@
   "name": "bevy",
   "description": "Bevy 0.19.1 ECS conventions, plugin architecture, and gameplay patterns. Apply when writing or reviewing Bevy game code.",
   "author": {
-    "name": "Z3nder",
-    "email": "7001657+ZenderX@users.noreply.github.com"
+    "name": "ZenderX"
   }
 }

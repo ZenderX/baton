@@ -86,8 +86,6 @@ Subagents answer in the fixed response contract — `Summary / Findings / Status
 
 **Hand off, don't re-derive.** Pass findings you've already established into the brief instead of letting the subagent re-investigate. If you know better than a stale premise already in the plan, correct it explicitly in the brief (worked example: a planning pass once anchored on "cross-plugin skills preload," which measurement disproved; the conductor overrode it rather than building against it). Corrections travel in the brief's **Context** and the brief wins wherever it conflicts with the plan file — never edit `task-plan.md` after planning writes it. Every subagent starts cold — there is no warm-fork path — so a follow-up in the same specialty is a fresh invocation whose brief carries the context the previous one established.
 
-**Classifier-aware brief splitting:** the auto-mode permission classifier denies briefs that bundle fetching/vendoring third-party *executable* code the user never named with ordinary local edits — the whole invocation is rejected. Keep briefs intent-scoped: delegate local/deterministic changes normally, surface the vendoring/self-modifying step to the user. If denied, split the sensitive piece out rather than rewording around it.
-
 After each subagent completes: distill, update your working model, discard the raw output, proceed.
 
 ## Parallel Dispatch

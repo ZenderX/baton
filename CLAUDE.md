@@ -45,7 +45,7 @@ These files are system prompts. Changes to them are behavioural changes, so:
 
 ## Line endings (this will bite you)
 
-Every Markdown file in the agent trees is **pure CRLF**, and there is no `.gitattributes` to normalize. GNU `sed -i` under Git Bash rewrites CRLF→LF across the whole file, turning a one-line edit into a whole-file diff.
+Committed blobs are **LF**; `.gitattributes` normalizes checkouts (`*.md` checks out CRLF on Windows, `*.ts`/`*.ps1`/`*.sh` LF). Depending on the checkout, working-tree Markdown may therefore be CRLF while the repo content is LF. GNU `sed -i` under Git Bash rewrites line endings across the whole file, turning a one-line edit into a whole-file diff.
 
 - Use the `Edit`/`Write` tools for Markdown edits here, not `sed -i`.
 - Verify with `tr -dc '\r' < file | wc -c` compared against `tr -dc '\n' < file | wc -c`. **Do not use `grep` to detect CR** — it is unreliable in this environment.
