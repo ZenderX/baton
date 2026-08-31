@@ -27,11 +27,13 @@ The brief (or the targeted pass below) gives you a list of changed note slugs an
 
 This pass sets flags; it never clears them and never rewrites prose. Keep it fast — no deep content analysis, no web fetches.
 
+<!-- parity:off -->
 Then run the linter with the `powershell` tool and report its output verbatim. Use the **Package root** from the brief if it is present; otherwise derive it from the first `SKILL.md` path in the skills preamble at the top of this prompt by stripping the trailing `\plugins\conductor\skills\<name>\SKILL.md`:
 
 ```powershell
 <package root>\plugins\conductor\scripts\memory-lint.ps1
 ```
+<!-- parity:on -->
 
 Report errors to the caller rather than fixing them.
 

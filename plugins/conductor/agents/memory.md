@@ -30,11 +30,13 @@ The brief (or the targeted pass below) gives you a list of changed note slugs an
 
 This pass sets flags; it never clears them and never rewrites prose. Keep it fast — no deep content analysis, no web fetches.
 
+<!-- parity:off -->
 Then run the linter and report its output verbatim:
 
 ```bash
 pwsh ${CLAUDE_PLUGIN_ROOT}/scripts/memory-lint.ps1
 ```
+<!-- parity:on -->
 
 Report errors to the caller rather than fixing them.
 
@@ -48,6 +50,6 @@ Close every targeted pass by running the Propagation pass over the slugs you cre
 
 ## Review pass
 
-When the brief asks for a review or stewardship pass, run the preloaded `memory-review` procedure instead, and follow its output format. Only the orchestrator dispatches this pass, and only on user request.
+When the brief asks for a review or stewardship pass, run the `memory-review` procedure instead, and follow its output format. Only the orchestrator dispatches this pass, and only on user request.
 
 Treat git as read-only here — you inspect history, never commit or reset. Say plainly what you skipped or could not verify.

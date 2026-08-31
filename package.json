@@ -4,6 +4,8 @@
   "private": true,
   "type": "module",
   "description": "Conductor orchestrator + subagents and domain skills for pi",
+  "license": "MIT",
+  "author": "ZenderX",
   "keywords": [
     "pi-package"
   ],
