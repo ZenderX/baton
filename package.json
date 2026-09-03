@@ -1,0 +1,42 @@
+{
+  "name": "the-conductor",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Conductor orchestrator + subagents and domain skills for pi",
+  "license": "MIT",
+  "author": "ZenderX",
+  "keywords": [
+    "pi-package"
+  ],
+  "pi": {
+    "extensions": [
+      "./pi/extensions/conductor/index.ts",
+      "./pi/extensions/statusline.ts",
+      "./pi/extensions/lmstudio-reasoning.ts"
+    ],
+    "skills": [
+      "./plugins/conductor/skills",
+      "./plugins/bevy/skills",
+      "./plugins/blender/skills",
+      "./plugins/rust/skills",
+      "./plugins/typescript/skills",
+      "./plugins/vue3/skills"
+    ],
+    "prompts": [
+      "./pi/prompts"
+    ]
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-agent-core": "*",
+    "@earendil-works/pi-tui": "*",
+    "typebox": "*"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-coding-agent": "0.84.3",
+    "@types/node": "^24",
+    "typescript": "^5"
+  }
+}

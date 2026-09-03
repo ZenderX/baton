@@ -1,0 +1,19 @@
+node_modules/
+.pi/npm/
+.pi/git/
+.pi/sessions/
+bash.exe.stackdump
+
+# Machine-local harness state
+.pi/settings.json
+.claude/settings.local.json
+
+# Private: conductor memory vault and generated environment/plan files
+.claude/agent-memory/
+.claude/conductor/
+
+# Build artifacts
+releases/
+
+# OS cruft
+.DS_Store

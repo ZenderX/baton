@@ -1,6 +1,6 @@
 ---
 name: blender
-description: Blender-to-Bevy workflow conventions using bevy_skein 0.5. Apply when writing code that integrates with Blender or uses bevy_skein.
+description: Blender-to-Bevy workflow conventions using bevy_skein 0.6.0. Apply when writing code that integrates with Blender or uses bevy_skein.
 paths: "**/*.rs"
 ---
 
@@ -9,7 +9,7 @@ paths: "**/*.rs"
 Scope: Conventions for Blender-to-Bevy workflow using `bevy_skein`. Pure Rust standards live in the `rust` skill; Bevy patterns live in the `bevy` skill. All code interfacing with Skein must adhere to these.
 
 ## Version & Documentation
-- **bevy_skein 0.5** pinned — compatible with Bevy 0.18.1.
+- **bevy_skein 0.6.0** pinned — compatible with Bevy 0.19.1.
 - API reference: <https://docs.rs/bevy_skein/latest/bevy_skein/>
 - Guide & examples: <https://bevyskein.dev/>
 - **Always consult official bevy_skein documentation before using any Skein API.** Do not assume patterns from memory — verify against current docs.

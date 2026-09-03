@@ -20,7 +20,7 @@ Invoke when:
 - A significant architectural change may have invalidated existing memories
 - Monthly cadence for routine vault hygiene
 
-This skill is preloaded into the `memory` agent. The conductor delegates a vault review/stewardship pass to that agent (the same way it delegates any other brief), and the agent runs this procedure — either with `pwsh ${CLAUDE_PLUGIN_ROOT}/scripts/memory-lint.ps1` results already in hand, or by running the full workflow below itself.
+This skill is preloaded into the `memory` agent. The conductor delegates a vault review/stewardship pass to that agent (the same way it delegates any other brief), and the agent runs this procedure — either with `pwsh ${CLAUDE_PLUGIN_ROOT}/scripts/memory-lint.ps1` results already in hand, or by running the full workflow below itself. The orchestrator dispatches this pass only on user request.
 
 **This skill has no authority over agent, skill, or rule files.** It reads and writes memory notes under `.claude/agent-memory/` and nothing else. A vault insight that seems to belong in an agent definition gets surfaced to the user in the summary, never written there.
 
@@ -47,7 +47,7 @@ Note: `-Fix` also regenerates `.obsidian/graph.json`'s topic color groups automa
 
 **A directory containing a `MEMORY.md` that is not `conductor-main/` is stray memory.** That is the whole rule. Detection keys on the `MEMORY.md` artifact, not on folder names — there is no agent-name roster and no per-agent branching, so the check is rename-proof and needs no maintenance as agents come and go. The vault root itself is not stray; every other `MEMORY.md`-bearing directory the linter reports as `STRAY-LOCATION` is.
 
-Everything migrates into `.claude/agent-memory/conductor-main/` — the sole canonical folder. Create it if it does not exist. For each stray folder:
+Everything migrates into `.claude/agent-memory/conductor-main/` — the sole canonical folder. Create it if it does not exist. Any other `agent-memory/*` folder the harness may auto-create for a subagent (for example `conductor-memory/`) is a stray like any other and migrates by this same procedure. For each stray folder:
 
 1. **Move the notes.** Every file except `MEMORY.md` moves into `conductor-main/`.
    - **Same-slug collision:** the `conductor-main/` note wins. Merge any genuinely new information from the stray copy into the canonical note's body, then delete the stray copy. If the two notes are unrelated and merely share a slug, rename the stray one to a distinct slug, update its `name:` frontmatter to match the new filename, and move it in under that name.
