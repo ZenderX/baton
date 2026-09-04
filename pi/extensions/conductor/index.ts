@@ -43,7 +43,6 @@ import {
 	discoverAgents,
 } from "./agents.ts";
 import { registerOrchestrator } from "./orchestrator.ts";
-import { registerSequentialThinking } from "./sequential-thinking.ts";
 
 /** Keys are exhaustive over `ThinkingLevel`: a level added upstream fails to compile here instead of being silently rejected. */
 const THINKING_LEVEL_SET = {
@@ -361,7 +360,6 @@ async function runSingleAgent(
 	signal: AbortSignal | undefined,
 	onUpdate: OnUpdateCallback | undefined,
 	makeDetails: (results: SingleResult[]) => SubagentDetails,
-	projectTrusted: boolean,
 ): Promise<SingleResult> {
 	const agent = agents.find((a) => a.name === agentName);
 
@@ -411,7 +409,8 @@ async function runSingleAgent(
 		args.push("--exclude-tools", agent.excludeTools.join(","));
 	}
 	for (const dir of agent.skillDirs) args.push("--skill", dir);
-	if (projectTrusted) args.push("--approve");
+	// Always pass --approve: this tool only exists once project trust for the tree is resolved in the parent session, and a headless child without it ignores project-local resources when no saved decision exists (pi docs/security.md) — silently losing the package's tools (`subagent`), its MCP-provided tools, and spawn allow-list/depth enforcement inside workers.
+	args.push("--approve");
 
 	let tmpPromptDir: string | null = null;
 	let tmpPromptPath: string | null = null;
@@ -611,7 +610,6 @@ export default function (pi: ExtensionAPI) {
 			};
 			const discovery = discoverAgents(ctx.cwd, agentScope, PACKAGE_AGENTS_DIR);
 			const agents = discovery.agents;
-			const projectTrusted = ctx.isProjectTrusted();
 			const confirmProjectAgents = params.confirmProjectAgents ?? true;
 
 			const hasChain = (params.chain?.length ?? 0) > 0;
@@ -742,7 +740,6 @@ export default function (pi: ExtensionAPI) {
 						signal,
 						chainUpdate,
 						makeDetails("chain"),
-						projectTrusted,
 					);
 					results.push(result);
 
@@ -822,7 +819,6 @@ export default function (pi: ExtensionAPI) {
 							}
 						},
 						makeDetails("parallel"),
-						projectTrusted,
 					);
 					allResults[index] = result;
 					emitParallelUpdate();
@@ -860,7 +856,6 @@ export default function (pi: ExtensionAPI) {
 					signal,
 					onUpdate,
 					makeDetails("single"),
-					projectTrusted,
 				);
 				const isError = isFailedResult(result);
 				if (isError) {
@@ -1199,8 +1194,6 @@ export default function (pi: ExtensionAPI) {
 			return new Text(text?.type === "text" ? text.text : "(no output)", 0, 0);
 		},
 	});
-
-	registerSequentialThinking(pi);
 
 	registerOrchestrator(pi, {
 		packageRoot: PACKAGE_ROOT,

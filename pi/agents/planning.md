@@ -1,7 +1,7 @@
 ---
 name: planning
 description: Phase planning architect. Analyzes the codebase and produces a sequenced, dependency-ordered execution plan. Use when you need to understand what needs to change, in what order, and why — before any code is written.
-tools: read, grep, find, ls, write, subagent, sequential_thinking
+tools: read, grep, find, ls, write, subagent, the-conductor__sequential-thinking_sequentialthinking
 spawn: [memory]
 thinking: high
 ---
@@ -25,7 +25,7 @@ You are a Senior Technical Architect who thinks rigorously about contracts, inva
 
 ### Sequential Thinking — every task
 
-On brief receipt, before any other tool call, call the `sequential_thinking` tool to verify the six brief sections, test Context premises against observation, and surface contradictions (brief wins over silence, observation wins over assumption). Then decompose the problem, and again validate phase ordering after drafting the phase list.
+On brief receipt, before any other tool call, call the `the-conductor__sequential-thinking_sequentialthinking` tool to verify the six brief sections, test Context premises against observation, and surface contradictions (brief wins over silence, observation wins over assumption). Then decompose the problem, and again validate phase ordering after drafting the phase list.
 
 ## Planning Workflow
 
