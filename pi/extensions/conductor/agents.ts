@@ -14,10 +14,13 @@ export type AgentSource = "user" | "project" | "package";
 
 const EXTENSION_DIR = path.dirname(fileURLToPath(import.meta.url));
 
-/** `pi/extensions/conductor` -> repo root; keep in sync if this file moves. */
-export const PACKAGE_ROOT = path.resolve(EXTENSION_DIR, "..", "..", "..");
+/**
+ * `extensions/conductor` -> package root (the directory holding package.json),
+ * i.e. `pi/`. Keep in sync if this file moves.
+ */
+export const PACKAGE_ROOT = path.resolve(EXTENSION_DIR, "..", "..");
 
-export const PACKAGE_AGENTS_DIR = path.join(PACKAGE_ROOT, "pi", "agents");
+export const PACKAGE_AGENTS_DIR = path.join(PACKAGE_ROOT, "agents");
 
 export interface AgentConfig {
 	name: string;
@@ -67,21 +70,43 @@ function parseThinking(value: unknown): ThinkingLevel | undefined {
 }
 
 /**
+ * Skill roots declared under the `pi.skills` key of the package's package.json,
+ * resolved against the package root. Every skill this package ships lives one
+ * level below one of these (`<root>/<name>/SKILL.md`).
+ *
+ * Reading the manifest keeps this in step with what pi itself loads: the
+ * manifest points at `../../claude/plugins/<plugin>/skills`, and no layout is
+ * hardcoded here. Missing or malformed manifests yield no roots rather than
+ * throwing.
+ */
+export function getSkillRoots(packageRoot: string = PACKAGE_ROOT): string[] {
+	let manifest: unknown;
+	try {
+		manifest = JSON.parse(fs.readFileSync(path.join(packageRoot, "package.json"), "utf-8"));
+	} catch {
+		return [];
+	}
+	const pi = (manifest as { pi?: { skills?: unknown } } | null)?.pi;
+	const entries = Array.isArray(pi?.skills) ? pi.skills : [];
+	return entries
+		.filter((e): e is string => typeof e === "string" && !e.startsWith("!"))
+		.map((e) => path.resolve(packageRoot, e))
+		.filter(isDirectory);
+}
+
+/**
  * Resolve `skills:` names to skill directories inside this package.
  *
- * Domain skills live at `plugins/<name>/skills/<name>`, conductor-owned ones at
- * `plugins/conductor/skills/<name>`. Unknown names are skipped rather than
+ * Each name is looked up as `<skill root>/<name>` across the roots from
+ * `getSkillRoots`, first match wins. Unknown names are skipped rather than
  * throwing, matching `parseToolList`'s tolerance: one bad name must not take
  * down the agent that declares it.
  */
 function resolveSkillDirs(names: string[], packageRoot: string): string[] {
+	const roots = getSkillRoots(packageRoot);
 	const dirs: string[] = [];
 	for (const name of names) {
-		const candidates = [
-			path.join(packageRoot, "plugins", name, "skills", name),
-			path.join(packageRoot, "plugins", "conductor", "skills", name),
-		];
-		const found = candidates.find(isDirectory);
+		const found = roots.map((root) => path.join(root, name)).find(isDirectory);
 		if (found) dirs.push(found);
 	}
 	return dirs;

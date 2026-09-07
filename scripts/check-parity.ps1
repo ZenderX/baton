@@ -30,12 +30,12 @@ $RepoRoot = Split-Path -Parent $PSScriptRoot
 
 # Claude Code path <-> pi path. main.md's counterpart is an extension prompt, not an agent file.
 $Pairs = @(
-    @{ Name = 'code-review'; Cc = 'plugins/conductor/agents/code-review.md'; Pi = 'pi/agents/code-review.md' }
-    @{ Name = 'implement';   Cc = 'plugins/conductor/agents/implement.md';   Pi = 'pi/agents/implement.md' }
-    @{ Name = 'planning';    Cc = 'plugins/conductor/agents/planning.md';    Pi = 'pi/agents/planning.md' }
-    @{ Name = 'research';    Cc = 'plugins/conductor/agents/research.md';    Pi = 'pi/agents/research.md' }
-    @{ Name = 'memory';      Cc = 'plugins/conductor/agents/memory.md';      Pi = 'pi/agents/memory.md' }
-    @{ Name = 'orchestrator'; Cc = 'plugins/conductor/agents/main.md';       Pi = 'pi/extensions/conductor/orchestrator.md' }
+    @{ Name = 'code-review'; Cc = 'claude/plugins/conductor/agents/code-review.md'; Pi = 'pi/agents/code-review.md' }
+    @{ Name = 'implement';   Cc = 'claude/plugins/conductor/agents/implement.md';   Pi = 'pi/agents/implement.md' }
+    @{ Name = 'planning';    Cc = 'claude/plugins/conductor/agents/planning.md';    Pi = 'pi/agents/planning.md' }
+    @{ Name = 'research';    Cc = 'claude/plugins/conductor/agents/research.md';    Pi = 'pi/agents/research.md' }
+    @{ Name = 'memory';      Cc = 'claude/plugins/conductor/agents/memory.md';      Pi = 'pi/agents/memory.md' }
+    @{ Name = 'orchestrator'; Cc = 'claude/plugins/conductor/agents/main.md';       Pi = 'pi/extensions/conductor/orchestrator.md' }
 )
 
 # Claude Code -> pi tool-dialect map, applied only to text inside inline-code spans.

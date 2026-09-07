@@ -41,6 +41,7 @@ import {
 	PACKAGE_AGENTS_DIR,
 	PACKAGE_ROOT,
 	discoverAgents,
+	getSkillRoots,
 } from "./agents.ts";
 import { registerOrchestrator } from "./orchestrator.ts";
 
@@ -1197,6 +1198,7 @@ export default function (pi: ExtensionAPI) {
 
 	registerOrchestrator(pi, {
 		packageRoot: PACKAGE_ROOT,
+		skillRoots: () => getSkillRoots(PACKAGE_ROOT),
 		discover: (cwd) => discoverAgents(cwd, "user", PACKAGE_AGENTS_DIR).agents,
 	});
 }

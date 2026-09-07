@@ -11,22 +11,22 @@
   ],
   "pi": {
     "extensions": [
-      "./pi/extensions/conductor/index.ts",
-      "./pi/extensions/statusline.ts",
-      "./pi/extensions/lmstudio-reasoning.ts"
+      "./extensions/conductor/index.ts",
+      "./extensions/statusline.ts",
+      "./extensions/lmstudio-reasoning.ts"
     ],
     "skills": [
-      "./plugins/conductor/skills",
-      "./plugins/bevy/skills",
-      "./plugins/blender/skills",
-      "./plugins/rust/skills",
-      "./plugins/typescript/skills",
-      "./plugins/vue3/skills"
+      "../claude/plugins/conductor/skills",
+      "../claude/plugins/bevy/skills",
+      "../claude/plugins/blender/skills",
+      "../claude/plugins/rust/skills",
+      "../claude/plugins/typescript/skills",
+      "../claude/plugins/vue3/skills"
     ],
     "prompts": [
-      "./pi/prompts"
+      "./prompts"
     ],
-    "mcp": "./plugins/conductor/.mcp.json"
+    "mcp": "./.mcp.json"
   },
   "peerDependencies": {
     "@earendil-works/pi-coding-agent": "*",

@@ -2,7 +2,7 @@
  * Statusline Footer
  *
  * Replaces pi's built-in footer with the powerline layout from
- * `plugins/statusline/scripts/statusline.sh`:
+ * `claude/plugins/statusline/scripts/statusline.sh`:
  *
  *   ▌dir on branch │ [model] ██▌░░░ 40% 397k/1M │ ↑in ↓out $cost
  *

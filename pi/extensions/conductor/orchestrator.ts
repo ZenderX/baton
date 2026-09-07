@@ -32,6 +32,8 @@ function isConductorModeEntry(entry: SessionEntry): entry is CustomEntry<Conduct
 
 export interface OrchestratorDeps {
 	packageRoot: string;
+	/** Directories whose immediate children are skill folders (`<root>/<name>/SKILL.md`). */
+	skillRoots: () => string[];
 	discover: (cwd: string) => AgentConfig[];
 }
 
@@ -47,12 +49,15 @@ function readFileOr(filePath: string, fallback: string): string {
  * Runtime facts the static prompt cannot carry: they depend on the install
  * location, the live agent roster, and the project's vault contents.
  */
-function buildRuntimeBlock(cwd: string, { packageRoot, discover }: OrchestratorDeps): string {
+function buildRuntimeBlock(cwd: string, { packageRoot, skillRoots, discover }: OrchestratorDeps): string {
 	const agents = discover(cwd);
 	const agentList =
 		agents.length > 0
 			? agents.map((a) => `  - ${a.name} (${a.source}): ${a.description}`).join("\n")
 			: "  - none discovered";
+
+	const roots = skillRoots();
+	const skillRootList = roots.length > 0 ? roots.map((r) => `  - ${r}`).join("\n") : "  - none";
 
 	const memoryIndexPath = path.join(cwd, MEMORY_INDEX_RELATIVE);
 	const memoryIndex = readFileOr(memoryIndexPath, "absent");
@@ -63,6 +68,8 @@ function buildRuntimeBlock(cwd: string, { packageRoot, discover }: OrchestratorD
 	return `## Conductor runtime
 
 - Package root: ${packageRoot}
+- Skill roots (each holds \`<name>/SKILL.md\` folders):
+${skillRootList}
 - Agents:
 ${agentList}
 - Memory directory: ${path.join(cwd, ".claude", "agent-memory", "conductor-main")}

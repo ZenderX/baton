@@ -4,12 +4,12 @@
     settings file.
 .DESCRIPTION
     Plugins-as-source-of-truth: agents, rules, and skills are authored in
-    plugins/*/ and delivered by installing the plugin, so this script no
+    claude/plugins/*/ and delivered by installing the plugin, so this script no
     longer copies those subdirs. Its one remaining job is the repo-authoritative
     merge of settings.json into ~/.claude/settings.json (a small preserve-list
     of machine-local keys survives from the deployed copy) - settings.json is
     never clean-replaced since Claude Code rewrites machine-local state into
-    it at runtime. MCP servers now travel inside plugins/conductor/.mcp.json,
+    it at runtime. MCP servers now travel inside claude/plugins/conductor/.mcp.json,
     delivered by the plugin itself, so this script no longer registers them.
 .PARAMETER DryRun
     Print what would be written without making changes.
@@ -37,7 +37,8 @@ $UserHome = [System.Environment]::GetFolderPath('UserProfile')
 # everything else, including deletions). Extend this list as new machine-local
 # settings keys are introduced.
 # 'extraKnownMarketplaces' is preserved because this repo's own .claude/settings.json
-# registers its own marketplace with the RELATIVE path "." for dogfooding; that
+# used to register its own marketplace with a RELATIVE path for dogfooding (the
+# marketplace now lives in claude/ and is registered per machine via /plugin); a
 # relative entry only resolves from this repo's directory, so the deployed
 # (global) value must win here rather than syncing the repo's relative path verbatim.
 $SettingsPreserveKeys = @('model', 'tui', 'enabledPlugins', 'extraKnownMarketplaces')

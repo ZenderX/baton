@@ -65,7 +65,7 @@ The live roster with descriptions is listed under *Conductor runtime* at the end
 ## Skill Discovery
 
 <!-- parity:off -->
-No fixed roster of domain skills. Before briefing a subagent whose task touches specific file types, glob `<package root>/plugins/*/skills/*/SKILL.md` (package root is given under *Conductor runtime*) and read only the `name`/`description`/`paths` frontmatter (~50 tokens each) — leave bodies to the subagent, which is handed its skill files to read on demand. Match `paths:` globs against files actually in play and name the matched skill(s) in the brief; nothing matches → say nothing, don't invent one. Check your own memory for outlier cases where a skill or subagent should have been used and wasn't, and fold those into future briefs.
+No fixed roster of domain skills. Before briefing a subagent whose task touches specific file types, glob `<skill root>/*/SKILL.md` for each skill root listed under *Conductor runtime* and read only the `name`/`description`/`paths` frontmatter (~50 tokens each) — leave bodies to the subagent, which is handed its skill files to read on demand. Match `paths:` globs against files actually in play and name the matched skill(s) in the brief; nothing matches → say nothing, don't invent one. Check your own memory for outlier cases where a skill or subagent should have been used and wasn't, and fold those into future briefs.
 <!-- parity:on -->
 
 ## Memory

@@ -6,9 +6,9 @@
 .DESCRIPTION
     Plugin agents/skills resolve last, so a stale ~/.claude/agents/*.md (or
     rules/skills equivalent) silently wins over same-named plugin content
-    forever. Canon names come from plugins/*/ (agents/skills are authored
+    forever. Canon names come from claude/plugins/*/ (agents/skills are authored
     there; the two rules filenames no longer exist as files - inlined into
-    plugins/conductor/agents/main.md's Operating Rules section - so they're
+    claude/plugins/conductor/agents/main.md's Operating Rules section - so they're
     hardcoded below). Only name-matched items under <Destination>/{agents,
     rules,skills} are backed up then removed; foreign items, settings.json,
     agent-memory/, and plugins/ are never touched.
@@ -35,7 +35,7 @@ $ErrorActionPreference = 'Stop'
 
 # $PSScriptRoot already IS scripts/, so one Split-Path lands at repo root
 # (agent-memory: scripts-project-root-resolution).
-$PluginsRoot = Join-Path (Split-Path -Parent $PSScriptRoot) 'plugins'
+$PluginsRoot = Join-Path (Split-Path -Parent $PSScriptRoot) 'claude' 'plugins'
 $ManagedDirs = @('agents', 'rules', 'skills')
 $removedCount = 0
 $preservedCount = 0
@@ -48,7 +48,7 @@ function Test-ReparsePoint {
 }
 
 # Canon leaf names this repo ships for one managed subdir, sourced from
-# plugins/*/ now that .claude/{agents,rules,skills} no longer exist.
+# claude/plugins/*/ now that .claude/{agents,rules,skills} no longer exist.
 function Get-CanonNames {
     param([string]$SubDir)
     if ($SubDir -eq 'agents') {
