@@ -27,8 +27,8 @@ Agent definitions exist **twice**, as parallel Markdown prompts for the two harn
 Divergence is legitimate **only** where harness capability forces it:
 
 - **Frontmatter is never synced.** pi uses lowercase `tools:`, `excludeTools:`, `spawn:`, inline-array `skills:`, `thinking:`. Claude Code uses CamelCase `tools:` with `mcp__*` ids, `disallowedTools:`, `model:`, `effort:`, block-list `skills:`.
-- **Tool dialect** differs in prose: `read`/`grep`/`find`/`bash`/`sequential_thinking`/`subagent` (pi) vs `Read`/`Grep`/`Glob`/`Bash`/`mcp__sequential-thinking__sequentialthinking`/`Agent` (Claude Code).
-- **Capability gaps.** pi has no `Skill` tool, no Context7, no `WebFetch`/`WebSearch`, and no `${CLAUDE_PLUGIN_ROOT}`; it reads preloaded SKILL.md paths, fetches via `curl -sL` in `bash`, and derives a package root from the skills preamble. Claude Code has the inverse.
+- **Tool dialect** differs in prose: `read`/`grep`/`find`/`bash`/`the-conductor__sequential-thinking_sequentialthinking`/`subagent` (pi) vs `Read`/`Grep`/`Glob`/`Bash`/`mcp__sequential-thinking__sequentialthinking`/`Agent` (Claude Code).
+- **Capability gaps.** pi has no `Skill` tool, no `WebFetch`/`WebSearch`, and no `${CLAUDE_PLUGIN_ROOT}`; it reads preloaded SKILL.md paths, fetches via `curl -sL` in `bash`, and derives a package root from the skills preamble. Claude Code has the inverse.
 
 Anything else that differs is drift and should be reconciled.
 
@@ -72,7 +72,7 @@ Git-Bash note: compound `cd … && git …` invocations can be denied by the per
 - `plugins/conductor/skills/` holds procedure skills (`memory-write`, `memory-review`, `git-diff`) consumed by the agents, **not** documentation for humans.
 - `.claude/agent-memory/conductor-main/` is the conductor's persistent memory vault: `MEMORY.md` is a one-line-per-note index, with each note a separate file carrying frontmatter and `[[wikilinks]]`. Only the `memory` subagent writes here.
 - `.claude/conductor/environment.md` is generated once then user-owned; briefs carry only its path; subagents read it on demand.
-- `pi/extensions/conductor/` is the pi-side implementation (TypeScript) that registers the orchestrator, the `sequential_thinking` tool, and the subagent spawn allow-list — pi has no MCP, so tools that arrive via MCP in Claude Code are implemented natively here.
+- `pi/extensions/conductor/` is the pi-side implementation (TypeScript) that registers the orchestrator and the subagent spawn allow-list; MCP servers ship through the `pi.mcp` key in `package.json`, which pi-mcp-adapter loads, so both harnesses read the same `plugins/conductor/.mcp.json`.
 - `releases/` and `node_modules/` are not part of the source of truth.
 
 ## Documentation language

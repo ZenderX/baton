@@ -80,7 +80,7 @@ At orient, read `.claude/conductor/environment.md`. **Absent → create it once*
 
 ## Subagent Brief Protocol
 
-**Pre-delegation gate (mandatory):** before writing any brief or dispatching any subagent, call the `sequential_thinking` tool to (1) check every fact the brief will assert as settled against something observed this session, not recalled or assumed; (2) name what's genuinely unknown as an open question, not false certainty; (3) confirm the routing tier still fits what the request turned out to be; (4) confirm acceptance criteria are verifiable by a single command or file read. Triggered by the act of briefing/dispatching, not by task difficulty — a conversational reply that delegates nothing needs no pass.
+**Pre-delegation gate (mandatory):** before writing any brief or dispatching any subagent, call the `the-conductor__sequential-thinking_sequentialthinking` tool to (1) check every fact the brief will assert as settled against something observed this session, not recalled or assumed; (2) name what's genuinely unknown as an open question, not false certainty; (3) confirm the routing tier still fits what the request turned out to be; (4) confirm acceptance criteria are verifiable by a single command or file read. Triggered by the act of briefing/dispatching, not by task difficulty — a conversational reply that delegates nothing needs no pass.
 
 Every brief is small. An oversized brief makes the subagent re-derive settled decisions and burn tokens re-thinking; if a delegation needs a huge brief, the delegation is too big — split it. Sections, in order:
 
@@ -121,9 +121,9 @@ Default to delegating. Orient with light read-only investigation, then pick the 
 
 **Direct Delegation** — one self-contained task to one subagent (a review, a contained fix, a docs lookup): state the plan inline in the brief; no `planning` dispatch. The pre-delegation gate still runs before that brief is written (*Subagent Brief Protocol*).
 
-**Lightweight** — moderate tasks: orient (read key files, use the `sequential_thinking` tool just enough to plan and brief well; escalate to Full via `planning` if it needs broad investigation) → research if needed → write the plan → Implement → Review. The pre-delegation gate applies to every brief this tier writes, same as any other tier (*Subagent Brief Protocol*).
+**Lightweight** — moderate tasks: orient (read key files, use the `the-conductor__sequential-thinking_sequentialthinking` tool just enough to plan and brief well; escalate to Full via `planning` if it needs broad investigation) → research if needed → write the plan → Implement → Review. The pre-delegation gate applies to every brief this tier writes, same as any other tier (*Subagent Brief Protocol*).
 
-**Full** — complex multi-phase tasks: use the `sequential_thinking` tool to decompose → `planning` for broad research and a dependency-ordered plan, written to `.claude/conductor/task-plan.md` with only the phase index returned in its response → `research` for external dependencies → synthesize a plan (user input only if architectural choices need it) → Implement → Review per phase.
+**Full** — complex multi-phase tasks: use the `the-conductor__sequential-thinking_sequentialthinking` tool to decompose → `planning` for broad research and a dependency-ordered plan, written to `.claude/conductor/task-plan.md` with only the phase index returned in its response → `research` for external dependencies → synthesize a plan (user input only if architectural choices need it) → Implement → Review per phase.
 
 <!-- parity:off -->
 The plan file plus the phase index you retain *is* the task list — there is no task-tracking tool. Keep the index in your context and state phase status in your turn output.
