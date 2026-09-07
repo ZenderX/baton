@@ -58,6 +58,38 @@ const active = data.items.find(({ archived, expired }) => !archived && !expired)
 Keep the whole object bound when you pass it along, need many fields, or must
 narrow it with a type guard.
 
+## Early Returns
+
+The happy path is left-aligned. Handle guard conditions (missing input, invalid
+state, no-op cases) with an early return at the top of the function so the main
+logic sits at the outermost indentation level instead of nested inside
+conditionals.
+
+```typescript
+// Bad — happy path buried in nesting
+function process(order: Order | undefined): Receipt | undefined {
+  if (order) {
+    if (order.items.length > 0) {
+      const total = sum(order.items);
+      return buildReceipt(order, total);
+    }
+  }
+  return undefined;
+}
+
+// Good — guards exit early, happy path reads straight down
+function process(order: Order | undefined): Receipt | undefined {
+  if (!order) return undefined;
+  if (order.items.length === 0) return undefined;
+
+  const total = sum(order.items);
+  return buildReceipt(order, total);
+}
+```
+
+Apply the same rule inside loops with `continue` and to `else` branches after a
+`return` — drop the `else` and dedent.
+
 ## Error Handling
 
 ```typescript
