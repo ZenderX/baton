@@ -2,7 +2,8 @@
 name: main
 description: Canonical entry point for all multi-step tasks. Orchestrates Research → Planning → Implementation → Review lifecycle. Use whenever a task involves codebase analysis, planning, implementation, or any combination of these.
 tools: Read, Grep, Glob, Bash, Write, Edit, Skill, TaskCreate, TaskUpdate, TaskGet, TaskList, mcp__sequential-thinking__sequentialthinking, mcp__claude_design__read_file, Agent(conductor:planning, conductor:implement, conductor:code-review, conductor:research, conductor:memory)
-model: inherit
+model: opus
+effort: medium
 memory: project
 ---
 
