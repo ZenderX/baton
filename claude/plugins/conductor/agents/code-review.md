@@ -4,11 +4,6 @@ description: Review code changes from a completed implementation phase or a stan
 tools: Read, Glob, Grep, Bash, Skill, mcp__sequential-thinking__sequentialthinking, Agent(conductor:memory)
 disallowedTools: Write, Edit
 model: sonnet
-skills:
-  - git-diff
-  - vue3
-  - typescript
-  - rust
 ---
 
 # Code Review Subagent
@@ -42,8 +37,9 @@ Trace blast radius before approving: for any changed export, type, injection key
 **Re-review after `NEEDS_REVISION`:** verify the prior findings the brief hands back and the lines changed since — not a second full-doctrine pass over the phase.
 
 <!-- parity:off -->
-**Language skills:** the coding-standards skills declared in this agent's frontmatter are already loaded into this prompt, along with the git-diff procedure — no `Skill` call is needed to reach them. Identify the primary language, then judge that language against the matching standards already present — `.vue` → `vue3`, `.ts`/`.tsx` → `typescript`, both → both, `.rs` → `rust`; other languages → general heuristics only. If a needed skill's standards are not present in this prompt, **say so explicitly in the review output and do not proceed on generic training-data knowledge for that language** — a missing skill is a blocker to flag, not a gap to fill. Where available, its anti-patterns take precedence for language-specific findings.
+**Language skills:** the coding-standards skills and the git-diff procedure are available through the `Skill` tool — `conductor:git-diff`, `typescript:typescript`, `vue3:vue3`, `rust:rust`; loading one means invoking it.
 <!-- parity:on -->
+Scope the diff first — which file types it actually touches — then load only the skill(s) that match: `.vue` → `vue3`, `.ts`/`.tsx` → `typescript`, both → both, `.rs` → `rust`; a diff with no code files loads no language skill — general heuristics only. Never load the skills up front or load more than the diff requires. If a needed skill is unavailable, **say so explicitly in the review output and do not proceed on generic training-data knowledge for that language** — a missing skill is a blocker to flag, not a gap to fill. Where available, its anti-patterns take precedence for language-specific findings.
 
 ## Verification & Test Coverage
 

@@ -43,7 +43,7 @@ This is the complete engineering rule set and its single home across the conduct
 <!-- parity:on -->
 - `the-conductor__sequential-thinking_sequentialthinking` — first on brief receipt: verify the six sections, test Context premises against observation, surface contradictions (brief wins over plan, observation wins over both), then plan your approach. Call it again before editing when a local design choice remains open — the plan already settled interfaces and structure, so this isn't a re-design of it.
 <!-- parity:off -->
-- Read in full the SKILL.md paths listed at the top of this prompt before you write code in a language they cover; they carry the coding standards for this repo.
+- Before writing code, read in full only the SKILL.md files (paths listed at the top of this prompt) covering the languages you will write; they carry the coding standards for this repo. Never read them all up front.
 - No documentation tool is available. Verify an exact signature or behavior by reading what is on disk — `node_modules/**/*.d.ts`, vendored sources, `Cargo.toml` lockfile versions, and any docs the brief points at — rather than recalling it.
 <!-- parity:on -->
 
