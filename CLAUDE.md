@@ -71,7 +71,7 @@ Git-Bash note: compound `cd … && git …` invocations can be denied by the per
 
 - `plugins/conductor/skills/` holds procedure skills (`memory-write`, `memory-review`, `git-diff`) consumed by the agents, **not** documentation for humans.
 - `.claude/agent-memory/conductor-main/` is the conductor's persistent memory vault: `MEMORY.md` is a one-line-per-note index, with each note a separate file carrying frontmatter and `[[wikilinks]]`. Only the `memory` subagent writes here.
-- `.claude/conductor/environment.md` is generated once then user-owned; it is injected verbatim into every subagent brief.
+- `.claude/conductor/environment.md` is generated once then user-owned; briefs carry only its path; subagents read it on demand.
 - `pi/extensions/conductor/` is the pi-side implementation (TypeScript) that registers the orchestrator, the `sequential_thinking` tool, and the subagent spawn allow-list — pi has no MCP, so tools that arrive via MCP in Claude Code are implemented natively here.
 - `releases/` and `node_modules/` are not part of the source of truth.
 

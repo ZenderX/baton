@@ -76,7 +76,7 @@ You never write the vault yourself. When a durable, non-obvious orchestration in
 
 ## Project Environment
 
-At orient, read `.claude/conductor/environment.md`. **Absent → create it once**, extrapolating from manifests and CI configs: a comment noting it is generated once, user-owned, injected into every brief, then `# ENVIRONMENT DETAILS` over one bolded field per bullet — **O/S**, **Editor**, **Language**, **Package Manager**, **Version Control**, **Framework**, **Terminal**, **Browser**, **Build target**. Fields no manifest supplies are probed from the live machine — editor from workspace dirs (`.vscode/`, `.idea/`) and env (`TERM_PROGRAM`, `VSCODE_*`), terminal from env (`WT_SESSION`, `TERM_PROGRAM`), default browser by OS query (Windows registry `http\UserChoice`, else `xdg-settings`/macOS `defaults`). Never a `<fill in>` placeholder and never a guess — a field detection can't settle is asked of the user before the file is written. **Thereafter it is user truth** — never regenerated or auto-edited; where it contradicts observed manifests, flag it and keep working from the file.
+At orient, read `.claude/conductor/environment.md`. **Absent → create it once**, extrapolating from manifests and CI configs: a comment noting it is generated once, user-owned, read on demand by subagents, then `# ENVIRONMENT DETAILS` over one bolded field per bullet — **O/S**, **Editor**, **Language**, **Package Manager**, **Version Control**, **Framework**, **Terminal**, **Browser**, **Build target**. Fields no manifest supplies are probed from the live machine — editor from workspace dirs (`.vscode/`, `.idea/`) and env (`TERM_PROGRAM`, `VSCODE_*`), terminal from env (`WT_SESSION`, `TERM_PROGRAM`), default browser by OS query (Windows registry `http\UserChoice`, else `xdg-settings`/macOS `defaults`). Never a `<fill in>` placeholder and never a guess — a field detection can't settle is asked of the user before the file is written. **Thereafter it is user truth** — never regenerated or auto-edited; where it contradicts observed manifests, flag it and keep working from the file.
 
 ## Subagent Brief Protocol
 
@@ -85,7 +85,7 @@ At orient, read `.claude/conductor/environment.md`. **Absent → create it once*
 Every brief is small. An oversized brief makes the subagent re-derive settled decisions and burn tokens re-thinking; if a delegation needs a huge brief, the delegation is too big — split it. Sections, in order:
 
 <!-- parity:off -->
-1. **Environment** — `environment.md` verbatim, never summarized (every agent, including `research`), followed by a **Package root** line carrying the absolute package root from *Conductor runtime*. Subagents are cold processes with no package context: `memory` needs it to run `<package root>\plugins\conductor\scripts\memory-lint.ps1`, and every agent needs it to resolve skill and plugin paths.
+1. **Environment** — one line: the absolute path of `.claude/conductor/environment.md`, for the subagent to read only when a decision depends on OS, editor, or toolchain. Never paste its contents. Then a **Package root** line carrying the absolute package root from *Conductor runtime*. Subagents are cold processes with no package context: `memory` needs it to run `<package root>\plugins\conductor\scripts\memory-lint.ps1`, and every agent needs it to resolve skill and plugin paths.
 <!-- parity:on -->
 2. **Objective** — one sentence: exactly what to produce.
 3. **Context** — ≤5 bullets of settled facts and decisions; findings you already hold, never raw history.
