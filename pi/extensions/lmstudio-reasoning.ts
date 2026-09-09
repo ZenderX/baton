@@ -19,6 +19,9 @@ import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-a
 
 const FETCH_TIMEOUT_MS = 5000;
 
+/** Providers registered by `pi-lmstudio`; only these need the shim. */
+const PROVIDER_PREFIX = "lmstudio";
+
 /** Valid pi-side value that LM Studio maps to "off"; never stripped. */
 const REASONING_OFF = "none";
 
@@ -152,6 +155,7 @@ export default function (pi: ExtensionAPI) {
 	pi.on("before_provider_request", async (event, ctx) => {
 		const model: Model<Api> | undefined = ctx.model;
 		if (!model || model.api !== "openai-completions") return undefined;
+		if (model.provider !== PROVIDER_PREFIX && !model.provider.startsWith(`${PROVIDER_PREFIX}/`)) return undefined;
 
 		const payload = event.payload;
 		if (!isRecord(payload)) return undefined;
