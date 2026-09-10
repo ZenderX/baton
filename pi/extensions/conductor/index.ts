@@ -44,6 +44,16 @@ import {
 	getSkillRoots,
 } from "./agents.ts";
 import { registerOrchestrator } from "./orchestrator.ts";
+import {
+	formatTps,
+	subagentLiveDelta,
+	subagentLiveKey,
+	subagentLiveMessageEnd,
+	subagentLiveMessageStart,
+	subagentLiveRemove,
+	subagentLiveStart,
+	subagentLiveTps,
+} from "../subagent-live.ts";
 
 /** Keys are exhaustive over `ThinkingLevel`: a level added upstream fails to compile here instead of being silently rejected. */
 const THINKING_LEVEL_SET = {
@@ -101,6 +111,8 @@ const MAX_PARALLEL_TASKS = 8;
 const MAX_CONCURRENCY = 4;
 const COLLAPSED_ITEM_COUNT = 10;
 const PER_TASK_OUTPUT_CAP = 50 * 1024;
+/** message_update deltas arrive per chunk; cap how often the live update re-emits. */
+const LIVE_UPDATE_THROTTLE_MS = 250;
 
 function formatTokens(count: number): string {
 	if (count < 1000) return count.toString();
@@ -225,6 +237,8 @@ interface SingleResult {
 	stopReason?: string;
 	errorMessage?: string;
 	step?: number;
+	/** Live t/s while streaming (set by emitUpdate, cleared on close). */
+	liveTps?: number;
 }
 
 interface SubagentDetails {
@@ -429,10 +443,17 @@ async function runSingleAgent(
 		step,
 	};
 
+	const liveKey = subagentLiveKey();
+	subagentLiveStart(liveKey, agentName);
+
 	const emitUpdate = () => {
 		if (onUpdate) {
+			const tps = subagentLiveTps(liveKey);
+			currentResult.liveTps = tps;
 			onUpdate({
-				content: [{ type: "text", text: getFinalOutput(currentResult.messages) || "(running...)" }],
+				content: [
+					{ type: "text", text: (getFinalOutput(currentResult.messages) || "(running...)") + (tps > 0 ? ` ${formatTps(tps)}` : "") },
+				],
 				details: makeDetails([currentResult]),
 			});
 		}
@@ -449,6 +470,7 @@ async function runSingleAgent(
 
 		args.push(`Task: ${task}`);
 		let wasAborted = false;
+		let lastLiveEmit = 0;
 
 		const exitCode = await new Promise<number>((resolve) => {
 			const invocation = getPiInvocation(args);
@@ -474,11 +496,29 @@ async function runSingleAgent(
 					return;
 				}
 
+				if (event.type === "message_start" && event.message?.role === "assistant") {
+					subagentLiveMessageStart(liveKey);
+				}
+
+				if (event.type === "message_update") {
+					// The wire omits the cumulative message on message_update; assistantMessageEvent marks an assistant stream.
+					const subEvent = event.assistantMessageEvent;
+					if (subEvent && typeof subEvent.delta === "string") {
+						subagentLiveDelta(liveKey, subEvent.delta.length);
+						const now = Date.now();
+						if (now - lastLiveEmit >= LIVE_UPDATE_THROTTLE_MS) {
+							lastLiveEmit = now;
+							emitUpdate();
+						}
+					}
+				}
+
 				if (event.type === "message_end" && event.message) {
 					const msg = event.message as Message;
 					currentResult.messages.push(msg);
 
 					if (msg.role === "assistant") {
+						subagentLiveMessageEnd(liveKey);
 						currentResult.usage.turns++;
 						const usage = msg.usage;
 						if (usage) {
@@ -515,11 +555,13 @@ async function runSingleAgent(
 
 			proc.on("close", (code) => {
 				if (buffer.trim()) processLine(buffer);
+				subagentLiveRemove(liveKey);
 				resolve(code ?? 0);
 			});
 
 			proc.on("error", (err) => {
 				currentResult.stderr += `spawn error: ${err.message}\n`;
+				subagentLiveRemove(liveKey);
 				resolve(1);
 			});
 
@@ -537,9 +579,12 @@ async function runSingleAgent(
 		});
 
 		currentResult.exitCode = exitCode;
+		currentResult.liveTps = undefined;
 		if (wasAborted) throw new Error("Subagent was aborted");
 		return currentResult;
 	} finally {
+		// Idempotent with the close/error removals; covers a reject before the child's handlers are registered.
+		subagentLiveRemove(liveKey);
 		if (tmpPromptPath)
 			try {
 				fs.unlinkSync(tmpPromptPath);
@@ -776,6 +821,11 @@ export default function (pi: ExtensionAPI) {
 				// Track all results for streaming updates
 				const allResults: SingleResult[] = new Array(params.tasks.length);
 
+				// exitCode cannot mean "running": a streaming task's result (exitCode 0) reaches
+				// allResults on its first delta, so started/completed track running state instead.
+				const started = new Set<number>();
+				const completed = new Set<number>();
+
 				// Initialize placeholder results
 				for (let i = 0; i < params.tasks.length; i++) {
 					allResults[i] = {
@@ -791,11 +841,21 @@ export default function (pi: ExtensionAPI) {
 
 				const emitParallelUpdate = () => {
 					if (onUpdate) {
-						const running = allResults.filter((r) => r.exitCode === -1).length;
-						const done = allResults.filter((r) => r.exitCode !== -1).length;
+						const done = completed.size;
+						let running = 0;
+						const runningTpsList: string[] = [];
+						for (let i = 0; i < allResults.length; i++) {
+							if (!started.has(i) || completed.has(i)) continue;
+							running += 1;
+							runningTpsList.push(`${allResults[i].agent} ${formatTps(allResults[i].liveTps ?? 0)}`);
+						}
+						const runningTps = runningTpsList.join(", ");
 						onUpdate({
 							content: [
-								{ type: "text", text: `Parallel: ${done}/${allResults.length} done, ${running} running...` },
+								{
+									type: "text",
+									text: `Parallel: ${done}/${allResults.length} done, ${running} running...${runningTps ? ` (${runningTps})` : ""}`,
+								},
 							],
 							details: makeDetails("parallel")([...allResults]),
 						});
@@ -803,6 +863,7 @@ export default function (pi: ExtensionAPI) {
 				};
 
 				const results = await mapWithConcurrencyLimit(params.tasks, MAX_CONCURRENCY, async (t, index) => {
+					started.add(index);
 					const result = await runSingleAgent(
 						ctx.cwd,
 						dispatchDefaults,
@@ -812,16 +873,19 @@ export default function (pi: ExtensionAPI) {
 						t.cwd,
 						undefined,
 						signal,
-						// Per-task update callback
+						// Per-task update callback: the -1 placeholder stays authoritative (exitCode -1
+						// means "running" for the renderResult guards), so copy live state into it.
 						(partial) => {
-							if (partial.details?.results[0]) {
-								allResults[index] = partial.details.results[0];
-								emitParallelUpdate();
-							}
+							const streaming = partial.details?.results[0];
+							if (streaming === undefined) return;
+							allResults[index].messages = streaming.messages;
+							allResults[index].liveTps = streaming.liveTps;
+							emitParallelUpdate();
 						},
 						makeDetails("parallel"),
 					);
 					allResults[index] = result;
+					completed.add(index);
 					emitParallelUpdate();
 					return result;
 				});
@@ -1178,7 +1242,9 @@ export default function (pi: ExtensionAPI) {
 								? theme.fg("error", "✗")
 								: theme.fg("success", "✓");
 					const displayItems = getDisplayItems(r.messages);
-					text += `\n\n${theme.fg("muted", "─── ")}${theme.fg("accent", r.agent)} ${rIcon}`;
+					const tps = r.liveTps ?? 0;
+					const tpsSuffix = r.exitCode === -1 && tps > 0 ? ` ${theme.fg("dim", formatTps(tps))}` : "";
+					text += `\n\n${theme.fg("muted", "─── ")}${theme.fg("accent", r.agent)} ${rIcon}${tpsSuffix}`;
 					if (displayItems.length === 0)
 						text += `\n${theme.fg("muted", r.exitCode === -1 ? "(running...)" : "(no output)")}`;
 					else text += `\n${renderDisplayItems(displayItems, 5)}`;

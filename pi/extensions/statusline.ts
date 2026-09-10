@@ -4,11 +4,12 @@
  * Replaces pi's built-in footer with the powerline layout from
  * `claude/plugins/statusline/scripts/statusline.sh`:
  *
- *   ▌dir on branch │ [model] ██▌░░░ 40% 397k/1M │ ↑in ↓out · $cost · 41t/s
+ *   ▌dir on branch │ [model] ██▌░░░ 40% 397k/1M │ ↑in ↓out · $cost · 41 tok/s
  *
  * Two separator weights: │ divides the groups (where you are / what you are
  * talking to and how full it is / what the session has cost), · separates items
- * within a group. Bars are six cells read in half-cells (▌) = 8.3% resolution.
+ * within a group. All tok/s figures use the unified plain-integer `tok/s`
+ * format (extensions/subagent-live.ts formatTps). Bars are six cells read in half-cells (▌) = 8.3% resolution.
  * Severity: green under 60%, amber past 60%, red past 85%.
  *
  * Context gauge: for openai-compatible models served over a loopback/private
@@ -20,13 +21,17 @@
  * session_start, model_select and the footer's 3s tick — in any run mode, not
  * just the TUI.
  *
- * Cost group: cumulative session ↑in/↓out; the $ figure only when total cost is
- * nonzero (local models report 0); and a live tok/s speedometer of the
+ * Right side: the tok/s speedometer, right-aligned at the edge (left-aligned
+ * fallback when it does not fit). The root figure is a live speedometer of the
  * streaming assistant message — estimated output tokens (chars / 4, mirroring
  * pi's context estimate) over elapsed time since message_start, repainted on
- * the footer's 3s tick — reading 0t/s once the message completes. It shows
- * even while the first message of a session streams, before any usage is on
- * the branch.
+ * the footer's 3s tick — reading 0 tok/s once the message completes. It
+ * shows even while the first message of a session streams, before any usage is
+ * on the branch. When conductor subagents run (shared in-memory registry,
+ * extensions/subagent-live.ts), the right side carries the agent group
+ * `N agent(s) | N tok/s` — the SUM of the concurrent per-child rates — and
+ * an idle root figure is suppressed; with both active the block is
+ * `N tok/s · N agent(s) | N tok/s`, right-aligned as one unit.
  *
  * The shell script's plan-usage group (Anthropic OAuth usage endpoint) has no
  * pi equivalent and is intentionally dropped.
@@ -42,6 +47,7 @@ import type { Api, AssistantMessage, Model, ProviderHeaders } from "@earendil-wo
 import { getAgentDir } from "@earendil-works/pi-coding-agent";
 import type { CustomEntry, ExtensionAPI, ExtensionContext, SessionEntry, Theme } from "@earendil-works/pi-coding-agent";
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
+import { formatTps, subagentLiveSnapshot, type SubagentLiveSample } from "./subagent-live.ts";
 
 const STATE_KEY = "statusline";
 
@@ -126,12 +132,6 @@ function formatNumber(n: number): string {
 	return `${n}`;
 }
 
-/** 0 reads 0t/s; >= 10 rounds to an integer, below keeps one decimal: 41 -> 41t/s, 4.7 -> 4.7t/s. */
-function formatTps(tokensPerSecond: number): string {
-	if (tokensPerSecond === 0) return "0t/s";
-	return tokensPerSecond >= 10 ? `${Math.round(tokensPerSecond)}t/s` : `${tokensPerSecond.toFixed(1)}t/s`;
-}
-
 const CHARS_PER_TOKEN = 4;
 
 /** A toolCall block as it appears on a streaming partial message. */
@@ -203,6 +203,14 @@ function renderLocation(theme: Theme, cwd: string, branch: string | null): strin
 	return `${location} ${theme.fg("dim", "on")} ${theme.fg("mdLink", branch)}`;
 }
 
+/** Right-side agent group: `N agent(s) | N tok/s` (sum of sample rates); "" when none. */
+function renderAgents(theme: Theme, samples: SubagentLiveSample[]): string {
+	if (samples.length === 0) return "";
+	const total = samples.reduce((sum, { tps }) => sum + tps, 0);
+	const count = `${samples.length} ${samples.length === 1 ? "agent" : "agents"}`;
+	return theme.fg("muted", count) + theme.fg("dim", " | ") + theme.fg("dim", formatTps(total));
+}
+
 function renderModel(theme: Theme, ctx: ExtensionContext, liveWindow: number | undefined): string {
 	const model = ctx.model;
 	if (model === undefined) return "";
@@ -219,13 +227,7 @@ function renderModel(theme: Theme, ctx: ExtensionContext, liveWindow: number | u
 	return `${label} ${renderGauge(theme, percent, trailing)}`;
 }
 
-/** Cost group without the tok/s figure, plus the styled figure (or null). */
-interface CostGroup {
-	cost: string;
-	tps: string | null;
-}
-
-function renderCost(theme: Theme, ctx: ExtensionContext, tokensPerSecond: number | null): CostGroup {
+function renderCost(theme: Theme, ctx: ExtensionContext): string {
 	let input = 0;
 	let output = 0;
 	let cost = 0;
@@ -239,15 +241,12 @@ function renderCost(theme: Theme, ctx: ExtensionContext, tokensPerSecond: number
 		cost += message.usage.cost.total;
 	}
 
-	// The speedometer shows even when the branch has no completed usage (the
-	// first message streaming); only the in/out/$ items are gated on usage.
-	const tps = tokensPerSecond === null ? null : theme.fg("dim", formatTps(tokensPerSecond));
-	if (input === 0 && output === 0) return { cost: "", tps };
+	if (input === 0 && output === 0) return "";
 
 	// $ figure only when present; items separated by a dim " · ".
 	const items = [theme.fg("dim", `↑${formatNumber(input)} ↓${formatNumber(output)}`)];
 	if (cost > 0) items.push(theme.fg("dim", `$${cost.toFixed(3)}`));
-	return { cost: items.join(theme.fg("dim", " · ")), tps };
+	return items.join(theme.fg("dim", " · "));
 }
 
 function windowKey(model: Model<Api>): string {
@@ -498,19 +497,30 @@ export default function (pi: ExtensionAPI) {
 					} else {
 						tokensPerSecond = lastTps ?? null;
 					}
-					const { cost, tps } = renderCost(theme, ctx, tokensPerSecond);
+					const cost = renderCost(theme, ctx);
 					const left = [
 						renderLocation(theme, ctx.cwd, footerData.getGitBranch()),
 						renderModel(theme, ctx, liveWindow),
 						cost,
 					].filter((group) => group !== "").join(separator);
 
-					if (tps === null) return [truncateToWidth(left, width)];
-					// Right-align the tok/s figure to the edge; fall back to the
+					// Right side: root t/s and/or the agent group, one right-aligned unit.
+					const rootFigure =
+						tokensPerSecond === null ? null : theme.fg("dim", formatTps(tokensPerSecond));
+					const agents = renderAgents(theme, subagentLiveSnapshot());
+					let right = "";
+					if (agents !== "") {
+						// An idle root figure is suppressed while agents run.
+						right = t0 !== null && rootFigure !== null ? rootFigure + dimSep + agents : agents;
+					} else {
+						right = rootFigure ?? "";
+					}
+					if (right === "") return [truncateToWidth(left, width)];
+					// Right-align the block to the edge; fall back to the
 					// left-aligned line when it does not fit.
-					const gap = width - visibleWidth(left) - visibleWidth(dimSep) - visibleWidth(tps);
-					if (gap <= 0) return [truncateToWidth(left + dimSep + tps, width)];
-					return [left + dimSep + " ".repeat(gap) + tps];
+					const gap = width - visibleWidth(left) - visibleWidth(dimSep) - visibleWidth(right);
+					if (gap <= 0) return [truncateToWidth(left + dimSep + right, width)];
+					return [left + dimSep + " ".repeat(gap) + right];
 				},
 			};
 		});
