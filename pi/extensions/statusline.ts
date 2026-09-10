@@ -17,13 +17,16 @@
  * failing soft to the static models.json value on any error (mirrors
  * `lmstudio-reasoning.ts`). When that live value differs from models.json the
  * file is self-healed (atomic read-modify-write + registry refresh) on
- * session_start, model_select and the footer's 60s tick — in any run mode, not
+ * session_start, model_select and the footer's 3s tick — in any run mode, not
  * just the TUI.
  *
  * Cost group: cumulative session ↑in/↓out; the $ figure only when total cost is
- * nonzero (local models report 0); and the tok/s of the last completed
- * assistant message, measured live with Date.now() at message_start /
- * message_update / message_end.
+ * nonzero (local models report 0); and a live tok/s speedometer of the
+ * streaming assistant message — estimated output tokens (chars / 4, mirroring
+ * pi's context estimate) over elapsed time since message_start, repainted on
+ * the footer's 3s tick — reading 0t/s once the message completes. It shows
+ * even while the first message of a session streams, before any usage is on
+ * the branch.
  *
  * The shell script's plan-usage group (Anthropic OAuth usage endpoint) has no
  * pi equivalent and is intentionally dropped.
@@ -38,7 +41,7 @@ import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import type { Api, AssistantMessage, Model, ProviderHeaders } from "@earendil-works/pi-ai";
 import { getAgentDir } from "@earendil-works/pi-coding-agent";
 import type { CustomEntry, ExtensionAPI, ExtensionContext, SessionEntry, Theme } from "@earendil-works/pi-coding-agent";
-import { truncateToWidth } from "@earendil-works/pi-tui";
+import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 
 const STATE_KEY = "statusline";
 
@@ -47,7 +50,7 @@ const AMBER_AT = 60;
 const RED_AT = 85;
 const WINDOW_TTL_MS = 60_000;
 const FETCH_TIMEOUT_MS = 5000;
-const FOOTER_REFRESH_MS = 60_000;
+const FOOTER_REFRESH_MS = 3_000;
 
 interface StatuslineState {
 	enabled: boolean;
@@ -123,9 +126,50 @@ function formatNumber(n: number): string {
 	return `${n}`;
 }
 
-/** >= 10 rounds to an integer, below keeps one decimal: 41 -> 41t/s, 4.7 -> 4.7t/s. */
+/** 0 reads 0t/s; >= 10 rounds to an integer, below keeps one decimal: 41 -> 41t/s, 4.7 -> 4.7t/s. */
 function formatTps(tokensPerSecond: number): string {
+	if (tokensPerSecond === 0) return "0t/s";
 	return tokensPerSecond >= 10 ? `${Math.round(tokensPerSecond)}t/s` : `${tokensPerSecond.toFixed(1)}t/s`;
+}
+
+const CHARS_PER_TOKEN = 4;
+
+/** A toolCall block as it appears on a streaming partial message. */
+interface StreamingToolCall {
+	type: "toolCall";
+	name: string;
+	arguments?: unknown;
+	partialArgs?: unknown;
+}
+
+function toolCallChars(call: StreamingToolCall): number {
+	let chars = call.name.length;
+	if (typeof call.partialArgs === "string") {
+		// While streaming, arguments accumulate as a raw JSON string until toolcall_end.
+		chars += call.partialArgs.length;
+	} else if (call.arguments !== undefined) {
+		chars += JSON.stringify(call.arguments).length;
+	}
+	return chars;
+}
+
+/** Estimated output tokens, mirroring pi's chars/4 context estimate. */
+function estimateOutputTokens(message: AssistantMessage): number {
+	let chars = 0;
+	for (const block of message.content) {
+		switch (block.type) {
+			case "text":
+				chars += block.text.length;
+				break;
+			case "thinking":
+				chars += block.thinking.length;
+				break;
+			case "toolCall":
+				chars += toolCallChars(block);
+				break;
+		}
+	}
+	return Math.ceil(chars / CHARS_PER_TOKEN);
 }
 
 function severityColor(percent: number): "success" | "warning" | "error" {
@@ -175,7 +219,13 @@ function renderModel(theme: Theme, ctx: ExtensionContext, liveWindow: number | u
 	return `${label} ${renderGauge(theme, percent, trailing)}`;
 }
 
-function renderCost(theme: Theme, ctx: ExtensionContext, tokensPerSecond: number | null): string {
+/** Cost group without the tok/s figure, plus the styled figure (or null). */
+interface CostGroup {
+	cost: string;
+	tps: string | null;
+}
+
+function renderCost(theme: Theme, ctx: ExtensionContext, tokensPerSecond: number | null): CostGroup {
 	let input = 0;
 	let output = 0;
 	let cost = 0;
@@ -189,13 +239,15 @@ function renderCost(theme: Theme, ctx: ExtensionContext, tokensPerSecond: number
 		cost += message.usage.cost.total;
 	}
 
-	if (input === 0 && output === 0) return "";
+	// The speedometer shows even when the branch has no completed usage (the
+	// first message streaming); only the in/out/$ items are gated on usage.
+	const tps = tokensPerSecond === null ? null : theme.fg("dim", formatTps(tokensPerSecond));
+	if (input === 0 && output === 0) return { cost: "", tps };
 
-	// $ figure and tok/s only when present; items separated by a dim " · ".
+	// $ figure only when present; items separated by a dim " · ".
 	const items = [theme.fg("dim", `↑${formatNumber(input)} ↓${formatNumber(output)}`)];
 	if (cost > 0) items.push(theme.fg("dim", `$${cost.toFixed(3)}`));
-	if (tokensPerSecond !== null) items.push(theme.fg("dim", formatTps(tokensPerSecond)));
-	return items.join(theme.fg("dim", " · "));
+	return { cost: items.join(theme.fg("dim", " · ")), tps };
 }
 
 function windowKey(model: Model<Api>): string {
@@ -343,15 +395,17 @@ export default function (pi: ExtensionAPI) {
 	let lastConductorState = false;
 
 	// Server-reported context windows keyed by provider/model; in-flight fetches
-	// deduped per key so the 60s tick never double-fires.
+	// deduped per key so the 3s tick never double-fires.
 	const liveWindows = new Map<string, LiveWindow>();
 	const inFlight = new Map<string, Promise<void>>();
 	const warnedServers = new Set<string>();
 	const warnedRefresh = new Set<string>();
 
-	// Live timing for the last assistant message's tok/s.
+	// Live speedometer for the streaming assistant message's tok/s: t0 is the
+	// message_start baseline, lastPartial the newest partial message, lastTps
+	// the idle display value (0 once a message completes).
 	let t0: number | null = null;
-	let tFirst: number | null = null;
+	let lastPartial: AssistantMessage | null = null;
 	let lastTps: number | undefined = undefined;
 	// Set by selfHeal when the in-memory static window still lags the live one;
 	// cleared once turn_end refreshes the registry.
@@ -433,15 +487,30 @@ export default function (pi: ExtensionAPI) {
 				invalidate() {},
 				render(width: number): string[] {
 					const separator = theme.fg("border", " │ ");
+					const dimSep = theme.fg("dim", " · ");
 					const model = ctx.model;
 					const liveWindow = model === undefined ? undefined : liveWindowFor(model);
-					const groups = [
+					let tokensPerSecond: number | null;
+					if (t0 !== null) {
+						const elapsedMs = Date.now() - t0;
+						const tokens = lastPartial === null ? 0 : estimateOutputTokens(lastPartial);
+						tokensPerSecond = elapsedMs > 0 ? tokens / (elapsedMs / 1000) : 0;
+					} else {
+						tokensPerSecond = lastTps ?? null;
+					}
+					const { cost, tps } = renderCost(theme, ctx, tokensPerSecond);
+					const left = [
 						renderLocation(theme, ctx.cwd, footerData.getGitBranch()),
 						renderModel(theme, ctx, liveWindow),
-						renderCost(theme, ctx, lastTps ?? null),
-					].filter((group) => group !== "");
+						cost,
+					].filter((group) => group !== "").join(separator);
 
-					return [truncateToWidth(groups.join(separator), width)];
+					if (tps === null) return [truncateToWidth(left, width)];
+					// Right-align the tok/s figure to the edge; fall back to the
+					// left-aligned line when it does not fit.
+					const gap = width - visibleWidth(left) - visibleWidth(dimSep) - visibleWidth(tps);
+					if (gap <= 0) return [truncateToWidth(left + dimSep + tps, width)];
+					return [left + dimSep + " ".repeat(gap) + tps];
 				},
 			};
 		});
@@ -487,7 +556,7 @@ export default function (pi: ExtensionAPI) {
 		liveWindows.clear();
 		inFlight.clear();
 		t0 = null;
-		tFirst = null;
+		lastPartial = null;
 		lastTps = undefined;
 		needsRegistryRefresh = false;
 
@@ -534,20 +603,18 @@ export default function (pi: ExtensionAPI) {
 	pi.on("message_start", (event) => {
 		if (!isAssistantMessage(event.message)) return;
 		t0 = Date.now();
-		tFirst = null;
+		lastPartial = null;
 	});
 
 	pi.on("message_update", (event) => {
 		if (!isAssistantMessage(event.message)) return;
-		if (tFirst === null) tFirst = Date.now();
+		lastPartial = event.message;
 	});
 
 	pi.on("message_end", (event) => {
 		if (!isAssistantMessage(event.message)) return;
-		const start = tFirst ?? t0;
-		const durationMs = start === null ? 0 : Date.now() - start;
-		if (durationMs <= 0) return;
-		const output = event.message.usage.output;
-		if (output > 0) lastTps = output / (durationMs / 1000);
+		t0 = null;
+		lastPartial = null;
+		lastTps = 0;
 	});
 }

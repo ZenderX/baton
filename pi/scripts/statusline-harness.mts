@@ -6,7 +6,10 @@
  *   1. Fail-soft: a dead server keeps the static window and warns (no throw).
  *   2. Gauge: a mock `/v1/models` server (max_model_len 200000) makes
  *      100000/200000 read 50% with 3 filled / 3 empty cells.
- *   3. tok/s: 41 tokens over 1s -> "41t/s"; 47 over 10s -> "4.7t/s".
+ *   3. tok/s: a live speedometer of the streaming message (400 chars ≈ 100
+ *      tokens over 1s of streaming reads "100t/s", a slow 40-char/10s stream
+ *      reads "1.0t/s"); the figure reads "0t/s" once the message completes
+ *      and is right-aligned to the footer's right edge.
  *   4. Cost: the $ figure only when total cost > 0.
  *   5. Self-heal: with a typical local provider structure in a temp agent dir
  *      (stale contextWindow 120000), a live 200000 from the mock server rewrites
@@ -20,6 +23,9 @@
  *      turn_start auto-enables the footer with one notify and appends no entry.
  *   9. Explicit off respected: a /statusline toggle-off after the auto-enable
  *      survives a further turn_start while the conductor state is unchanged.
+ *  10. Empty-branch stream: with `state.branch = []`, `message_start` +
+ *      `message_update` (400-char partial, 1s) render the speedometer with no
+ *      in/out items; `message_end` reads `0t/s`.
  *
  * Run with: node scripts/statusline-harness.mts
  * (This file is intentionally NOT listed in package.json pi.extensions.)
@@ -32,6 +38,7 @@ import * as path from "node:path";
 import assert from "node:assert/strict";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import statusline from "../extensions/statusline.ts";
+import { visibleWidth } from "@earendil-works/pi-tui";
 
 // A deliberately minimal structural subset of pi's footer component and the
 // event/context/registry shapes the extension reads. Test-only seams.
@@ -94,8 +101,9 @@ function assistantUsage(input: number, output: number, cost: number): unknown {
 	};
 }
 
-function assistantMessage(output: number): unknown {
-	return { role: "assistant", content: [], api: "openai-completions", provider: "harness", model: "harness-model", usage: assistantUsage(0, output, 0), stopReason: "stop", timestamp: 0 };
+function assistantMessage(output: number, textChars = 0): unknown {
+	const content = textChars > 0 ? [{ type: "text", text: "x".repeat(textChars) }] : [];
+	return { role: "assistant", content, api: "openai-completions", provider: "harness", model: "harness-model", usage: assistantUsage(0, output, 0), stopReason: "stop", timestamp: 0 };
 }
 
 /** A session "message" entry shaped for renderCost's cumulative totals. */
@@ -217,6 +225,11 @@ function count(haystack: string, needle: string): number {
 	return n;
 }
 
+/** The trailing non-space run of a padded line — the right-aligned t/s figure. */
+function trailingFigure(line: string): string {
+	return line.slice(line.lastIndexOf(" ") + 1);
+}
+
 async function main(): Promise<void> {
 	// Redirect the agent dir to a temp dir so the self-heal write path is exercised
 	// deterministically and the real ~/.pi/agent/models.json is never touched.
@@ -287,41 +300,56 @@ async function main(): Promise<void> {
 
 			const realNow = Date.now;
 			try {
-				// tok/s A: 41 output tokens over 1s -> "41t/s" (integer)
+				// tok/s A: a 400-char partial (≈ 100 tokens) streamed over 1s reads "100t/s" live.
 				Date.now = (): number => 1_000_000;
 				env.fire("message_start", { type: "message_start", message: assistantMessage(41) });
 				Date.now = (): number => 1_001_000;
-				env.fire("message_update", { type: "message_update", message: assistantMessage(41) });
-				Date.now = (): number => 1_002_000;
-				env.fire("message_end", { type: "message_end", message: assistantMessage(41) });
+				env.fire("message_update", { type: "message_update", message: assistantMessage(41, 400) });
 
 				const line = env.render();
 				assert.ok(line.includes("50%"), `gauge at 100000/200000 should read 50%, got: ${line}`);
 				assert.ok(line.includes("100k/200k"), `gauge trailing should use the live window, got: ${line}`);
 				assert.equal(count(line, "█"), 3, `gauge should fill 3 cells, got: ${line}`);
 				assert.equal(count(line, "░"), 3, `gauge should empty 3 cells, got: ${line}`);
-				assert.ok(line.includes("41t/s"), `tok/s should format as 41t/s, got: ${line}`);
+				assert.ok(line.endsWith("100t/s"), `the live speedometer should end at the right edge, got: ${line}`);
+				assert.equal(visibleWidth(line), 200, `the padded line should fill exactly the render width, got: ${line}`);
 				assert.ok(line.includes("$"), `nonzero cost should show the $ figure, got: ${line}`);
 				assert.ok(line.includes("↑50k") && line.includes("↓2.0k"), `cost group should show in/out totals, got: ${line}`);
-				console.log("  [2] live gauge 50% + 41t/s + $:", line);
+				console.log("  [2] live gauge 50% + 100t/s streaming + $:", line);
 
-				// tok/s B: 47 output tokens over 10s -> "4.7t/s" (one decimal)
+				// Once the message completes the speedometer reads 0t/s.
+				Date.now = (): number => 1_002_000;
+				env.fire("message_end", { type: "message_end", message: assistantMessage(41, 400) });
+				const lineA = env.render();
+				assert.ok(lineA.endsWith("0t/s"), `the completed message should read 0t/s, got: ${lineA}`);
+				assert.equal(trailingFigure(lineA), "0t/s", `the completed message should read exactly 0t/s, got: ${lineA}`);
+				assert.equal(visibleWidth(lineA), 200, `the padded line should fill exactly the render width, got: ${lineA}`);
+
+				// tok/s B: a slow 40-char partial (10 tokens) over 10s reads "1.0t/s" live.
 				Date.now = (): number => 1_000_000;
 				env.fire("message_start", { type: "message_start", message: assistantMessage(47) });
-				Date.now = (): number => 1_001_000;
-				env.fire("message_update", { type: "message_update", message: assistantMessage(47) });
-				Date.now = (): number => 1_011_000;
-				env.fire("message_end", { type: "message_end", message: assistantMessage(47) });
+				Date.now = (): number => 1_010_000;
+				env.fire("message_update", { type: "message_update", message: assistantMessage(47, 40) });
 
 				const lineB = env.render();
-				assert.ok(lineB.includes("4.7t/s"), `tok/s below 10 should keep one decimal, got: ${lineB}`);
-				assert.ok(!lineB.includes("41t/s"), `stale tok/s should be replaced, got: ${lineB}`);
-				console.log("  [3] tok/s decimal 4.7t/s:", lineB);
+				assert.ok(lineB.endsWith("1.0t/s"), `a slow stream should read 1.0t/s, got: ${lineB}`);
+				assert.equal(visibleWidth(lineB), 200, `the padded line should fill exactly the render width, got: ${lineB}`);
+				assert.ok(!lineB.includes("100t/s"), `stale tok/s should be replaced, got: ${lineB}`);
+				console.log("  [3] live speedometer 1.0t/s:", lineB);
+
+				// The new message's completion also reads 0t/s.
+				env.fire("message_end", { type: "message_end", message: assistantMessage(47, 40) });
+				const lineB2 = env.render();
+				assert.ok(lineB2.endsWith("0t/s"), `the completed message should read 0t/s, got: ${lineB2}`);
+				assert.equal(trailingFigure(lineB2), "0t/s", `the completed message should read exactly 0t/s, got: ${lineB2}`);
 
 				// Zero cost hides the $ figure.
 				env.state.branch = [messageEntry(50000, 2000, 0)];
 				const lineC = env.render();
 				assert.ok(!lineC.includes("$"), `zero cost should hide the $ figure, got: ${lineC}`);
+				assert.ok(lineC.endsWith("0t/s"), `the idle 0t/s figure should stay right-aligned when the $ figure disappears, got: ${lineC}`);
+				assert.equal(trailingFigure(lineC), "0t/s", `the idle figure should read exactly 0t/s, got: ${lineC}`);
+				assert.equal(visibleWidth(lineC), 200, `the padded line should fill exactly the render width, got: ${lineC}`);
 				console.log("  [4] zero cost hides $:", lineC);
 
 				// The harness provider is absent from the temp models.json, so no self-heal notify.
@@ -409,6 +437,7 @@ async function main(): Promise<void> {
 
 				const line = env.render();
 				assert.ok(line.includes("100k/120k"), `the --conductor argv flag should enable the footer, got: ${line}`);
+				assert.ok(visibleWidth(line) < 200, `with no t/s figure the line must not be padded to width, got: ${line}`);
 				console.log("  [6] conductor flag enables footer:", line);
 
 				// Faithfulness: with --conductor absent from argv the footer stays off, proving the argv path (not a flag) enables it.
@@ -474,6 +503,37 @@ async function main(): Promise<void> {
 			assert.throws(() => env.render(), /footer not applied/, "an explicit off is respected while the conductor state is unchanged");
 			assert.equal(env.notified.length, 2, "no second auto-enable notify without a fresh transition");
 			console.log("  [9] explicit /statusline off respected");
+		}
+
+		// --- 10. Empty-branch stream: the speedometer shows before any usage is on the branch ---
+		{
+			const env = makeEnv();
+			env.state.model = makeModel("harness-model", "harness", "", 120000);
+			env.state.contextUsage = { tokens: 100000, contextWindow: 120000, percent: null };
+			env.state.branch = [];
+			statusline(env.pi);
+			await env.fire("session_start", { type: "session_start" });
+
+			const realNow = Date.now;
+			try {
+				Date.now = (): number => 1_000_000;
+				env.fire("message_start", { type: "message_start", message: assistantMessage(41) });
+				Date.now = (): number => 1_001_000;
+				env.fire("message_update", { type: "message_update", message: assistantMessage(41, 400) });
+
+				const line = env.render();
+				assert.equal(trailingFigure(line), "100t/s", `an empty-branch stream should read exactly 100t/s, got: ${line}`);
+				assert.equal(visibleWidth(line), 200, `the padded line should fill exactly the render width, got: ${line}`);
+				assert.ok(!line.includes("↑"), `an empty branch must show no in/out items, got: ${line}`);
+				console.log("  [10] empty-branch stream 100t/s:", line);
+
+				env.fire("message_end", { type: "message_end", message: assistantMessage(41, 400) });
+				const lineEnd = env.render();
+				assert.equal(trailingFigure(lineEnd), "0t/s", `the completed empty-branch stream should read exactly 0t/s, got: ${lineEnd}`);
+				assert.ok(!lineEnd.includes("↑"), `an empty branch must show no in/out items, got: ${lineEnd}`);
+			} finally {
+				Date.now = realNow;
+			}
 		}
 	} finally {
 		delete process.env.PI_CODING_AGENT_DIR;
