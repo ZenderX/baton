@@ -4,11 +4,13 @@
  * Replaces pi's built-in footer with the powerline layout from
  * `claude/plugins/statusline/scripts/statusline.sh`:
  *
- *   ▌dir on branch │ [model] ██▌░░░ 40% 397k/1M │ ↑in ↓out · $cost · 41 tok/s
+ *   ▌dir on branch │ [model] ██▌░░░ 40% 397k/1M │ ↑in ↓out · $cost    41 tok/s
  *
  * Two separator weights: │ divides the groups (where you are / what you are
  * talking to and how full it is / what the session has cost), · separates items
- * within a group. All tok/s figures use the unified plain-integer `tok/s`
+ * within a group. The right-side figure is right-aligned at the edge with no
+ * separator from the left groups (a single space only when it falls back to a
+ * left-aligned line). All tok/s figures use the unified plain-integer `tok/s`
  * format (extensions/subagent-live.ts formatTps). Bars are six cells read in half-cells (▌) = 8.3% resolution.
  * Severity: green under 60%, amber past 60%, red past 85%.
  *
@@ -517,10 +519,12 @@ export default function (pi: ExtensionAPI) {
 					}
 					if (right === "") return [truncateToWidth(left, width)];
 					// Right-align the block to the edge; fall back to the
-					// left-aligned line when it does not fit.
-					const gap = width - visibleWidth(left) - visibleWidth(dimSep) - visibleWidth(right);
-					if (gap <= 0) return [truncateToWidth(left + dimSep + right, width)];
-					return [left + dimSep + " ".repeat(gap) + right];
+					// left-aligned line when it does not fit. No separator between
+					// the left groups and the right block — a single space in the
+					// fallback keeps the cost figure from gluing to the counter.
+					const gap = width - visibleWidth(left) - visibleWidth(right);
+					if (gap <= 0) return [truncateToWidth(left + " " + right, width)];
+					return [left + " ".repeat(gap) + right];
 				},
 			};
 		});
