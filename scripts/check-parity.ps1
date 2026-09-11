@@ -30,10 +30,11 @@ $RepoRoot = Split-Path -Parent $PSScriptRoot
 
 # Claude Code path <-> pi path. main.md's counterpart is an extension prompt, not an agent file.
 $Pairs = @(
-    @{ Name = 'code-review'; Cc = 'claude/plugins/conductor/agents/code-review.md'; Pi = 'pi/agents/code-review.md' }
-    @{ Name = 'implement';   Cc = 'claude/plugins/conductor/agents/implement.md';   Pi = 'pi/agents/implement.md' }
-    @{ Name = 'planning';    Cc = 'claude/plugins/conductor/agents/planning.md';    Pi = 'pi/agents/planning.md' }
-    @{ Name = 'research';    Cc = 'claude/plugins/conductor/agents/research.md';    Pi = 'pi/agents/research.md' }
+    @{ Name = 'scout';       Cc = 'claude/plugins/conductor/agents/scout.md';      Pi = 'pi/agents/scout.md' }
+    @{ Name = 'researcher';  Cc = 'claude/plugins/conductor/agents/researcher.md'; Pi = 'pi/agents/researcher.md' }
+    @{ Name = 'builder';     Cc = 'claude/plugins/conductor/agents/builder.md';    Pi = 'pi/agents/builder.md' }
+    @{ Name = 'refuter';     Cc = 'claude/plugins/conductor/agents/refuter.md';    Pi = 'pi/agents/refuter.md' }
+    @{ Name = 'auditor';     Cc = 'claude/plugins/conductor/agents/auditor.md';    Pi = 'pi/agents/auditor.md' }
     @{ Name = 'memory';      Cc = 'claude/plugins/conductor/agents/memory.md';      Pi = 'pi/agents/memory.md' }
     @{ Name = 'orchestrator'; Cc = 'claude/plugins/conductor/agents/main.md';       Pi = 'pi/extensions/conductor/orchestrator.md' }
 )

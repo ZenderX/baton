@@ -29,6 +29,7 @@ Use `"answer_type":"yes_no"` unless the answer is a short literal (a symbol name
 
 **3. Run.** Build the JSON on stdin and invoke the script once:
 
+<!-- parity:off -->
 ```bash
 python "${CLAUDE_PLUGIN_ROOT}/scripts/spanda-audit.py" <<'EOF'
 {"claims":[
@@ -38,6 +39,7 @@ EOF
 ```
 
 If `${CLAUDE_PLUGIN_ROOT}` is unset or still appears literally, resolve it the way `commands/setup.md:8` does — find the marketplace entry in `~/.claude/settings.json` whose `source.path` contains `plugins/conductor`, and append `/plugins/conductor/scripts/spanda-audit.py`. Verify the file exists before running it.
+<!-- parity:on -->
 
 Environment overrides (CLI flags `--base-url`, `--model`, `--k`, `--temperature`, `--timeout` win over them; set either only when the brief asks):
 

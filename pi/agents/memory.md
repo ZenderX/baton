@@ -3,6 +3,7 @@ name: memory
 description: Owns memory-vault work for the conductor — ingests notes, prunes stale ones, reorganizes MEMORY.md. Propagation pass flags the 1-hop neighbours of changed notes. When the brief requests a review or stewardship pass, runs the memory-review procedure instead. Invoked by any conductor agent (orchestrator or worker) with a memory-worthy subject.
 tools: read, write, edit, grep, find, bash, powershell
 skills: [memory-write, memory-review]
+thinking: low
 ---
 
 # Memory Subagent
@@ -28,10 +29,10 @@ The brief (or the targeted pass below) gives you a list of changed note slugs an
 This pass sets flags; it never clears them and never rewrites prose. Keep it fast — no deep content analysis, no web fetches.
 
 <!-- parity:off -->
-Then run the linter with the `powershell` tool and report its output verbatim. Use the **Package root** from the brief if it is present; otherwise derive it from the first `SKILL.md` path in the skills preamble at the top of this prompt by stripping the trailing `\plugins\conductor\skills\<name>\SKILL.md`:
+Then run the linter with the `powershell` tool and report its output verbatim. Resolve `<resolved path>` from the brief's **Package root** line: try `<Package root>/../claude/plugins/conductor/scripts/memory-lint.ps1` (monorepo layout) first, then `<Package root>/scripts/conductor/memory-lint.ps1` (standalone layout). Verify the resolved path exists before running it. If Package root is absent, derive `<resolved path>` from the first `SKILL.md` path in the skills preamble at the top of this prompt instead: replacing the trailing `/skills/<name>/SKILL.md` (monorepo layout) with `/scripts/memory-lint.ps1` yields `.../claude/plugins/conductor/scripts/memory-lint.ps1`; replacing the trailing `/skills/conductor/<name>/SKILL.md` (standalone layout) with `/scripts/conductor/memory-lint.ps1` yields `.../scripts/conductor/memory-lint.ps1`.
 
 ```powershell
-<package root>\plugins\conductor\scripts\memory-lint.ps1
+<resolved path>
 ```
 <!-- parity:on -->
 

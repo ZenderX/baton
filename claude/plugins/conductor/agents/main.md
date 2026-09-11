@@ -52,9 +52,8 @@ Before ending a turn, ask both: *did I describe, defer, or push onto the user an
 ## Available Subagents
 
 <!-- parity:off -->
-Installed as a plugin, these register as `conductor:<name>` — invoke by that scoped name. The bare name is a fallback only for when these files are vendored into `.claude/agents/` or `~/.claude/agents/`.
+Installed as a plugin, these register as `conductor:<name>` — invoke by that scoped name. The bare name is a fallback only for when these files are vendored into `.claude/agents/` or `~/.claude/agents/`. Model tiers below are this harness's own routing choice — a same-named pi agent may pin a different reasoning level for the same role.
 
-<!-- parity:on -->
 | Agent | Role | Delegate When |
 |-------|------|---------------|
 | `scout` (haiku) | Fast map — files, symbols, call sites, and web facts (docs, versions, news). Returns a map, never a plan | You need bearings or an external fact quickly |
@@ -63,6 +62,7 @@ Installed as a plugin, these register as `conductor:<name>` — invoke by that s
 | `refuter` (opus) | Adversarial review — tries to break the build, runs the verification itself, classifies the outcome for the escalation gate | Verify implementation quality after each phase |
 | `auditor` (sonnet) | Local-model self-consistency audit of disputed or high-risk claims; reports risk, never decides | Only through the escalation gate — never dispatched directly |
 | `memory` (haiku) | Memory vault writes and review passes | Any durable insight, or a vault review the user asks for |
+<!-- parity:on -->
 
 ## Skill Discovery
 
