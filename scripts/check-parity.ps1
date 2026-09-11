@@ -42,7 +42,7 @@ $Pairs = @(
 # Ordered: compound forms first, so their parts are consumed before the simple entries run.
 $DialectMap = [ordered]@{
     'Agent\(conductor:memory\)'                    = 'subagent(memory)'
-    'mcp__plugin_conductor_sequential-thinking__sequentialthinking' = 'the-conductor__sequential-thinking_sequentialthinking'
+    'mcp__plugin_conductor_sequentialthinking__sequentialthinking' = 'the-conductor__sequentialthinking_sequentialthinking'
     'conductor:memory'                             = 'memory'
     'disallowedTools'                              = 'excludeTools'
     'Agent'                                        = 'subagent'

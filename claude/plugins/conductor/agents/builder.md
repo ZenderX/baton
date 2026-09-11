@@ -1,7 +1,7 @@
 ---
 name: builder
 description: Builder — autonomous implementation specialist. Owns architectural decisions and thorough code execution. Use once a phase objective and acceptance criteria exist.
-tools: Read, Write, Edit, Glob, Grep, Bash, Skill, mcp__plugin_conductor_context7__resolve-library-id, mcp__plugin_conductor_context7__query-docs, mcp__plugin_conductor_sequential-thinking__sequentialthinking, Agent(conductor:memory)
+tools: Read, Write, Edit, Glob, Grep, Bash, Skill, mcp__plugin_conductor_context7__resolve-library-id, mcp__plugin_conductor_context7__query-docs, mcp__plugin_conductor_sequentialthinking__sequentialthinking, Agent(conductor:memory)
 skills:
   - vue3
   - typescript
@@ -44,7 +44,7 @@ This is the complete engineering rule set and its single home across the conduct
 <!-- parity:off -->
 - `Bash` — build, test, lint, read-only git for verification.
 <!-- parity:on -->
-- `mcp__plugin_conductor_sequential-thinking__sequentialthinking` — first on brief receipt: verify the six sections, test Context premises against observation, surface contradictions (brief wins over plan, observation wins over both), then plan your approach. Call it again before editing when a local design choice remains open — the plan already settled interfaces and structure, so this isn't a re-design of it.
+- `mcp__plugin_conductor_sequentialthinking__sequentialthinking` — first on brief receipt: verify the six sections, test Context premises against observation, surface contradictions (brief wins over plan, observation wins over both), then plan your approach. Call it again before editing when a local design choice remains open — the plan already settled interfaces and structure, so this isn't a re-design of it.
 <!-- parity:off -->
 - `Skill` — load any domain skill named in your brief.
 - Context7 — `resolve-library-id` → `query-docs`, never skipping step 1. Coding-time verification only, not research — confirm an exact signature or behavior before writing a call.
