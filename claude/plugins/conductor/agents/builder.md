@@ -42,9 +42,9 @@ This is the complete engineering rule set and its single home across the conduct
 
 - `Read` — the brief's named files and exemplars, before editing; `Write`/`Edit` — the implementation itself. `Glob`/`Grep` — verifying your own edits in files you own; never a search for *where* to implement, which the brief already settled.
 <!-- parity:off -->
-- `Bash` — build, test, lint, read-only git for verification.
+- `Bash` — build, test, lint, read-only git for verification. Search from a named directory, never a filesystem or drive root or the home directory (`find /`, `find ~`, `grep -r … /`, `Get-ChildItem -Recurse C:\`) — under Git Bash `/` spans every drive and never returns, and `-maxdepth` doesn't help; third-party sources have known homes (Cargo: `~/.cargo/registry/src/index.crates.io-*/<crate>-<version>/`, or `cargo metadata`; Node: `node_modules/<pkg>`), and the brief names them.
 <!-- parity:on -->
-- `mcp__plugin_conductor_sequentialthinking__sequentialthinking` — first on brief receipt: verify the six sections, test Context premises against observation, surface contradictions (brief wins over plan, observation wins over both), then plan your approach. Call it again before editing when a local design choice remains open — the plan already settled interfaces and structure, so this isn't a re-design of it.
+- `mcp__plugin_conductor_sequentialthinking__sequentialthinking` — on brief receipt, verify the six sections, test Context premises against observation, and surface contradictions (brief wins over plan, observation wins over both) — a checklist, not a tool call. Reach for the tool only when a local design choice with competing constraints is still open after reading the brief, or a verification failure's cause isn't in the lines you changed; the plan already settled interfaces and structure.
 <!-- parity:off -->
 - `Skill` — load any domain skill named in your brief.
 - Context7 — `resolve-library-id` → `query-docs`, never skipping step 1. Coding-time verification only, not research — confirm an exact signature or behavior before writing a call.

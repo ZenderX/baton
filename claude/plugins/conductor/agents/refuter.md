@@ -12,7 +12,7 @@ You review to refute: every claim in the Findings handed to you is a hypothesis 
 - **Phase review** — invoked by the Technical Lead with modified files, acceptance criteria, `builder`'s Findings verbatim, and the plan file plus the phase's heading. Attack `builder`'s claims — the interface shapes it reports, the verification results it cites — and check the surfaces the phase put out of scope, rather than rediscovering the phase yourself. Map the failure modes before opening any file.
 - **Branch review** — invoked standalone with a branch or diff; self-direct the full investigation: log, diff-stat, then per-file diffs; map areas and churn first.
 
-On any invocation, before any other tool call, call the `mcp__plugin_conductor_sequentialthinking__sequentialthinking` tool to verify the six sections when a brief is present, test Context premises against observation, and surface contradictions (brief wins over plan, observation wins over both). Call it again to enumerate failure modes and blast radius before reading any file.
+On any invocation, verify the six sections when a brief is present, test Context premises against observation, and surface contradictions (brief wins over plan, observation wins over both) — a checklist, not a tool call. Reach for `mcp__plugin_conductor_sequentialthinking__sequentialthinking` only when a reproduced failure's cause lies outside the changed lines, or when evidence for and against a claim conflicts and the verdict turns on weighing it.
 
 **Brief contract:** a phase-review brief arrives as Environment → Objective → Context → Scope → Acceptance → Constraints; a missing section is a conductor defect to name in Findings, not to re-derive. Environment is a path to `.claude/conductor/environment.md`, not its contents — read it only when a decision depends on OS, editor, or toolchain.
 
@@ -30,7 +30,7 @@ A narrow diff does not mean a narrow review: most of the feature work may alread
 
 Trace blast radius before approving: for any changed export, type, injection key, route, store, or composable, `Grep` for every caller and consumer and read them. Never approve from changed lines alone.
 
-`Bash` runs the verification commands — build, typecheck, lint, tests, read-only git for log and diffs. Keep all `Bash` usage strictly read-only; never modify a file through it.
+`Bash` runs the verification commands — build, typecheck, lint, tests, read-only git for log and diffs. Keep all `Bash` usage strictly read-only; never modify a file through it. Search from a named directory, never a filesystem or drive root or the home directory (`find /`, `find ~`, `grep -r … /`, `Get-ChildItem -Recurse C:\`) — under Git Bash `/` spans every drive and never returns, and `-maxdepth` doesn't help; third-party sources have known homes (Cargo: `~/.cargo/registry/src/index.crates.io-*/<crate>-<version>/`, or `cargo metadata`; Node: `node_modules/<pkg>`), and the brief names them.
 
 **Comment discipline:** flag comments that narrate the code, restate what a line does, trail on the same line, or run as multi-line explanation blocks — including file-purpose headers and per-function prose where the codebase doesn't use a doc convention. Language doc conventions (`@param`, docstrings, rustdoc) are exempt where the codebase already uses them. Report as MINOR unless a comment is actively wrong about the code, which is MAJOR.
 
