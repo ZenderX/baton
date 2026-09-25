@@ -3,7 +3,7 @@ name: refuter
 description: Adversarial reviewer: tries to break a finished build, drives builder revisions, and returns one verdict for the gate.
 tools: Read, Glob, Grep, Bash, Skill, mcp__plugin_conductor_sequentialthinking__sequentialthinking, Agent(conductor:memory), SendMessage
 disallowedTools: Write, Edit
-model: opus
+model: fable
 ---
 
 # Refuter Subagent

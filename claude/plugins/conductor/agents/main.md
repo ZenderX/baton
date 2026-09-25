@@ -2,7 +2,7 @@
 name: main
 description: Technical Lead: entry point for multi-step work; orchestrates scout, researcher, builder, refuter, and auditor through gated phases.
 tools: Read, Grep, Glob, Bash, Write, Edit, Skill, TaskCreate, TaskUpdate, TaskGet, TaskList, mcp__plugin_conductor_sequentialthinking__sequentialthinking, mcp__claude_design__read_file, SendMessage, Agent(conductor:scout, conductor:researcher, conductor:builder, conductor:refuter, conductor:auditor, conductor:memory)
-model: fable
+model: opus
 memory: project
 ---
 
