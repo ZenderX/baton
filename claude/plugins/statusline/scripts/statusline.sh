@@ -1,13 +1,14 @@
 #!/bin/bash
 # Claude Code statusline — design "2a: Gauges, tightened":
-#   ▌dir branch !?$ │ Fable 5 ██▌░░░ 40% 397k/1M │ 5h ████░░ 70% 3h03m · wk █░░░░░ 20% · Fable ██░░░░ 31% 4d2h
+#   ▌dir branch !?$ │ Fable 5 ██▌░░░ 40% 397k/1M · cache █ 91% (47m) 2 miss │ 5h ████░░ 70% 3h03m · wk █░░░░░ 20% · Fable ██░░░░ 31% 4d2h
 # Two separator weights: │ divides the three groups (where you are / what you're
 # talking to and how full it is / what you have left); · separates budget items.
 # Bars are six cells read in half-cells (▌) = 8.3% resolution. Every bar is
 # followed by its percentage in the bar's own colour; the dim trailing value is
 # the thing that counts down (tokens against the window, time left in period).
 # Colour derived: green under 60%, amber past 60%, red past 85% (pct bold red;
-# time-critical countdowns bold red too).
+# time-critical countdowns bold red too). Inverted for the cache hit ratio —
+# high is good there, so green >=85%, amber >=60%, red below 60%.
 # Reactive: settings.json statusLine.refreshInterval=60 re-runs this every
 # minute even when idle. Reads Claude Code's JSON payload on stdin. Plan usage
 # from the OAuth usage endpoint (same source as /usage), cached 60s in ~/.claude/.
@@ -130,6 +131,32 @@ gauge() {
   [ -n "$trail" ] && printf ' %b%s%b' "$trail_c" "$trail" "$R"
 }
 
+countdown_epoch() { # epoch seconds -> "2h13m" / "4d2h" / "now" / ""
+  local target=$1 now diff d h m
+  [ -z "$target" ] && return
+  now=$(date +%s)
+  diff=$(( target - now ))
+  [ "$diff" -le 0 ] && { printf 'now'; return; }
+  d=$(( diff / 86400 )); h=$(( (diff % 86400) / 3600 )); m=$(( (diff % 3600) / 60 ))
+  if [ "$d" -gt 0 ]; then printf '%dd%dh' "$d" "$h"
+  elif [ "$h" -gt 0 ]; then printf '%dh%02dm' "$h" "$m"
+  else printf '%dm' "$m"; fi
+}
+
+countdown() { # ISO timestamp -> "2h13m" / "4d2h" / ""
+  [ "$1" = "-" ] && return
+  local target ts
+  target=$(date -d "$1" +%s 2>/dev/null)
+  if [ -z "$target" ]; then
+    # BSD date: no -d. Strip fractional seconds and the zone suffix, then parse
+    # as UTC — the API emits +00:00, so dropping the offset is lossless here.
+    ts=$(printf '%s' "$1" | sed -e 's/\.[0-9]*//' -e 's/Z$//' -e 's/[+-][0-9][0-9]:*[0-9][0-9]$//')
+    target=$(date -j -u -f "%Y-%m-%dT%H:%M:%S" "$ts" +%s 2>/dev/null)
+  fi
+  [ -z "$target" ] && return
+  countdown_epoch "$target"
+}
+
 # --- Group 1: where you are — ▌dir branch flags ---
 g1=$(printf '%b▌%b%b%s%b' "$C_BAR" "$R" "$C_DIR" "$dir_name" "$R")
 if [ -n "$branch" ]; then
@@ -170,6 +197,48 @@ if [ -n "$model" ]; then
     [ -z "$pct" ] && pct=$(( used * 100 / limit ))
     g2+=" $(gauge "" "$pct" "$(fmt_num "$used")/$(fmt_num "$limit")" tokens)"
   fi
+fi
+
+# Prompt-cache health: main-conversation cache summary, added to the payload
+# after the first API response (v2.1.251+); absent before that and on older
+# versions, so omit silently when missing or when caching isn't observed.
+cache_seg=""
+if command -v jq >/dev/null 2>&1; then
+  # jq on Windows writes CRLF to stdout; strip the \r so the last @tsv field
+  # (read by bash without word-splitting it away) doesn't carry a stray byte.
+  read -r pc_warm pc_observed pc_expires pc_misses pc_hit < <(printf '%s' "$input" | jq -r '
+    (.prompt_cache // {}) as $c |
+    [ ($c.warm // false), ($c.caching_observed // false),
+      (($c.expires_at // -1) | if type == "number" then floor else -1 end), ($c.misses // 0),
+      ($c.hit_ratio // -1) ] | @tsv' 2>/dev/null | tr -d '\r')
+
+  if [ "$pc_observed" = "true" ]; then
+    w_glyph="░"; [ "$pc_warm" = "true" ] && w_glyph="█"
+    hh_str=""
+    if [ "${pc_hit:--1}" != "-1" ]; then
+      hh=$(awk -v h="$pc_hit" 'BEGIN{printf "%d", h*100+0.5}')
+      # inverted from the spend gauges above: a high hit ratio is good here
+      if   [ "$hh" -ge 85 ]; then hh_c=$C_GREEN
+      elif [ "$hh" -ge 60 ]; then hh_c=$C_AMBER
+      else                        hh_c=$C_REDB; fi
+      hh_str=$(printf '%b%s%%%b' "$hh_c" "$hh" "$R")
+    fi
+    if [ "$pc_warm" = "true" ] && [ "${pc_expires:--1}" != "-1" ]; then
+      left_str=$(printf '%b(%s)%b' "$C_TIME" "$(countdown_epoch "$pc_expires")" "$R")
+    else
+      left_str=$(printf '%b(cold)%b' "$C_DIMV" "$R")
+    fi
+    cache_seg=$(printf '%bcache%b %s' "$C_LABEL" "$R" "$w_glyph")
+    [ -n "$hh_str" ] && cache_seg+=" $hh_str"
+    cache_seg+=" $left_str"
+    [ "${pc_misses:-0}" -gt 0 ] 2>/dev/null && cache_seg+=$(printf ' %b%s miss%b' "$C_AMBER" "$pc_misses" "$R")
+  fi
+fi
+
+if [ -n "$g2" ] && [ -n "$cache_seg" ]; then
+  g2+="${SEP_I}${cache_seg}"
+elif [ -z "$g2" ] && [ -n "$cache_seg" ]; then
+  g2="$cache_seg"
 fi
 
 # --- Group 3: what you have left — 5h · wk · Fable ---
@@ -214,27 +283,7 @@ if [ -f "$cache" ] && command -v jq >/dev/null 2>&1; then
       (lim("session").resets_at // "-"),
       (lim("weekly_all").percent // -1),
       (lim("weekly_scoped").percent // -1),
-      (lim("weekly_scoped").resets_at // "-") ] | @tsv' "$cache" 2>/dev/null | tr '\t' ' ')
-
-  countdown() { # ISO timestamp -> "2h13m" / "4d2h" / ""
-    [ "$1" = "-" ] && return
-    local target now diff d h m ts
-    target=$(date -d "$1" +%s 2>/dev/null)
-    if [ -z "$target" ]; then
-      # BSD date: no -d. Strip fractional seconds and the zone suffix, then parse
-      # as UTC — the API emits +00:00, so dropping the offset is lossless here.
-      ts=$(printf '%s' "$1" | sed -e 's/\.[0-9]*//' -e 's/Z$//' -e 's/[+-][0-9][0-9]:*[0-9][0-9]$//')
-      target=$(date -j -u -f "%Y-%m-%dT%H:%M:%S" "$ts" +%s 2>/dev/null)
-    fi
-    [ -z "$target" ] && return
-    now=$(date +%s)
-    diff=$(( target - now ))
-    [ "$diff" -le 0 ] && { printf 'now'; return; }
-    d=$(( diff / 86400 )); h=$(( (diff % 86400) / 3600 )); m=$(( (diff % 3600) / 60 ))
-    if [ "$d" -gt 0 ]; then printf '%dd%dh' "$d" "$h"
-    elif [ "$h" -gt 0 ]; then printf '%dh%02dm' "$h" "$m"
-    else printf '%dm' "$m"; fi
-  }
+      (lim("weekly_scoped").resets_at // "-") ] | @tsv' "$cache" 2>/dev/null | tr '\t' ' ' | tr -d '\r')
 
   # countdowns in parentheses, single space after the percentage
   if [ "${s_pct:--1}" != "-1" ]; then

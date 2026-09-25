@@ -3,7 +3,7 @@
 Claude Code statusline implementing design **2a — "Gauges, tightened: two separator weights, percentage on every budget"**.
 
 ```
-▌my-project develop !?$ │ Fable 5 ██▌░░░ 40% 397k/1M │ 5h ████░░ 70% 3h03m · wk █░░░░░ 20% · Fable ██░░░░ 31% 4d2h
+▌my-project develop !?$ │ Fable 5 ██▌░░░ 40% 397k/1M · cache █ 91% (47m) 2 miss │ 5h ████░░ 70% 3h03m · wk █░░░░░ 20% · Fable ██░░░░ 31% 4d2h
 ```
 
 ## The grammar
@@ -13,11 +13,12 @@ Two weights of separator carry the structure: `│` divides the three groups —
 | Item | Bar (spent) | Trailing value | Source |
 |---|---|---|---|
 | model + ctx | context used % | `used/window` tokens | payload `context_window` (matches `/context`); transcript+model-family fallback |
+| `cache` | — (warm █ / cold ░) | hit %, time until cold, misses | payload `prompt_cache` (v2.1.251+) |
 | `5h` | session window % | time until reset, right-aligned to 5 (`  18m` at crunch) | OAuth usage endpoint, 60s cache |
 | `wk` | weekly all-models % | — | 〃 |
 | `Fable` | weekly model-scoped % | time until reset | 〃 |
 
-Colour is derived, never decorative: green, **amber past 60%**, **red past 85%** — the percentage goes bold red at red; time-critical countdowns go bold red too, token figures only brighten. Left group: `▌` accent bar, dir (repo basename), bold branch, git flags `+!?$` (staged/modified/untracked/stash) — reactive per render.
+Colour is derived, never decorative: green, **amber past 60%**, **red past 85%** — the percentage goes bold red at red; time-critical countdowns go bold red too, token figures only brighten. The `cache` item inverts this: hit ratio is good when high, so green **>=85%**, amber **>=60%**, red **below 60%**. Left group: `▌` accent bar, dir (repo basename), bold branch, git flags `+!?$` (staged/modified/untracked/stash) — reactive per render.
 
 Palette (truecolor): bar `#2E6BAA`, dir `#9FC7EE`, branch `#B392E0`, flags/amber `#E2A63C`, empty cells `#343A43`, group sep `#4A5058`, item sep `#3F444D`, model/bright values `#A7ADB8`, labels `#757B87`, dim values `#5A606B`, green `#63BE8B`, red `#E0563F`.
 
