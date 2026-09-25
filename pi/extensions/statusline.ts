@@ -35,6 +35,16 @@
  * an idle root figure is suppressed; with both active the block is
  * `N tok/s · N agent(s) | N tok/s`, right-aligned as one unit.
  *
+ * Left side: two live groups join location/model/cost. The cache group
+ * (local servers only, isPrivateServer gate) shows only real data: the last
+ * request's cache hit rate (the server reports per-request `cached_tokens`,
+ * mapped to `usage.cacheRead`) and a session miss counter (requests with
+ * zero cacheRead are full uncached prefills), shown only when greater than
+ * 0. No time-based figure is shown because the server exposes no cache state
+ * or TTL — invented values are not displayed (user instruction). The task
+ * line below the powerline line is rendered by extensions/task-list.ts via
+ * the shared footer-line registry (extensions/footer-lines.ts).
+ *
  * The shell script's plan-usage group (Anthropic OAuth usage endpoint) has no
  * pi equivalent and is intentionally dropped.
  *
@@ -47,9 +57,10 @@ import * as path from "node:path";
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import type { Api, AssistantMessage, Model, ProviderHeaders } from "@earendil-works/pi-ai";
 import { getAgentDir } from "@earendil-works/pi-coding-agent";
-import type { CustomEntry, ExtensionAPI, ExtensionContext, SessionEntry, Theme } from "@earendil-works/pi-coding-agent";
+import type { CustomEntry, ExtensionAPI, ExtensionContext, ReadonlyFooterDataProvider, SessionEntry, Theme } from "@earendil-works/pi-coding-agent";
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import { formatTps, subagentLiveSnapshot, type SubagentLiveSample } from "./subagent-live.ts";
+import { registerFooterApplier, registerFooterLine, registerFooterTick, unregisterFooterApplier, unregisterFooterLine, unregisterFooterTick } from "./footer-lines.ts";
 
 const STATE_KEY = "statusline";
 
@@ -58,7 +69,6 @@ const AMBER_AT = 60;
 const RED_AT = 85;
 const WINDOW_TTL_MS = 60_000;
 const FETCH_TIMEOUT_MS = 5000;
-const FOOTER_REFRESH_MS = 3_000;
 
 interface StatuslineState {
 	enabled: boolean;
@@ -92,6 +102,12 @@ interface ModelsFileProvider {
 interface ModelsFileModel {
 	id?: string;
 	contextWindow?: number;
+}
+
+/** Cache state for the last assistant request on a local server. */
+interface CacheState {
+	/** cacheRead / (input + cacheRead + cacheWrite) of the last request, 0..1. */
+	hitRate: number;
 }
 
 function isStatuslineEntry(entry: SessionEntry): entry is CustomEntry<StatuslineState> {
@@ -211,6 +227,14 @@ function renderAgents(theme: Theme, samples: SubagentLiveSample[]): string {
 	const total = samples.reduce((sum, { tps }) => sum + tps, 0);
 	const count = `${samples.length} ${samples.length === 1 ? "agent" : "agents"}`;
 	return theme.fg("muted", count) + theme.fg("dim", " | ") + theme.fg("dim", formatTps(total));
+}
+
+/** Cache group: the last request's hit rate; ` · n miss` when misses > 0. */
+function renderCache(theme: Theme, cache: CacheState | null, misses: number): string {
+	if (cache === null) return "";
+	const items = [theme.fg("muted", `${Math.round(cache.hitRate * 100)}%`)];
+	if (misses > 0) items.push(theme.fg("dim", `${misses} miss`));
+	return items.join(theme.fg("dim", " · "));
 }
 
 function renderModel(theme: Theme, ctx: ExtensionContext, liveWindow: number | undefined): string {
@@ -412,6 +436,10 @@ export default function (pi: ExtensionAPI) {
 	// cleared once turn_end refreshes the registry.
 	let needsRegistryRefresh = false;
 
+	// Cache tracking for local servers, recorded on assistant message_end.
+	let cacheState: CacheState | null = null;
+	let cacheMisses = 0;
+
 	pi.registerFlag("statusline", {
 		description: "Replace the built-in footer with the powerline statusline",
 		type: "boolean",
@@ -465,68 +493,64 @@ export default function (pi: ExtensionAPI) {
 		}
 	}
 
-	function applyFooter(ctx: ExtensionContext): void {
-		if (!enabled) {
-			ctx.ui.setFooter(undefined);
-			return;
+	/** The powerline line only; the task line below it is a separate footer-line provider. */
+	function renderStatuslineLine(width: number, theme: Theme, footerData: ReadonlyFooterDataProvider, ctx: ExtensionContext): string {
+		const separator = theme.fg("border", " │ ");
+		const dimSep = theme.fg("dim", " · ");
+		const model = ctx.model;
+		const liveWindow = model === undefined ? undefined : liveWindowFor(model);
+		let tokensPerSecond: number | null;
+		if (t0 !== null) {
+			const elapsedMs = Date.now() - t0;
+			const tokens = lastPartial === null ? 0 : estimateOutputTokens(lastPartial);
+			tokensPerSecond = elapsedMs > 0 ? tokens / (elapsedMs / 1000) : 0;
+		} else {
+			tokensPerSecond = lastTps ?? null;
+		}
+		const cost = renderCost(theme, ctx);
+		const samples = subagentLiveSnapshot();
+		const left = [
+			renderLocation(theme, ctx.cwd, footerData.getGitBranch()),
+			renderModel(theme, ctx, liveWindow),
+			renderCache(theme, cacheState, cacheMisses),
+			cost,
+		].filter((group) => group !== "").join(separator);
+
+		// Right side: root t/s and/or the agent group, one right-aligned unit.
+		const rootFigure = tokensPerSecond === null ? null : theme.fg("dim", formatTps(tokensPerSecond));
+		const agents = renderAgents(theme, samples);
+		let right = "";
+		if (agents !== "") {
+			// An idle root figure is suppressed while agents run.
+			right = t0 !== null && rootFigure !== null ? rootFigure + dimSep + agents : agents;
+		} else {
+			right = rootFigure ?? "";
 		}
 
-		ctx.ui.setFooter((tui, theme, footerData) => {
-			const unsubscribe = footerData.onBranchChange(() => tui.requestRender());
-			// Repaint + background window refresh, mirroring Claude's statusLine.refreshInterval.
-			const timer = setInterval(() => {
-				void refreshWindow(ctx);
-				tui.requestRender();
-			}, FOOTER_REFRESH_MS);
-			timer.unref();
+		if (right === "") return truncateToWidth(left, width);
+		// Right-align the block to the edge; fall back to the
+		// left-aligned line when it does not fit. No separator between
+		// the left groups and the right block — a single space in the
+		// fallback keeps the cost figure from gluing to the counter.
+		const gap = width - visibleWidth(left) - visibleWidth(right);
+		if (gap <= 0) return truncateToWidth(left + " " + right, width);
+		return left + " ".repeat(gap) + right;
+	}
 
-			return {
-				dispose: () => {
-					clearInterval(timer);
-					unsubscribe();
-				},
-				invalidate() {},
-				render(width: number): string[] {
-					const separator = theme.fg("border", " │ ");
-					const dimSep = theme.fg("dim", " · ");
-					const model = ctx.model;
-					const liveWindow = model === undefined ? undefined : liveWindowFor(model);
-					let tokensPerSecond: number | null;
-					if (t0 !== null) {
-						const elapsedMs = Date.now() - t0;
-						const tokens = lastPartial === null ? 0 : estimateOutputTokens(lastPartial);
-						tokensPerSecond = elapsedMs > 0 ? tokens / (elapsedMs / 1000) : 0;
-					} else {
-						tokensPerSecond = lastTps ?? null;
-					}
-					const cost = renderCost(theme, ctx);
-					const left = [
-						renderLocation(theme, ctx.cwd, footerData.getGitBranch()),
-						renderModel(theme, ctx, liveWindow),
-						cost,
-					].filter((group) => group !== "").join(separator);
-
-					// Right side: root t/s and/or the agent group, one right-aligned unit.
-					const rootFigure =
-						tokensPerSecond === null ? null : theme.fg("dim", formatTps(tokensPerSecond));
-					const agents = renderAgents(theme, subagentLiveSnapshot());
-					let right = "";
-					if (agents !== "") {
-						// An idle root figure is suppressed while agents run.
-						right = t0 !== null && rootFigure !== null ? rootFigure + dimSep + agents : agents;
-					} else {
-						right = rootFigure ?? "";
-					}
-					if (right === "") return [truncateToWidth(left, width)];
-					// Right-align the block to the edge; fall back to the
-					// left-aligned line when it does not fit. No separator between
-					// the left groups and the right block — a single space in the
-					// fallback keeps the cost figure from gluing to the counter.
-					const gap = width - visibleWidth(left) - visibleWidth(right);
-					if (gap <= 0) return [truncateToWidth(left + " " + right, width)];
-					return [left + " ".repeat(gap) + right];
-				},
-			};
+	function applyFooter(ctx: ExtensionContext): void {
+		registerFooterApplier(STATE_KEY, (factory) => ctx.ui.setFooter(factory));
+		if (!enabled) {
+			unregisterFooterLine(STATE_KEY);
+			unregisterFooterTick(STATE_KEY);
+			return;
+		}
+		registerFooterLine({
+			id: STATE_KEY,
+			priority: 0,
+			render: (w, t, fd) => renderStatuslineLine(w, t, fd, ctx),
+		});
+		registerFooterTick(STATE_KEY, () => {
+			void refreshWindow(ctx);
 		});
 	}
 
@@ -566,13 +590,16 @@ export default function (pi: ExtensionAPI) {
 		lastConductorState = conductorEnabled(ctx);
 		if (lastConductorState) enabled = true;
 
-		// Fresh session: drop the live-window cache and reset tok/s timing.
+		// Fresh session: drop the live-window cache and reset tok/s timing and
+		// cache tracking.
 		liveWindows.clear();
 		inFlight.clear();
 		t0 = null;
 		lastPartial = null;
 		lastTps = undefined;
 		needsRegistryRefresh = false;
+		cacheState = null;
+		cacheMisses = 0;
 
 		applyFooter(ctx);
 		// Not gated on TUI mode: the self-heal must run in print mode too.
@@ -593,6 +620,17 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	pi.on("model_select", async (_event, ctx) => {
+		// A non-private model has no cache telemetry: drop the previous server's stale hit rate.
+		const model = ctx.model;
+		if (
+			model === undefined ||
+			typeof model.baseUrl !== "string" ||
+			model.baseUrl === "" ||
+			!isPrivateServer(model.baseUrl)
+		) {
+			cacheState = null;
+			cacheMisses = 0;
+		}
 		void refreshWindow(ctx);
 	});
 
@@ -611,6 +649,9 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	pi.on("session_shutdown", async (_event, ctx) => {
+		unregisterFooterLine(STATE_KEY);
+		unregisterFooterTick(STATE_KEY);
+		unregisterFooterApplier(STATE_KEY);
 		ctx.ui.setFooter(undefined);
 	});
 
@@ -625,10 +666,21 @@ export default function (pi: ExtensionAPI) {
 		lastPartial = event.message;
 	});
 
-	pi.on("message_end", (event) => {
+	pi.on("message_end", (event, ctx) => {
 		if (!isAssistantMessage(event.message)) return;
 		t0 = null;
 		lastPartial = null;
 		lastTps = 0;
+
+		// Cache tracking: local servers only, requests with usage only.
+		const model = ctx.model;
+		if (model === undefined || typeof model.baseUrl !== "string" || model.baseUrl === "") return;
+		if (!isPrivateServer(model.baseUrl)) return;
+		const { input, cacheRead, cacheWrite } = event.message.usage;
+		const denominator = input + cacheRead + cacheWrite;
+		if (denominator <= 0) return;
+		cacheState = { hitRate: cacheRead / denominator };
+		// Zero cacheRead is a full uncached prefill.
+		if (cacheRead === 0) cacheMisses += 1;
 	});
 }

@@ -12,6 +12,10 @@
 # Reactive: settings.json statusLine.refreshInterval=60 re-runs this every
 # minute even when idle. Reads Claude Code's JSON payload on stdin. Plan usage
 # from the OAuth usage endpoint (same source as /usage), cached 60s in ~/.claude/.
+# Local servers: ANTHROPIC_BASE_URL on a private host switches the gauge
+# denominator to the window the server reports (GET /v1/models, 60s cache) and
+# derives the cache group from the transcript when the payload has no
+# prompt_cache block. Real data only — nothing estimated, no countdowns.
 
 input=$(cat)
 
@@ -46,6 +50,10 @@ win_to_unix() {
   else
     printf '%s' "$p"
   fi
+}
+
+mtime() { # file -> epoch seconds; GNU stat then BSD stat
+  stat -c %Y "$1" 2>/dev/null || stat -f %m "$1" 2>/dev/null || echo 0
 }
 
 cwd=$(win_to_unix "$(json_get current_dir)")
@@ -164,31 +172,91 @@ if [ -n "$branch" ]; then
   [ -n "$git_flags" ] && g1+=$(printf ' %b%s%b' "$C_FLAGS" "$git_flags" "$R")
 fi
 
+# --- Live context window from a local OpenAI-compatible server ---
+# For private hosts the window the server actually reports is the truth (a
+# local --max-context beats any static figure): probe {base}/v1/models then
+# {base}/models for data[].max_model_len, cached 60s in
+# ~/.claude/.statusline-window.json. Any failure falls through to the
+# payload/model-family fallbacks below.
+live_window=""
+_base="${ANTHROPIC_BASE_URL:-}"
+if [ -n "$_base" ] && command -v curl >/dev/null 2>&1 && command -v jq >/dev/null 2>&1; then
+  _host=$(printf '%s' "$_base" | sed -e 's|^[a-zA-Z][a-zA-Z0-9+.-]*://||' -e 's|/.*$||' -e 's|:[0-9]*$||')
+  _host=${_host#\[}; _host=${_host%\]}
+  _private=0
+  case "$_host" in
+    localhost|::1|127.*|10.*|192.168.*) _private=1 ;;
+    172.*)
+      _oct=${_host#172.}; _oct=${_oct%%.*}
+      if [ "$_oct" -ge 16 ] 2>/dev/null && [ "$_oct" -le 31 ] 2>/dev/null; then _private=1; fi ;;
+  esac
+  if [ "$_private" = "1" ]; then
+    wcache="$HOME/.claude/.statusline-window.json"
+    wage=999999
+    [ -f "$wcache" ] && wage=$(( $(date +%s) - $(mtime "$wcache") ))
+    if [ "$wage" -gt 60 ]; then
+      # Strip a trailing /v1 (and slashes) so the probe never hits /v1/v1/models.
+      _b="$_base"
+      while :; do
+        case "$_b" in
+          */v1) _b=${_b%/v1} ;;
+          */)   _b=${_b%/} ;;
+          *)    break ;;
+        esac
+      done
+      for _url in "$_b/v1/models" "$_b/models"; do
+        _body=$(curl -s -m 4 "$_url" 2>/dev/null)
+        [ -n "$_body" ] || continue
+        _w=$(printf '%s' "$_body" | jq -r '.data[]?.max_model_len // empty' 2>/dev/null | head -n1)
+        if [ -n "$_w" ] && [ "$_w" -gt 0 ] 2>/dev/null; then
+          live_window=$_w
+          [ -d "$HOME/.claude" ] && printf '{"window":%s}' "$_w" > "$wcache"
+          break
+        fi
+      done
+    else
+      live_window=$(jq -r '.window // empty' "$wcache" 2>/dev/null)
+    fi
+  fi
+fi
+
 # --- Group 2: what you're talking to and how full it is — Model + ctx gauge ---
-# Prefer the payload's own context_window block (authoritative — matches /context);
-# fall back to the transcript's last usage block + model-family window.
+# Denominator precedence: live server value (private host) > payload
+# context_window block (authoritative — matches /context) > model-family map.
 g2=""
 used=$(printf '%s' "$input" | grep -o '"total_input_tokens":[0-9]*' | head -n1 | cut -d: -f2)
 limit=$(printf '%s' "$input" | grep -o '"context_window_size":[0-9]*' | head -n1 | cut -d: -f2)
 pct=$(printf '%s' "$input" | grep -o '"used_percentage":[0-9.]*' | head -n1 | cut -d: -f2 | cut -d. -f1)
 
-if [ -z "$used" ] || [ -z "$limit" ] || [ "${limit:-0}" -eq 0 ]; then
-  used=""; pct=""
+# The live value wins for local servers; the payload's percentage was computed
+# against the payload's own size, so recompute it against the live limit.
+if [ -n "$live_window" ]; then
+  limit=$live_window
+  pct=""
+fi
+
+if [ -z "$used" ]; then
+  pct=""
   if [ -n "$transcript" ] && [ -f "$transcript" ]; then
     line=$(tail -c 262144 "$transcript" | grep '"input_tokens"' | tail -n1)
     if [ -n "$line" ]; then
-      num() { printf '%s' "$line" | grep -o "\"$1\":[0-9]*" | head -n1 | cut -d: -f2; }
-      used=$(( $(num input_tokens || echo 0) + $(num cache_read_input_tokens || echo 0) + $(num cache_creation_input_tokens || echo 0) ))
-      mid=$(printf '%s' "$model_id" | tr 'A-Z' 'a-z')
-      case "$mid" in
-        *haiku*)  limit=${CLAUDE_CONTEXT_WINDOW:-200000} ;;
-        *"[1m]"*|*fable*|*mythos*|*opus-5*|*opus-4-8*|*opus-4-7*|*opus-4-6*|*sonnet-5*|*sonnet-4-6*)
-                  limit=${CLAUDE_CONTEXT_WINDOW:-1000000} ;;
-        *)        limit=${CLAUDE_CONTEXT_WINDOW:-200000}
-                  case "$input" in *"[1m]"*) limit=${CLAUDE_CONTEXT_WINDOW:-1000000} ;; esac ;;
-      esac
+      # Missing fields (local proxies omit cache fields) must yield 0, not an
+      # empty operand — an empty one is an arithmetic syntax error on stderr.
+      num() { local v; v=$(printf '%s' "$line" | grep -o "\"$1\":[0-9]*" | head -n1 | cut -d: -f2); [ -n "$v" ] || v=0; printf '%s' "$v"; }
+      used=$(( $(num input_tokens) + $(num cache_read_input_tokens) + $(num cache_creation_input_tokens) ))
     fi
   fi
+fi
+
+if [ -z "$limit" ] || [ "${limit:-0}" -eq 0 ]; then
+  mid=$(printf '%s' "$model_id" | tr 'A-Z' 'a-z')
+  case "$mid" in
+    *haiku*)  limit=${CLAUDE_CONTEXT_WINDOW:-200000} ;;
+    *"[1m]"*|*fable*|*mythos*|*opus-5*|*opus-4-8*|*opus-4-7*|*opus-4-6*|*sonnet-5*|*sonnet-4-6*)
+              limit=${CLAUDE_CONTEXT_WINDOW:-1000000} ;;
+    *)        limit=${CLAUDE_CONTEXT_WINDOW:-200000}
+              case "$input" in *"[1m]"*) limit=${CLAUDE_CONTEXT_WINDOW:-1000000} ;; esac ;;
+  esac
 fi
 
 if [ -n "$model" ]; then
@@ -200,38 +268,72 @@ if [ -n "$model" ]; then
 fi
 
 # Prompt-cache health: main-conversation cache summary, added to the payload
-# after the first API response (v2.1.251+); absent before that and on older
-# versions, so omit silently when missing or when caching isn't observed.
+# after the first API response (v2.1.251+). When the block is absent (older
+# Claude Code, or local models) the group is derived from the transcript's
+# assistant usages instead. Real data only: omit silently until the last
+# usage has a positive denominator.
 cache_seg=""
 if command -v jq >/dev/null 2>&1; then
   # jq on Windows writes CRLF to stdout; strip the \r so the last @tsv field
   # (read by bash without word-splitting it away) doesn't carry a stray byte.
-  read -r pc_warm pc_observed pc_expires pc_misses pc_hit < <(printf '%s' "$input" | jq -r '
+  read -r pc_present pc_warm pc_observed pc_expires pc_misses pc_hit < <(printf '%s' "$input" | jq -r '
     (.prompt_cache // {}) as $c |
-    [ ($c.warm // false), ($c.caching_observed // false),
+    [ has("prompt_cache"), ($c.warm // false), ($c.caching_observed // false),
       (($c.expires_at // -1) | if type == "number" then floor else -1 end), ($c.misses // 0),
       ($c.hit_ratio // -1) ] | @tsv' 2>/dev/null | tr -d '\r')
 
-  if [ "$pc_observed" = "true" ]; then
-    w_glyph="░"; [ "$pc_warm" = "true" ] && w_glyph="█"
-    hh_str=""
-    if [ "${pc_hit:--1}" != "-1" ]; then
-      hh=$(awk -v h="$pc_hit" 'BEGIN{printf "%d", h*100+0.5}')
-      # inverted from the spend gauges above: a high hit ratio is good here
-      if   [ "$hh" -ge 85 ]; then hh_c=$C_GREEN
-      elif [ "$hh" -ge 60 ]; then hh_c=$C_AMBER
-      else                        hh_c=$C_REDB; fi
-      hh_str=$(printf '%b%s%%%b' "$hh_c" "$hh" "$R")
+  if [ "$pc_present" = "true" ]; then
+    if [ "$pc_observed" = "true" ]; then
+      w_glyph="░"; [ "$pc_warm" = "true" ] && w_glyph="█"
+      hh_str=""
+      if [ "${pc_hit:--1}" != "-1" ]; then
+        hh=$(awk -v h="$pc_hit" 'BEGIN{printf "%d", h*100+0.5}')
+        # inverted from the spend gauges above: a high hit ratio is good here
+        if   [ "$hh" -ge 85 ]; then hh_c=$C_GREEN
+        elif [ "$hh" -ge 60 ]; then hh_c=$C_AMBER
+        else                        hh_c=$C_REDB; fi
+        hh_str=$(printf '%b%s%%%b' "$hh_c" "$hh" "$R")
+      fi
+      if [ "$pc_warm" = "true" ] && [ "${pc_expires:--1}" != "-1" ]; then
+        left_str=$(printf '%b(%s)%b' "$C_TIME" "$(countdown_epoch "$pc_expires")" "$R")
+      else
+        left_str=$(printf '%b(cold)%b' "$C_DIMV" "$R")
+      fi
+      cache_seg=$(printf '%bcache%b %s' "$C_LABEL" "$R" "$w_glyph")
+      [ -n "$hh_str" ] && cache_seg+=" $hh_str"
+      cache_seg+=" $left_str"
+      [ "${pc_misses:-0}" -gt 0 ] 2>/dev/null && cache_seg+=$(printf ' %b%s miss%b' "$C_AMBER" "$pc_misses" "$R")
     fi
-    if [ "$pc_warm" = "true" ] && [ "${pc_expires:--1}" != "-1" ]; then
-      left_str=$(printf '%b(%s)%b' "$C_TIME" "$(countdown_epoch "$pc_expires")" "$R")
-    else
-      left_str=$(printf '%b(cold)%b' "$C_DIMV" "$R")
+  else
+    # Transcript-derived group: the last assistant usage's hit rate
+    # cache_read/(input+cache_read+cache_creation) plus a session miss
+    # counter (usages carrying cache fields with cache_read == 0).
+    if [ -n "$transcript" ] && [ -f "$transcript" ]; then
+      read -r tc_hit tc_miss < <(jq -rn '
+        [ inputs
+          | select(type == "object")
+          | select((.type // "") == "assistant")
+          | select((.message // null) | type == "object")
+          | .message.usage
+          | select(type == "object")
+          | { ti: (.input_tokens // 0), cr: (.cache_read_input_tokens // 0),
+              cw: (.cache_creation_input_tokens // 0),
+              hasc: ((.cache_read_input_tokens != null) or (.cache_creation_input_tokens != null)) } ]
+        | map(select((.ti + .cr + .cw) > 0)) as $us
+        | ($us | map(select(.hasc and .cr == 0)) | length) as $miss
+        | ($us | last) as $last
+        | if $last == null then empty
+          else [ ((($last.cr * 100 / ($last.ti + $last.cr + $last.cw)) + 0.5) | floor), $miss ] | @tsv
+          end' "$transcript" 2>/dev/null | tr -d '\r')
+      if [ -n "$tc_hit" ]; then
+        # inverted from the spend gauges above: a high hit ratio is good here
+        if   [ "$tc_hit" -ge 85 ]; then hh_c=$C_GREEN
+        elif [ "$tc_hit" -ge 60 ]; then hh_c=$C_AMBER
+        else                            hh_c=$C_REDB; fi
+        cache_seg=$(printf '%b%s%%%b' "$hh_c" "$tc_hit" "$R")
+        [ "${tc_miss:-0}" -gt 0 ] 2>/dev/null && cache_seg+="${SEP_I}$(printf '%b%s miss%b' "$C_AMBER" "$tc_miss" "$R")"
+      fi
     fi
-    cache_seg=$(printf '%bcache%b %s' "$C_LABEL" "$R" "$w_glyph")
-    [ -n "$hh_str" ] && cache_seg+=" $hh_str"
-    cache_seg+=" $left_str"
-    [ "${pc_misses:-0}" -gt 0 ] 2>/dev/null && cache_seg+=$(printf ' %b%s miss%b' "$C_AMBER" "$pc_misses" "$R")
   fi
 fi
 
@@ -245,10 +347,6 @@ fi
 seg_5h=""; seg_wk=""; seg_fable=""
 cache="$HOME/.claude/.statusline-usage.json"
 creds="$HOME/.claude/.credentials.json"
-
-mtime() { # file -> epoch seconds; GNU stat then BSD stat
-  stat -c %Y "$1" 2>/dev/null || stat -f %m "$1" 2>/dev/null || echo 0
-}
 
 cache_age=999999
 if [ -f "$cache" ]; then
