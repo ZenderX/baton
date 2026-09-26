@@ -1,9 +1,9 @@
 {
-  "name": "the-conductor",
-  "version": "0.1.0",
+  "name": "the-pi-conductor",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Conductor product shim (planning/research/implement/code-review/memory agents, orchestrator persona, --conductor flag and /conductor command) on top of the baton core engine",
+  "description": "Conductor orchestrator + subagents and domain skills for pi (canonical pi package)",
   "license": "MIT",
   "author": "ZenderX",
   "keywords": [
@@ -11,7 +11,18 @@
   ],
   "pi": {
     "extensions": [
-      "./extensions/conductor.ts"
+      "./extensions/conductor/index.ts",
+      "./extensions/statusline.ts",
+      "./extensions/task-list.ts",
+      "./extensions/lmstudio-reasoning.ts"
+    ],
+    "skills": [
+      "./skills/conductor",
+      "./skills/bevy",
+      "./skills/blender",
+      "./skills/rust",
+      "./skills/typescript",
+      "./skills/vue3"
     ],
     "prompts": [
       "./prompts"
@@ -24,5 +35,10 @@
     "@earendil-works/pi-agent-core": "*",
     "@earendil-works/pi-tui": "*",
     "typebox": "*"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-coding-agent": "0.84.3",
+    "@types/node": "^24",
+    "typescript": "^5"
   }
 }
