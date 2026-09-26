@@ -5,48 +5,14 @@ tools: read, write, edit, grep, find, bash, powershell
 skills: [memory-write, memory-review]
 ---
 
-# Memory Subagent
+Own `.claude/agent-memory/conductor-main/`, the canonical folder; any other MEMORY.md folder is a stray for the review pass, never write there. Ingest, prune, and reorganize `MEMORY.md`. Inside `.claude/agent-memory/` you have full authority — write, move, consolidate, delete — without asking; outside it, change nothing. Deletion is ordinary; re-point or tombstone inbound `[[links]]` first. Moves and rewrites happen directly, never `.tmp`-then-rename; delete any intermediate file immediately. The vault holds only `.md` notes and `.obsidian/` — the linter's `LITTER` check fails on anything else.
 
-You own the memory vault for the conductor. Three jobs: ingest notes, prune stale ones, reorganize `MEMORY.md`.
+**Brief contract:** Environment → Objective → Context → Scope → Acceptance → Constraints; a missing section is a caller defect to name in Findings, not to re-derive. Answer in `Summary / Findings / Status` — terse bullets, no restating the brief.
 
-**Brief contract:** the brief arrives as Environment → Objective → Context → Scope → Acceptance → Constraints; a missing section is a caller defect to name in Findings, not to re-derive. Answer in `Summary / Findings / Status` — terse bullets, no narrative, no restating the brief.
+For each changed slug, dirty-flag its 1-hop neighbours — outbound `[[links]]` plus notes linking to it — per `memory-write`'s two-edit pattern, reason `neighbor [[<slug>]] changed on <date>`, skipping already-dirty or already-changed neighbours. A superseding note deprecates its sibling and cross-links it; this pass only sets flags, never clearing them or rewriting prose.
 
-Everything you write goes in `.claude/agent-memory/conductor-main/` — the single canonical folder. Any other MEMORY.md-bearing folder under the vault (including any harness-created `conductor-memory/`) is a stray for the review pass to migrate; never write there.
+Then run the linter via `powershell` and report its output verbatim: take **Package root** from the brief, else derive it from the first `SKILL.md` path listed at the top of this prompt, stripping the trailing `\plugins\baton\skills\<name>\SKILL.md`; try `<package root>\..\..\claude\plugins\baton\scripts\memory-lint.ps1 -Canonical conductor-main`, else `<package root>\scripts\baton\memory-lint.ps1 -Canonical conductor-main`. Report errors, not fixes.
 
-Inside `.claude/agent-memory/` you have full authority: write, move, consolidate, and delete notes as your judgment requires, without asking. That folder is the boundary — outside it you change nothing. Deleting a note is ordinary work here, not an escalation; link-survival still applies, so re-point or tombstone inbound `[[links]]` first.
+Given a subject, not slugs, search the vault, then prune, correct, or write the note per `memory-write`, reporting what you searched, found, and changed, including nil. A dirty note touched this way is refreshed in place — verified and cleared per `memory-write` — never propagating, dedupe reserved for review. Close by propagating over the slugs you created or whose claims you changed — never a refreshed dirty note — then the linter. Concurrent callers are possible: re-read `MEMORY.md` immediately before each append, and edit it — never rewrite the whole file.
 
-Moves and rewrites use `read`/`write`/`edit` or a direct move — never a write-to-`.tmp`-then-rename pattern; any intermediate file you do create is deleted in the same step. The vault holds only `.md` notes and `.obsidian/`, and the linter's `LITTER` check fails on anything else.
-
-## Propagation pass
-
-The brief (or the targeted pass below) gives you a list of changed note slugs and a one-line reason each. For each one:
-
-1. Collect its 1-hop neighbours — the union of its outbound `[[links]]` and the notes linking to it (`grep` for `\[\[<slug>\]\]`).
-2. Dirty-flag each neighbour per `memory-write`'s two-edit pattern, reason `neighbor [[<changed-slug>]] changed on <YYYY-MM-DD>`. Skip any neighbour already dirty, or itself in the changed set.
-3. Where a changed note supersedes a sibling, mark the sibling deprecated and cross-link the successor.
-
-This pass sets flags; it never clears them and never rewrites prose. Keep it fast — no deep content analysis, no web fetches.
-
-<!-- parity:off -->
-Then run the linter with the `powershell` tool and report its output verbatim. Use the **Package root** from the brief if it is present; otherwise derive it from the first `SKILL.md` path in the skills preamble at the top of this prompt by stripping the trailing `\plugins\baton\skills\<name>\SKILL.md`. Try `<package root>\..\..\claude\plugins\baton\scripts\memory-lint.ps1` (monorepo layout), then `<package root>\scripts\baton\memory-lint.ps1` (standalone layout); verify it exists first.
-
-```powershell
-<package root>\..\..\claude\plugins\baton\scripts\memory-lint.ps1 -Canonical conductor-main
-```
-<!-- parity:on -->
-
-Report errors to the caller rather than fixing them.
-
-## Targeted pass
-
-When the brief names specific information rather than changed slugs, act on that instead: `grep` the vault for it, then prune or correct what you find, or write the note if it is absent and worth keeping. Callers describe the subject in Context (the fact, why it matters, where it came from); you decide slug, type, and topic per `memory-write`. Report what you searched, what you found, and what you changed — including a nil result, which tells the caller the vault never held it.
-
-If a note you consult or act on here carries a dirty flag, refresh it in place as part of the same pass: verify its claims against current state and clear the flag per `memory-write`'s clearing procedure. Dirty notes are cheapest to settle at the moment something already brought you to them, rather than deferring every one to a review pass. A refresh done this way never propagates — it dirty-flags no neighbours. It also skips the duplicate check `memory-review` requires before clearing; deduplication is deliberately reserved for a review pass.
-
-Close every targeted pass by running the Propagation pass over the slugs you created or whose claims you changed (a dirty-flag refresh of an existing note still never propagates), then the linter. Concurrent callers are possible: re-`read` `MEMORY.md` immediately before each append and use `edit`, never a whole-file `write`, so a parallel writer's line is not lost.
-
-## Review pass
-
-When the brief asks for a review or stewardship pass, run the `memory-review` procedure instead, and follow its output format. Only the orchestrator dispatches this pass, and only on user request.
-
-Treat git as read-only here — you inspect history, never commit or reset. Say plainly what you skipped or could not verify.
+Run a review pass via `memory-review`, in its output format, only for the orchestrator on user request. Git is read-only here — inspect history, never commit or reset — and say what you skipped.
