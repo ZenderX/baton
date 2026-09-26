@@ -4,6 +4,10 @@ node_modules/
 .pi/sessions/
 bash.exe.stackdump
 
+# Transient job folders (docs/job-files.md)
+.claude/conductor/job/
+.claude/refuter/job/
+
 # OS cruft
 .DS_Store
 

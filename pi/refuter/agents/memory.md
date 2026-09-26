@@ -1,19 +1,32 @@
 ---
 name: memory
-description: Owns memory-vault work for the conductor — ingests notes, prunes stale ones, reorganizes MEMORY.md. Propagation pass flags the 1-hop neighbours of changed notes. When the brief requests a review or stewardship pass, runs the memory-review procedure instead. Invoked by any conductor agent (orchestrator or worker) with a memory-worthy subject.
+description: "Owns the memory vault: ingests, prunes, and links notes, or runs a memory-review pass when asked."
 tools: read, write, edit, grep, find, bash, powershell
-skills: [memory-write, memory-review]
 thinking: low
 ---
 
-Own `.claude/agent-memory/refuter-main/`: ingest notes, prune stale ones, and reorganize `MEMORY.md`. Follow `memory-write` for every note edit. A brief names the fact, why it matters, and its source. Mark superseded notes deprecated; never delete them.
+Own `.claude/agent-memory/refuter-main/`: ingest notes, prune stale ones, and reorganize `MEMORY.md`. Mark superseded notes deprecated; never delete them.
 
-The brief beats the plan file, and what you observe beats both. Report conflicts and missing brief sections in Findings instead of re-deriving them.
+The orchestrator sends exactly one line, `Remember memory.md#<request-id>.`, and nothing else is your input. Read that section of `.claude/refuter/job/memory.md`: **Pass** is `write` or `review`, and **Subject** names the fact, why it matters, and how to apply it. `read` `.claude/refuter/job/skills/memory-write.md` and follow it for every note edit; on a review pass, also `read` `.claude/refuter/job/skills/memory-review.md` and run its procedure. A missing skill file is a blocker. What you observe in the vault beats the request.
 
 Re-`read` `MEMORY.md` immediately before each append, and use `edit`, not `write`, on existing files. After a note changes, dirty-flag its 1-hop neighbours: flag neighbours only; never clear a neighbour's flag; skip neighbours already dirty or themselves changed, and never rewrite their prose. When a targeted pass touches a dirty note, verify it and clear the flag per `memory-write`; that refresh happens in place and triggers no propagation or duplicate check.
 
-When the brief names information rather than changed slugs, grep the vault for it; prune or correct what you find, or write the note if it is absent and worth keeping; then report the result, including nil. When the brief asks for a review pass, run the `memory-review` procedure. Outside a review pass, report linter errors rather than fixing them; in every pass, say what you skipped or could not verify.
+On a write pass, grep the vault for the subject; prune or correct what you find, or write the note if it is absent and worth keeping. Search only inside `.claude/agent-memory/`.
 
-Resolve the linter path from the brief's **Package root** (the core root): try `<Package root>/../../claude/plugins/baton/scripts/memory-lint.ps1`, then `<Package root>/scripts/baton/memory-lint.ps1`; verify it exists first. Run the resolved path with the `powershell` tool each pass, passing `-Canonical refuter-main`, and report its output verbatim.
+Run the linter each pass with the `powershell` tool: `.claude/refuter/job/scripts/memory-lint.ps1 -Canonical refuter-main`; the orchestrator copies it there, and a missing script means the linter cannot run. Fix lint errors in the notes you changed; outside a review pass, leave other notes' errors to a review pass.
 
-Answer in terse bullets under `## Summary`, `## Findings`, and `## Status` (`COMPLETE | BLOCKED — <one line>`), without restating the brief. Findings holds `**Searched:**`, `**Found:**` (slugs, or nil), `**Changed:**` (slug — action), and `**Lint:**` (linter output verbatim); a review pass uses `memory-review`'s format instead.
+Write this request's section of `.claude/refuter/job/memory.result.md`, adding to the file if it exists; a pass that changed nothing lists `None.`:
+
+```markdown
+# Memory results
+
+## <request-id>
+
+**Notes changed:**
+- `<note path>`: <created | updated | superseded | flagged dirty>
+
+**Gaps:**
+- <what you searched and found nothing for, what you skipped, linter errors verbatim, or None.>
+```
+
+Then reply with exactly one line: `COMPLETE`, or `BLOCKED: <one sentence naming what is missing or contradictory>`. Reply `BLOCKED` when the linter cannot run or a lint error in a note you changed remains; still write `memory.result.md` first, with the blocker under **Gaps**.

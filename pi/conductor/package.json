@@ -1,9 +1,9 @@
 {
-  "name": "the-conductor",
-  "version": "0.1.0",
+  "name": "the-pi-conductor",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Conductor product shim (planning/research/implement/code-review/memory agents, orchestrator persona, --conductor flag and /conductor command) on top of the baton core engine",
+  "description": "Conductor product shim (planning/research/implement/code-review/memory/triage agents working through the job-file protocol, orchestrator persona, --conductor flag and /conductor command) on top of the baton core engine",
   "license": "MIT",
   "author": "ZenderX",
   "keywords": [
@@ -24,5 +24,10 @@
     "@earendil-works/pi-agent-core": "*",
     "@earendil-works/pi-tui": "*",
     "typebox": "*"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-coding-agent": "0.84.3",
+    "@types/node": "^24",
+    "typescript": "^5"
   }
 }

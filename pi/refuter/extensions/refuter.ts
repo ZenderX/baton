@@ -44,7 +44,7 @@ const DESCRIPTOR: ProductDescriptor = {
 	agentsDir: path.join(PACKAGE_ROOT, "agents"),
 	orchestratorPromptPath: path.join(PACKAGE_ROOT, "orchestrator.md"),
 	vaultDir: "refuter-main",
-	taskPlanRel: path.join(".claude", "refuter", "task-plan.md"),
+	taskPlanRel: path.join(".claude", "refuter", "job", "plan.md"),
 };
 
 const PRODUCTS_KEY = Symbol.for("baton.products");
