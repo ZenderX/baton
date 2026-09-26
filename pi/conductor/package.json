@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Conductor orchestrator + subagents and domain skills for pi (canonical pi package)",
+  "description": "Conductor product shim (planning/research/implement/code-review/memory/triage agents working through the job-file protocol, orchestrator persona, --conductor flag and /conductor command) on top of the baton core engine",
   "license": "MIT",
   "author": "ZenderX",
   "keywords": [
@@ -11,18 +11,7 @@
   ],
   "pi": {
     "extensions": [
-      "./extensions/conductor/index.ts",
-      "./extensions/statusline.ts",
-      "./extensions/task-list.ts",
-      "./extensions/lmstudio-reasoning.ts"
-    ],
-    "skills": [
-      "./skills/conductor",
-      "./skills/bevy",
-      "./skills/blender",
-      "./skills/rust",
-      "./skills/typescript",
-      "./skills/vue3"
+      "./extensions/conductor.ts"
     ],
     "prompts": [
       "./prompts"

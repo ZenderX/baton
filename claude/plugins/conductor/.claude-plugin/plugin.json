@@ -1,7 +1,7 @@
 {
   "name": "conductor",
   "version": "1.0.0",
-  "description": "Conductor orchestrator + 4 subagents (planning, research, implement, code-review) with their preloaded skills and MCP servers; each agent keeps native per-agent memory in the project's .claude/agent-memory/ Obsidian vault. Run /conductor:setup to enable the Task tools (CLAUDE_CODE_ENABLE_TODO_TOOLS, CLAUDE_CODE_FORK_SUBAGENT=0) in the project's .claude/settings.json.",
+  "description": "Conductor orchestrator + 5 subagents (planning, research, implement, code-review, memory) and their MCP servers. Subagents work through the job-file protocol in .claude/conductor/job/; the orchestrator is the only agent that talks to you and the only one that dispatches memory, which keeps the project's .claude/agent-memory/conductor-main/ Obsidian vault. Run /baton:setup to enable the Task tools (CLAUDE_CODE_ENABLE_TODO_TOOLS) in the project's .claude/settings.json.",
   "author": {
     "name": "ZenderX"
   }
