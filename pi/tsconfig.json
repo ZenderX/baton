@@ -9,5 +9,5 @@
 		"skipLibCheck": true,
 		"types": ["node"]
 	},
-	"include": ["extensions/**/*.ts"]
+	"include": ["core/extensions/**/*.ts", "conductor/extensions/**/*.ts", "refuter/extensions/**/*.ts"]
 }

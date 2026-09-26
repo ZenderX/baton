@@ -37,7 +37,7 @@ Trace blast radius before approving: for any changed export, type, injection key
 **Re-review after `NEEDS_REVISION`:** verify the prior findings the brief hands back and the lines changed since — not a second full-doctrine pass over the phase.
 
 <!-- parity:off -->
-**Language skills:** the coding-standards skills and the git-diff procedure are available through the `Skill` tool — `conductor:git-diff`, `typescript:typescript`, `vue3:vue3`, `rust:rust`; loading one means invoking it.
+**Language skills:** the coding-standards skills and the git-diff procedure are available through the `Skill` tool — `baton:git-diff`, `typescript:typescript`, `vue3:vue3`, `rust:rust`; loading one means invoking it.
 <!-- parity:on -->
 Scope the diff first — which file types it actually touches — then load only the skill(s) that match: `.vue` → `vue3`, `.ts`/`.tsx` → `typescript`, both → both, `.rs` → `rust`; a diff with no code files loads no language skill — general heuristics only. Never load the skills up front or load more than the diff requires. If a needed skill is unavailable, **say so explicitly in the review output and do not proceed on generic training-data knowledge for that language** — a missing skill is a blocker to flag, not a gap to fill. Where available, its anti-patterns take precedence for language-specific findings.
 

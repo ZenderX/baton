@@ -1,0 +1,34 @@
+{
+  "name": "baton",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Product-parameterised conductor engine (subagent dispatch, statusline, orchestrator runtime) shared by the-conductor and the-refuter",
+  "license": "MIT",
+  "author": "ZenderX",
+  "keywords": [
+    "pi-package"
+  ],
+  "pi": {
+    "extensions": [
+      "./extensions/engine/index.ts",
+      "./extensions/statusline.ts",
+      "./extensions/lmstudio-reasoning.ts"
+    ],
+    "skills": [
+      "../../claude/plugins/baton/skills",
+      "../../claude/plugins/bevy/skills",
+      "../../claude/plugins/blender/skills",
+      "../../claude/plugins/rust/skills",
+      "../../claude/plugins/typescript/skills",
+      "../../claude/plugins/vue3/skills"
+    ]
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-agent-core": "*",
+    "@earendil-works/pi-tui": "*",
+    "typebox": "*"
+  }
+}

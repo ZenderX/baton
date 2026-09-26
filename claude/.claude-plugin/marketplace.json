@@ -8,7 +8,17 @@
     {
       "name": "conductor",
       "source": "./plugins/conductor",
-      "description": "Conductor orchestrator + 5 subagents (planning, research, implement, code-review, memory) with their preloaded skills and MCP servers. Run /conductor:setup to enable the Task tools (CLAUDE_CODE_ENABLE_TODO_TOOLS) in the project's .claude/settings.json."
+      "description": "Conductor orchestrator + 5 subagents (planning, research, implement, code-review, memory) with their preloaded skills and MCP servers. Run /baton:setup to enable the Task tools (CLAUDE_CODE_ENABLE_TODO_TOOLS) in the project's .claude/settings.json."
+    },
+    {
+      "name": "refuter",
+      "source": "./plugins/refuter",
+      "description": "Refuter orchestrator + 6 subagents (scout, researcher, builder, refuter, auditor, memory) with their preloaded skills and MCP servers. Run /baton:setup to enable the Task tools (CLAUDE_CODE_ENABLE_TODO_TOOLS) in the project's .claude/settings.json."
+    },
+    {
+      "name": "baton",
+      "source": "./plugins/baton",
+      "description": "Shared core for the conductor and refuter plugins: Task-tools SessionStart hook + /baton:setup, memory linter, git-diff and memory skills."
     },
     {
       "name": "statusline",

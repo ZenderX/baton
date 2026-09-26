@@ -1,5 +1,6 @@
 {
   "name": "statusline",
+  "version": "1.0.0",
   "description": "Starship-style powerline statusline for Claude Code: repo/branch with live git flags, model + context window usage, and plan usage (5h session / weekly / Fable) with reset countdowns. Run /statusline:setup to wire it into settings.json.",
   "author": {
     "name": "ZenderX"

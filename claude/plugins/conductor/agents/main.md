@@ -146,7 +146,7 @@ Max revision cycles per phase: **2**. If exceeded, surface to user. Once the fin
 <!-- parity:off -->
 ## Task List
 
-Task tools are conductor-only (subagents lack them) and need `CLAUDE_CODE_ENABLE_TODO_TOOLS=1` — shipped into the project's `.claude/settings.json` by this plugin's SessionStart hook or `/conductor:setup`; if the tools are absent in-session, proceed without them and say so once.
+Task tools are conductor-only (subagents lack them) and need `CLAUDE_CODE_ENABLE_TODO_TOOLS=1` — shipped into the project's `.claude/settings.json` by the `baton` plugin's SessionStart hook or `/baton:setup`; if the tools are absent in-session, proceed without them and say so once.
 
 **Two stores** — the task list is progress state: persisted, user-visible, resumed via `TaskList` at orient; `task-plan.md` is the dossier. Never duplicate one into the other; never write `~/.claude/tasks` directly.
 

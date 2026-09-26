@@ -31,11 +31,7 @@ The brief (or the targeted pass below) gives you a list of changed note slugs an
 This pass sets flags; it never clears them and never rewrites prose. Keep it fast — no deep content analysis, no web fetches.
 
 <!-- parity:off -->
-Then run the linter and report its output verbatim:
-
-```bash
-pwsh ${CLAUDE_PLUGIN_ROOT}/scripts/memory-lint.ps1
-```
+Then run the linter via this fallback, in order, and report its output verbatim: (1) the path printed by the preloaded `memory-review` skill; (2) `pwsh ${CLAUDE_PLUGIN_ROOT}/../baton/scripts/memory-lint.ps1 -Canonical conductor-main`; (3) glob `${CLAUDE_PLUGIN_ROOT}/../../baton/*/scripts/memory-lint.ps1` and run the match with `-Canonical conductor-main`.
 <!-- parity:on -->
 
 Report errors to the caller rather than fixing them.
