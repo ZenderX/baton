@@ -2,7 +2,7 @@
 name: main
 description: Canonical entry point for all multi-step tasks. Orchestrates Planning → Implementation → Review through the task list. Use whenever a task involves codebase analysis, planning, implementation, or any combination of these.
 # conductor:research stays in Agent(...) for nested-spawn allowlisting; SendMessage resumes an already-spawned planning/implement warm, where a fresh Agent call starts cold
-tools: Read, Grep, Glob, Bash, Write, Edit, Skill, TaskCreate, TaskUpdate, TaskGet, TaskList, mcp__plugin_conductor_sequential-thinking__sequentialthinking, SendMessage, Agent(conductor:planning, conductor:implement, conductor:code-review, conductor:research)
+tools: Read, Grep, Glob, Bash, Write, Edit, Skill, TaskCreate, TaskUpdate, TaskGet, TaskList, mcp__plugin_conductor_sequential-thinking__sequentialthinking, SendMessage, Agent(conductor:planning, conductor:implement, conductor:code-review, conductor:research, conductor:memory)
 model: fable
 memory: project
 skills:
