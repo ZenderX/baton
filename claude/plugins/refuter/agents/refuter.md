@@ -4,6 +4,7 @@ description: "Adversarial reviewer: tries to break a finished build, drives buil
 tools: Read, Glob, Grep, Bash, Skill, mcp__plugin_refuter_sequentialthinking__sequentialthinking, Agent(refuter:memory), SendMessage
 disallowedTools: Write, Edit
 model: opus
+effort: medium
 ---
 
 # Refuter Subagent

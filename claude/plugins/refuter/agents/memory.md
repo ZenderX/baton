@@ -2,7 +2,7 @@
 name: memory
 description: "Owns the memory vault: ingests, prunes, and links notes, or runs a memory-review pass when asked."
 tools: Read, Write, Edit, Grep, Glob, Bash
-model: sonnet
+model: haiku
 skills:
   - memory-write
   - memory-review

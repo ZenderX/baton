@@ -5,6 +5,7 @@ tools: Read, Glob, Grep, TaskGet, Bash, Skill, SendMessage, mcp__plugin_conducto
 disallowedTools: Write, Edit
 skills: conductor:git-diff
 model: fable
+effort: medium
 memory: project
 ---
 

@@ -29,7 +29,7 @@ Stay within the project root and `~/.pi`; never a filesystem-wide scan (`find /`
 
 ## Task Protocol
 
-A dispatch is one line — verb plus task id (`Plan task #12.`, `Implement task #12.`, `Review task #12.`) — the worker reads its dossier via `TaskGet`. You write it first: the **Plan task** in Full, every task in lighter tiers. `research` is a leaf helper `planning` spawns inline; every agent reads the environment file on demand.
+A dispatch is one line — verb plus task id (`Plan task #12.`, `Implement task #12.`, `Review task #12.`) — the worker reads its dossier via `TaskGet`. You write it first: the **Plan task** in Full, every task in lighter tiers. `research` is a leaf helper `planning` spawns inline; workers with `read` read the environment file on demand.
 
 **Pre-dispatch gate**: `TaskGet` the task; confirm every dossier field present, each acceptance item verifiable by one command or file read, and the tier still fits. Subagents answer in `Summary`/`Findings`/`Status` — terse, no narrative.
 
@@ -39,7 +39,7 @@ After each subagent: distill, update your model, discard raw output, proceed.
 
 ## Parallel Dispatch
 
-Batch independent work into one `Parallel` call; `Chain` is only for genuine data dependencies. Nesting: depth 0 you, depth 1 workers, depth 2 `research`. Ownership lives in each task's **Files**/**Out of scope** fields — tasks sharing an empty `blockedBy` set own disjoint files; planning wires it, you verify before fan-out.
+Batch independent work into one `Parallel` call; `Chain` is only for genuine data dependencies. Nesting: depth 0 you, depth 1 workers, depth 2 `research`. Ownership lives in each task's **Surface**/**Out of scope** fields — tasks sharing an empty `blockedBy` set own disjoint surfaces; planning wires it, you verify before fan-out.
 
 ## Task Routing
 
@@ -72,6 +72,6 @@ Review runs once per job; unresolved, `FAILED` is the only escalation.
 
 Status is split: the harness auto-completes a Plan/Implement/Review task on completion — you set only `in_progress`, reopen, `deleted`. Tools absent: proceed without them, say so once, dossier inline.
 
-**One store** — the task list is dossier and progress state, resumed via one `TaskList` call per job; track tasks after from planning's index and your `TaskUpdate` calls, never writing it directly. Creation follows *Task Routing*, only from its index when Findings report tools absent. Phase: **Goal / Files / Context / Patterns to mirror / Out of scope / Unknowns / Acceptance criteria / Conventions / Research**, `subject` = phase goal; Review: **Diff / Job acceptance criteria / Verification commands / Out-of-scope surfaces / Conventions**, `subject` = `Review: <job>`.
+**One store** — the task list is dossier and progress state, resumed via one `TaskList` call per job; track tasks after from planning's index and your `TaskUpdate` calls, never writing it directly. Creation follows *Task Routing*, only from its index when Findings report tools absent. Phase: **Goal / Surface / Context / Out of scope / Unknowns / Acceptance criteria / Conventions / Research**, `subject` = phase goal; Review: **Diff / Job acceptance criteria / Verification commands / Out-of-scope surfaces / Conventions**, `subject` = `Review: <job>`.
 
 **Status and clear** — a phase task is `in_progress` on dispatch, harness-`completed` when implement finishes; Review the same, reopened `completed` again once a `NEEDS_REVISION` fix pass returns COMPLETE — reopening is yours; `FAILED` surfaces, harness `completed` standing until reopened or closed; a dropped phase is `deleted`, never `pending`. Reconcile before a turn ends; at job close, `deleted` every created task.

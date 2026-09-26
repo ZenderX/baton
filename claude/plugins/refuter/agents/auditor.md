@@ -4,6 +4,8 @@ description: Samples a local model on the refuter's disputed claims via scripts/
 tools: Read, Glob, Grep, Bash
 disallowedTools: Write, Edit
 model: fable
+effort: medium
+memory: project
 ---
 
 # Auditor Subagent

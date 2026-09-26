@@ -4,6 +4,7 @@ description: "Fast reconnaissance: codebase map and dated web facts. Returns a m
 tools: WebFetch, WebSearch, Read, Glob, Grep, mcp__plugin_refuter_context7__resolve-library-id, mcp__plugin_refuter_context7__query-docs, mcp__plugin_refuter_sequentialthinking__sequentialthinking, Agent(refuter:memory)
 disallowedTools: Write, Edit
 model: sonnet
+effort: medium
 ---
 
 # Scout Subagent

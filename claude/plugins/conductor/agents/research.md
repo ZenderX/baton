@@ -4,6 +4,7 @@ description: Web research specialist — technical docs/library evaluation AND g
 tools: WebFetch, WebSearch, Read, mcp__plugin_conductor_context7__resolve-library-id, mcp__plugin_conductor_context7__query-docs
 disallowedTools: Write, Edit
 model: sonnet
+effort: medium
 memory: project
 ---
 
