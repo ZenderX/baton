@@ -2,7 +2,7 @@
 name: planning
 description: Phase planning architect. Analyzes the codebase and produces a sequenced, dependency-ordered execution plan; spawns research; writes every task dossier. Use when you need to understand what needs to change, in what order, and why — before any code is written.
 tools: Read, Glob, Grep, TaskGet, TaskCreate, TaskUpdate, TaskList, mcp__plugin_conductor_context7__resolve-library-id, mcp__plugin_conductor_context7__query-docs, mcp__plugin_conductor_sequential-thinking__sequentialthinking, Agent(conductor:research), SendMessage
-model: fable
+model: opus
 memory: project
 skills:
   - memory-write
