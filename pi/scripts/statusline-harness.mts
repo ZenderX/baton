@@ -1,5 +1,5 @@
 /**
- * Statusline harness — drives extensions/statusline.ts with a fake ExtensionAPI,
+ * Statusline harness — drives core/extensions/statusline.ts with a fake ExtensionAPI,
  * ExtensionContext, Theme, TUI and footer provider to verify (without touching a
  * live server or the real agent dir):
  *
@@ -15,14 +15,21 @@
  *      (stale contextWindow 120000), a live 200000 from the mock server rewrites
  *      models.json to 200000 — atomically, preserving every other key, deferring
  *      registry.refresh() to turn_end, and emitting one notify.
- *   6. Conductor flag: a fresh session with --conductor (no statusline flag or
- *      entry) enables the footer at session_start.
- *   7. Conductor entry: a resumed session whose last conductor-mode entry is
- *      {enabled: true} enables the footer at session_start.
- *   8. Conductor transition: conductor off at session_start, entry flips on,
- *      turn_start auto-enables the footer with one notify and appends no entry.
+ *   6. Product flag: a fresh session with --conductor, and separately
+ *      --refuter (no statusline flag or active product), enables the footer
+ *      at session_start.
+ *   7. Active product: a session with globalThis baton.activeProduct already
+ *      set (mirroring a product shim's session_start) enables the footer at
+ *      session_start.
+ *  7b. Spawned child: the same active product with PI_CONDUCTOR_SPAWN_DEPTH
+ *      set (a subagent-tool child, see engine/spawn-depth.ts) leaves the
+ *      footer off — children get their own brief, not the auto-enable.
+ *   8. Product transition: no active product at session_start, then
+ *      baton.activeProduct is set (mirroring a shim's /conductor or /refuter
+ *      command), turn_start auto-enables the footer with one notify and
+ *      appends no entry.
  *   9. Explicit off respected: a /statusline toggle-off after the auto-enable
- *      survives a further turn_start while the conductor state is unchanged.
+ *      survives a further turn_start while the active product is unchanged.
  *  10. Empty-branch stream: with `state.branch = []`, `message_start` +
  *      `message_update` (400-char partial, 1s) render the speedometer with no
  *      in/out items; `message_end` reads `0 tok/s`.
@@ -44,8 +51,24 @@ import * as os from "node:os";
 import * as path from "node:path";
 import assert from "node:assert/strict";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
-import statusline from "../extensions/statusline.ts";
+import statusline from "../core/extensions/statusline.ts";
 import { visibleWidth } from "@earendil-works/pi-tui";
+
+// Mirrors extensions/engine/product-registry.ts's ACTIVE_PRODUCT_KEY: a real
+// product shim writes this same globalThis slot on activation, so setting it
+// directly here stands in for that shim without importing across packages.
+const ACTIVE_PRODUCT_KEY = Symbol.for("baton.activeProduct");
+
+function setActiveProduct(name: string | undefined): void {
+	const channel = globalThis as Record<symbol, unknown>;
+	if (name === undefined) delete channel[ACTIVE_PRODUCT_KEY];
+	else channel[ACTIVE_PRODUCT_KEY] = name;
+}
+
+function getActiveProduct(): string | undefined {
+	const value = (globalThis as Record<symbol, unknown>)[ACTIVE_PRODUCT_KEY];
+	return typeof value === "string" ? value : undefined;
+}
 
 // A deliberately minimal structural subset of pi's footer component and the
 // event/context/registry shapes the extension reads. Test-only seams.
@@ -460,11 +483,57 @@ async function main(): Promise<void> {
 			await healServer.close();
 		}
 
-		// --- 6. Conductor flag: a fresh --conductor session enables the footer ---
+		// --- 6. Product flag: a fresh --conductor (then --refuter) session enables the footer ---
 		{
 			const originalArgv = process.argv;
 			try {
 				process.argv = [...originalArgv, "--conductor"];
+				const conductorEnv = makeEnv({ flags: {} });
+				conductorEnv.state.model = makeModel("harness-model", "harness", "", 120000);
+				conductorEnv.state.contextUsage = { tokens: 100000, contextWindow: 120000, percent: null };
+				conductorEnv.state.branch = [];
+				statusline(conductorEnv.pi);
+				await conductorEnv.fire("session_start", { type: "session_start" });
+
+				const line = conductorEnv.render();
+				assert.ok(line.includes("100k/120k"), `the --conductor argv flag should enable the footer, got: ${line}`);
+				assert.ok(visibleWidth(line) < 200, `with no t/s figure the line must not be padded to width, got: ${line}`);
+				console.log("  [6] conductor flag enables footer:", line);
+				conductorEnv.dispose();
+
+				// --refuter is the other flag the engine checks.
+				process.argv = [...originalArgv, "--refuter"];
+				const refuterEnv = makeEnv({ flags: {} });
+				refuterEnv.state.model = makeModel("harness-model", "harness", "", 120000);
+				refuterEnv.state.contextUsage = { tokens: 100000, contextWindow: 120000, percent: null };
+				refuterEnv.state.branch = [];
+				statusline(refuterEnv.pi);
+				await refuterEnv.fire("session_start", { type: "session_start" });
+				const refuterLine = refuterEnv.render();
+				assert.ok(refuterLine.includes("100k/120k"), `the --refuter argv flag should enable the footer, got: ${refuterLine}`);
+				console.log("  [6] refuter flag enables footer:", refuterLine);
+				refuterEnv.dispose();
+
+				// Faithfulness: with neither flag in argv the footer stays off, proving the argv path (not a flag) enables it.
+				process.argv = originalArgv;
+				const noFlagEnv = makeEnv({ flags: {} });
+				noFlagEnv.state.model = makeModel("harness-model", "harness", "", 120000);
+				noFlagEnv.state.contextUsage = { tokens: 100000, contextWindow: 120000, percent: null };
+				noFlagEnv.state.branch = [];
+				statusline(noFlagEnv.pi);
+				await noFlagEnv.fire("session_start", { type: "session_start" });
+				assert.throws(() => noFlagEnv.render(), /footer not applied/, "removing --conductor/--refuter from argv leaves the footer off");
+				noFlagEnv.dispose();
+			} finally {
+				process.argv = originalArgv;
+			}
+		}
+
+		// --- 7. Active product: globalThis baton.activeProduct set before session_start enables the footer ---
+		{
+			assert.ok(!process.argv.includes("--conductor") && !process.argv.includes("--refuter"), "check 7 must not rely on an argv flag");
+			setActiveProduct("conductor");
+			try {
 				const env = makeEnv({ flags: {} });
 				env.state.model = makeModel("harness-model", "harness", "", 120000);
 				env.state.contextUsage = { tokens: 100000, contextWindow: 120000, percent: null };
@@ -473,77 +542,81 @@ async function main(): Promise<void> {
 				await env.fire("session_start", { type: "session_start" });
 
 				const line = env.render();
-				assert.ok(line.includes("100k/120k"), `the --conductor argv flag should enable the footer, got: ${line}`);
-				assert.ok(visibleWidth(line) < 200, `with no t/s figure the line must not be padded to width, got: ${line}`);
-				console.log("  [6] conductor flag enables footer:", line);
-
-				// Faithfulness: with --conductor absent from argv the footer stays off, proving the argv path (not a flag) enables it.
-				process.argv = originalArgv;
-				const noFlag = makeEnv({ flags: {} });
-				noFlag.state.model = makeModel("harness-model", "harness", "", 120000);
-				noFlag.state.contextUsage = { tokens: 100000, contextWindow: 120000, percent: null };
-				noFlag.state.branch = [];
-				statusline(noFlag.pi);
-				await noFlag.fire("session_start", { type: "session_start" });
-				assert.throws(() => noFlag.render(), /footer not applied/, "removing --conductor from argv leaves the footer off");
+				assert.ok(line.includes("100k/120k"), `an active product should enable the footer, got: ${line}`);
+				console.log("  [7] active product enables footer:", line);
 				env.dispose();
-				noFlag.dispose();
 			} finally {
-				process.argv = originalArgv;
+				setActiveProduct(undefined);
 			}
 		}
 
-		// --- 7. Conductor entry: a resumed session with conductor on enables the footer ---
+		// --- 7b. Spawned child: an active product with PI_CONDUCTOR_SPAWN_DEPTH set leaves the footer off ---
 		{
-			assert.ok(!process.argv.includes("--conductor"), "check 7 must not rely on the --conductor argv flag");
-			const env = makeEnv({ flags: {}, entries: [{ type: "custom", customType: "conductor-mode", data: { enabled: true } }] });
-			env.state.model = makeModel("harness-model", "harness", "", 120000);
-			env.state.contextUsage = { tokens: 100000, contextWindow: 120000, percent: null };
-			env.state.branch = [];
-			statusline(env.pi);
-			await env.fire("session_start", { type: "session_start" });
+			assert.ok(!process.argv.includes("--conductor") && !process.argv.includes("--refuter"), "check 7b must not rely on an argv flag");
+			setActiveProduct("conductor");
+			const originalSpawnDepth = process.env.PI_CONDUCTOR_SPAWN_DEPTH;
+			process.env.PI_CONDUCTOR_SPAWN_DEPTH = "1";
+			try {
+				const env = makeEnv({ flags: {} });
+				env.state.model = makeModel("harness-model", "harness", "", 120000);
+				env.state.contextUsage = { tokens: 100000, contextWindow: 120000, percent: null };
+				env.state.branch = [];
+				statusline(env.pi);
+				await env.fire("session_start", { type: "session_start" });
 
-			const line = env.render();
-			assert.ok(line.includes("100k/120k"), `a conductor-mode entry should enable the footer, got: ${line}`);
-			console.log("  [7] conductor entry enables footer:", line);
-			env.dispose();
+				assert.throws(
+					() => env.render(),
+					/footer not applied/,
+					"a spawned child (PI_CONDUCTOR_SPAWN_DEPTH > 0) must not auto-enable the footer even with an active product",
+				);
+				console.log("  [7b] spawned child leaves the footer off despite an active product");
+				env.dispose();
+			} finally {
+				setActiveProduct(undefined);
+				if (originalSpawnDepth === undefined) delete process.env.PI_CONDUCTOR_SPAWN_DEPTH;
+				else process.env.PI_CONDUCTOR_SPAWN_DEPTH = originalSpawnDepth;
+			}
 		}
 
-		// --- 8. Off->on conductor transition auto-enables on turn_start ---
+		// --- 8. Off->on active-product transition auto-enables on turn_start ---
 		// --- 9. An explicit /statusline off survives a further turn_start ---
 		{
-			assert.ok(!process.argv.includes("--conductor"), "check 8 must not rely on the --conductor argv flag");
-			const entries: unknown[] = [];
-			const env = makeEnv({ flags: {}, entries });
-			env.state.model = makeModel("harness-model", "harness", "", 120000);
-			env.state.contextUsage = { tokens: 100000, contextWindow: 120000, percent: null };
-			env.state.branch = [];
-			statusline(env.pi);
-			await env.fire("session_start", { type: "session_start" });
+			assert.ok(!process.argv.includes("--conductor") && !process.argv.includes("--refuter"), "check 8 must not rely on an argv flag");
+			assert.equal(getActiveProduct(), undefined, "check 8 must start with no active product");
+			try {
+				const env = makeEnv({ flags: {} });
+				env.state.model = makeModel("harness-model", "harness", "", 120000);
+				env.state.contextUsage = { tokens: 100000, contextWindow: 120000, percent: null };
+				env.state.branch = [];
+				statusline(env.pi);
+				await env.fire("session_start", { type: "session_start" });
 
-			assert.throws(() => env.render(), /footer not applied/, "conductor off at session_start leaves the default footer");
+				assert.throws(() => env.render(), /footer not applied/, "no active product at session_start leaves the default footer");
 
-			// The /conductor command appends its entry synchronously; the next turn_start observes it.
-			entries.push({ type: "custom", customType: "conductor-mode", data: { enabled: true } });
-			env.fire("turn_start", { type: "turn_start", turnIndex: 1, timestamp: Date.now() });
+				// The shim's /conductor (or /refuter) command sets this synchronously; the next turn_start observes it.
+				setActiveProduct("conductor");
+				env.fire("turn_start", { type: "turn_start", turnIndex: 1, timestamp: Date.now() });
 
-			const line = env.render();
-			assert.ok(line.includes("100k/120k"), `an off->on conductor transition should auto-enable the footer, got: ${line}`);
-			assert.equal(env.notified.length, 1, "exactly one auto-enable notify");
-			assert.equal(env.appended.length, 0, "the auto-enable must not persist a statusline entry");
-			console.log("  [8] conductor transition auto-enables:", line);
+				const line = env.render();
+				assert.ok(line.includes("100k/120k"), `an off->on active-product transition should auto-enable the footer, got: ${line}`);
+				assert.equal(env.notified.length, 1, "exactly one auto-enable notify");
+				assert.equal(env.appended.length, 0, "the auto-enable must not persist a statusline entry");
+				console.log("  [8] product transition auto-enables:", line);
 
-			// The explicit /statusline toggle-off wins until the conductor is toggled again.
-			const toggle = env.commands.get("statusline");
-			assert.ok(toggle !== undefined, "the /statusline command handler must be captured");
-			await toggle("", env.ctx);
-			assert.equal(env.appended.length, 1, "the explicit /statusline off persists a statusline entry");
+				// The explicit /statusline toggle-off wins until the product is toggled again.
+				const toggle = env.commands.get("statusline");
+				assert.ok(toggle !== undefined, "the /statusline command handler must be captured");
+				await toggle("", env.ctx);
+				assert.equal(env.appended.length, 1, "the explicit /statusline off persists a statusline entry");
 
-			env.fire("turn_start", { type: "turn_start", turnIndex: 2, timestamp: Date.now() });
-			assert.throws(() => env.render(), /footer not applied/, "an explicit off is respected while the conductor state is unchanged");
-			assert.equal(env.notified.length, 2, "no second auto-enable notify without a fresh transition");
-			console.log("  [9] explicit /statusline off respected");
-			env.dispose();
+				env.fire("turn_start", { type: "turn_start", turnIndex: 2, timestamp: Date.now() });
+				assert.throws(() => env.render(), /footer not applied/, "an explicit off is respected while the active product is unchanged");
+				assert.equal(env.notified.length, 2, "no second auto-enable notify without a fresh transition");
+				console.log("  [9] explicit /statusline off respected");
+				env.dispose();
+			} finally {
+				setActiveProduct(undefined);
+			}
 		}
 
 		// --- 10. Empty-branch stream: the speedometer shows before any usage is on the branch ---

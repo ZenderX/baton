@@ -6,10 +6,12 @@
     Plugins-as-source-of-truth: agents, rules, and skills are authored in
     claude/plugins/*/ and delivered by installing the plugin, so this script no
     longer copies those subdirs. Its one remaining job is the repo-authoritative
-    merge of settings.json into ~/.claude/settings.json (a small preserve-list
-    of machine-local keys survives from the deployed copy) - settings.json is
-    never clean-replaced since Claude Code rewrites machine-local state into
-    it at runtime. MCP servers now travel inside claude/plugins/conductor/.mcp.json,
+    merge of settings.json into ~/.claude/settings.json - repo wins on every key
+    except the ones named in $SettingsPreserveKeys (model, tui, enabledPlugins,
+    extraKnownMarketplaces, agent), which survive from the deployed copy instead
+    - settings.json is never clean-replaced since Claude Code rewrites
+    machine-local state into it at runtime. MCP servers now travel inside each product plugin's own
+    .mcp.json (claude/plugins/conductor/.mcp.json, claude/plugins/refuter/.mcp.json),
     delivered by the plugin itself, so this script no longer registers them.
 .PARAMETER DryRun
     Print what would be written without making changes.
@@ -41,7 +43,10 @@ $UserHome = [System.Environment]::GetFolderPath('UserProfile')
 # marketplace now lives in claude/ and is registered per machine via /plugin); a
 # relative entry only resolves from this repo's directory, so the deployed
 # (global) value must win here rather than syncing the repo's relative path verbatim.
-$SettingsPreserveKeys = @('model', 'tui', 'enabledPlugins', 'extraKnownMarketplaces')
+# 'agent' is preserved so set-default-agent-global.ps1's product choice (the
+# top-level "agent" key) survives a later sync-global run instead of being
+# reverted to whatever (or nothing) the repo's own settings.json carries.
+$SettingsPreserveKeys = @('model', 'tui', 'enabledPlugins', 'extraKnownMarketplaces', 'agent')
 
 function ConvertTo-Hashtable {
     param([Parameter(ValueFromPipeline)]$InputObject)

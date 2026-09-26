@@ -1,0 +1,8 @@
+{
+  "name": "refuter",
+  "description": "Refuter orchestrator + 6 subagents (scout, researcher, builder, refuter, auditor, memory) with their preloaded skills and MCP servers. Run /baton:setup to enable the Task tools (CLAUDE_CODE_ENABLE_TODO_TOOLS) in the project's .claude/settings.json.",
+  "author": {
+    "name": "ZenderX"
+  },
+  "dependencies": ["baton"]
+}

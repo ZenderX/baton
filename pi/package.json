@@ -1,33 +1,11 @@
 {
-  "name": "the-conductor",
+  "name": "pi-workspace",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Conductor orchestrator + subagents and domain skills for pi",
+  "description": "Dev workspace for the pi/core, pi/conductor and pi/refuter packages: shared devDependencies and a single tsconfig for typecheck. Not itself a pi package.",
   "license": "MIT",
   "author": "ZenderX",
-  "keywords": [
-    "pi-package"
-  ],
-  "pi": {
-    "extensions": [
-      "./extensions/conductor/index.ts",
-      "./extensions/statusline.ts",
-      "./extensions/lmstudio-reasoning.ts"
-    ],
-    "skills": [
-      "../claude/plugins/conductor/skills",
-      "../claude/plugins/bevy/skills",
-      "../claude/plugins/blender/skills",
-      "../claude/plugins/rust/skills",
-      "../claude/plugins/typescript/skills",
-      "../claude/plugins/vue3/skills"
-    ],
-    "prompts": [
-      "./prompts"
-    ],
-    "mcp": "./.mcp.json"
-  },
   "peerDependencies": {
     "@earendil-works/pi-coding-agent": "*",
     "@earendil-works/pi-ai": "*",

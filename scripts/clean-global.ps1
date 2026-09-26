@@ -1,15 +1,17 @@
 <#
 .SYNOPSIS
-    One-time migration: removes stale sync-global.ps1-deployed agent/rule/
-    skill copies from ~/.claude/ so a plugin install (conductor, etc.)
-    takes over resolution instead of being silently shadowed by them.
+    One-time migration: removes stale name-matched copies of this repo's
+    plugin agent/rule/skill names from ~/.claude/ so a plugin install
+    (conductor, etc.) takes over resolution instead of being silently
+    shadowed by them.
 .DESCRIPTION
     Plugin agents/skills resolve last, so a stale ~/.claude/agents/*.md (or
     rules/skills equivalent) silently wins over same-named plugin content
     forever. Canon names come from claude/plugins/*/ (agents/skills are authored
-    there; the two rules filenames no longer exist as files - inlined into
-    claude/plugins/conductor/agents/main.md's Operating Rules section - so they're
-    hardcoded below). Only name-matched items under <Destination>/{agents,
+    there, across every product - conductor and refuter both ship an agents/
+    dir; the two rules filenames no longer exist as files - their content is
+    now inlined in each product's own main.md - so they're hardcoded below).
+    Only name-matched items under <Destination>/{agents,
     rules,skills} are backed up then removed; foreign items, settings.json,
     agent-memory/, and plugins/ are never touched.
 .PARAMETER DryRun
@@ -52,9 +54,11 @@ function Test-ReparsePoint {
 function Get-CanonNames {
     param([string]$SubDir)
     if ($SubDir -eq 'agents') {
-        $p = Join-Path $PluginsRoot 'conductor/agents'
-        if (-not (Test-Path $p)) { return @() }
-        return @(Get-ChildItem -Path $p -File -Filter '*.md' | ForEach-Object { $_.Name })
+        if (-not (Test-Path $PluginsRoot)) { return @() }
+        return @(Get-ChildItem -Path $PluginsRoot -Directory | ForEach-Object {
+            $agentsPath = Join-Path $_.FullName 'agents'
+            if (Test-Path $agentsPath) { Get-ChildItem -Path $agentsPath -File -Filter '*.md' | ForEach-Object { $_.Name } }
+        })
     }
     if ($SubDir -eq 'rules') {
         # No longer files in-repo, but a stale deployed copy of either name
