@@ -2,7 +2,7 @@
 name: research
 description: Web research specialist — technical docs/library evaluation AND general web research (news, versions, regulations, prices) from up-to-date sources. Spawned by planning only.
 tools: WebFetch, WebSearch, Read, Write, Edit, mcp__plugin_conductor_context7__resolve-library-id, mcp__plugin_conductor_context7__query-docs
-model: sonnet
+model: claude-sonnet-5
 effort: medium
 ---
 

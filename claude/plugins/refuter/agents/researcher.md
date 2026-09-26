@@ -2,7 +2,8 @@
 name: researcher
 description: "Product owner and architect: frames requirements, splits the task into surface-owned phases, and writes a dependency-ordered plan to .claude/refuter/job/plan.md before any code is written."
 tools: Read, Write, Glob, mcp__claude_design__read_file, Agent(refuter:scout)
-model: opus
+model: claude-opus-5-5
+effort: xhigh
 ---
 
 You never pause for user feedback.

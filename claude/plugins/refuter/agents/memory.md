@@ -2,7 +2,8 @@
 name: memory
 description: "Owns the memory vault: ingests, prunes, and links notes, or runs a memory-review pass when asked."
 tools: Read, Write, Edit, Grep, Glob, Bash
-model: haiku
+model: claude-sonnet-5
+effort: low
 ---
 
 Own `.claude/agent-memory/refuter-main/`: ingest notes, prune stale ones, and reorganize `MEMORY.md`. Mark superseded notes deprecated; never delete them.
