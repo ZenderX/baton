@@ -13,19 +13,31 @@
  * child's footer is headless. Nothing is persisted.
  *
  * Children run with --no-session, so their stdout JSON stream is the only
- * live source: t/s is estimated from accumulated delta chars (chars / 4,
- * mirroring the statusline's root-session estimate) over elapsed time since
- * the in-flight message's message_start. It reads 0 while the child is
- * between messages (e.g., running tools).
+ * live source: t/s is the decode rate — delta chars streamed after the
+ * message's first delta (chars / 4, mirroring the statusline's root-session
+ * estimate) over elapsed time since that first delta, so prefill and server
+ * queue time are excluded. At message_end the message's final rate is held
+ * and shown while the child is between messages (e.g., running tools) and
+ * until its next message streams past its first delta. A span shorter than
+ * MIN_RATE_SPAN_MS, or a single-chunk message (no chars after its first
+ * delta), keeps the previous held value instead of a spike or a 0.
  */
 
 const CHARS_PER_TOKEN = 4;
 
+/** Shortest first-token span (ms) a rate is computed over; shorter spans keep the held value. */
+export const MIN_RATE_SPAN_MS = 200;
+
 interface LiveEntry {
 	agent: string;
+	/** Delta chars streamed after the first delta of the in-flight message. */
 	chars: number;
-	/** Timestamp of the in-flight message's message_start; null when idle. */
-	startedAt: number | null;
+	/** Whether an assistant message is between message_start and message_end. */
+	inFlight: boolean;
+	/** Arrival time of the in-flight message's first delta; null before it. */
+	firstTokenAt: number | null;
+	/** Final rate of the last completed message; 0 before any. */
+	lastTps: number;
 }
 
 export interface SubagentLiveSample {
@@ -60,30 +72,39 @@ export function subagentLiveKey(): string {
 
 /** Register a spawned child; it has no in-flight message yet. */
 export function subagentLiveStart(key: string, agent: string): void {
-	getRegistry().live.set(key, { agent, chars: 0, startedAt: null });
+	getRegistry().live.set(key, { agent, chars: 0, inFlight: false, firstTokenAt: null, lastTps: 0 });
 }
 
-/** An assistant message_start: begin accumulating delta chars. */
+/** An assistant message_start: the clock waits for the first delta. */
 export function subagentLiveMessageStart(key: string): void {
 	const entry = getRegistry().live.get(key);
 	if (entry === undefined) return;
 	entry.chars = 0;
-	entry.startedAt = Date.now();
+	entry.inFlight = true;
+	entry.firstTokenAt = null;
 }
 
-/** Accumulate streamed delta chars for the in-flight message. */
+/** The first delta starts the clock; later deltas accumulate chars. */
 export function subagentLiveDelta(key: string, chars: number): void {
 	const entry = getRegistry().live.get(key);
-	if (entry === undefined || entry.startedAt === null) return;
+	if (entry === undefined || !entry.inFlight || chars <= 0) return;
+	// The first delta's chars were produced before the clock started, so they are not counted.
+	if (entry.firstTokenAt === null) {
+		entry.firstTokenAt = Date.now();
+		return;
+	}
 	entry.chars += chars;
 }
 
-/** An assistant message_end: the in-flight message is done; t/s reads 0. */
+/** An assistant message_end: hold the message's final rate as the idle value. */
 export function subagentLiveMessageEnd(key: string): void {
 	const entry = getRegistry().live.get(key);
 	if (entry === undefined) return;
+	const rate = streamingRate(entry);
+	if (rate !== null) entry.lastTps = rate;
 	entry.chars = 0;
-	entry.startedAt = null;
+	entry.inFlight = false;
+	entry.firstTokenAt = null;
 }
 
 /** Drop the entry once the child process is gone. */
@@ -91,12 +112,19 @@ export function subagentLiveRemove(key: string): void {
 	getRegistry().live.delete(key);
 }
 
+/** Decode rate since the first delta; null before it, within MIN_RATE_SPAN_MS of it, or with no chars after it. */
+function streamingRate({ chars, inFlight, firstTokenAt }: LiveEntry): number | null {
+	if (!inFlight || firstTokenAt === null || chars <= 0) return null;
+	const elapsedMs = Date.now() - firstTokenAt;
+	if (elapsedMs < MIN_RATE_SPAN_MS) return null;
+	return Math.ceil(chars / CHARS_PER_TOKEN) / (elapsedMs / 1000);
+}
+
+/** The live decode rate while streaming past the first delta, else the held rate. */
 export function subagentLiveTps(key: string): number {
 	const entry = getRegistry().live.get(key);
-	if (entry === undefined || entry.startedAt === null) return 0;
-	const elapsedMs = Date.now() - entry.startedAt;
-	if (elapsedMs <= 0) return 0;
-	return Math.ceil(entry.chars / CHARS_PER_TOKEN) / (elapsedMs / 1000);
+	if (entry === undefined) return 0;
+	return streamingRate(entry) ?? entry.lastTps;
 }
 
 /** One sample per running child, in registration order. */

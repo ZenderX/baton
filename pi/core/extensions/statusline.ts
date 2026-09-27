@@ -24,16 +24,20 @@
  * just the TUI.
  *
  * Right side: the tok/s speedometer, right-aligned at the edge (left-aligned
- * fallback when it does not fit). The root figure is a live speedometer of the
+ * fallback when it does not fit). The root figure is the decode rate of the
  * streaming assistant message — estimated output tokens (chars / 4, mirroring
- * pi's context estimate) over elapsed time since message_start, repainted on
- * the footer's 3s tick — reading 0 tok/s once the message completes. It
- * shows even while the first message of a session streams, before any usage is
- * on the branch. When conductor subagents run (shared in-memory registry,
- * extensions/subagent-live.ts), the right side carries the agent group
- * `N agent(s) | N tok/s` — the SUM of the concurrent per-child rates — and
- * an idle root figure is suppressed; with both active the block is
- * `N tok/s · N agent(s) | N tok/s`, right-aligned as one unit.
+ * pi's context estimate) produced after the first streamed token, over elapsed
+ * time since that token (prefill and server queue time excluded), repainted on
+ * the footer's 3s tick. At message_end the message's final rate is held and
+ * shown until the next message streams past its first token; a span shorter
+ * than MIN_RATE_SPAN_MS, or a single-chunk message (no tokens after its first
+ * streamed chunk), keeps the previous held value. Nothing shows before a
+ * session's first rate. When conductor subagents run (shared in-memory
+ * registry, extensions/subagent-live.ts), the right side carries the agent
+ * group `N agent(s) | N tok/s` — the SUM of the per-child rates, each held
+ * the same way — and the root figure is suppressed while no root message is
+ * in flight; with both active the block is `N tok/s · N agent(s) | N tok/s`,
+ * right-aligned as one unit.
  *
  * Left side: two live groups join location/model/cost. The cache group
  * (local servers only, isPrivateServer gate) shows only real data: the last
@@ -62,7 +66,7 @@ import type { Api, AssistantMessage, Model, ProviderHeaders } from "@earendil-wo
 import { getAgentDir } from "@earendil-works/pi-coding-agent";
 import type { CustomEntry, ExtensionAPI, ExtensionContext, ReadonlyFooterDataProvider, SessionEntry, Theme } from "@earendil-works/pi-coding-agent";
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
-import { formatTps, subagentLiveSnapshot, type SubagentLiveSample } from "./subagent-live.ts";
+import { formatTps, MIN_RATE_SPAN_MS, subagentLiveSnapshot, type SubagentLiveSample } from "./subagent-live.ts";
 import { registerFooterApplier, registerFooterLine, registerFooterTick, unregisterFooterApplier, unregisterFooterLine, unregisterFooterTick } from "./footer-lines.ts";
 import { getActiveProductName } from "./engine/product-registry.ts";
 import { envSpawnDepth } from "./engine/spawn-depth.ts";
@@ -425,10 +429,13 @@ export default function (pi: ExtensionAPI) {
 	const warnedServers = new Set<string>();
 	const warnedRefresh = new Set<string>();
 
-	// Live speedometer for the streaming assistant message's tok/s: t0 is the
-	// message_start baseline, lastPartial the newest partial message, lastTps
-	// the idle display value (0 once a message completes).
-	let t0: number | null = null;
+	// Decode-rate speedometer for the streaming assistant message: firstTokenAt
+	// is the first streamed token's arrival and firstTokens its token estimate,
+	// lastPartial the newest partial message, lastTps the held final rate of the
+	// last completed message (undefined before any).
+	let messageInFlight = false;
+	let firstTokenAt: number | null = null;
+	let firstTokens = 0;
 	let lastPartial: AssistantMessage | null = null;
 	let lastTps: number | undefined = undefined;
 	// Set by selfHeal when the in-memory static window still lags the live one;
@@ -447,6 +454,16 @@ export default function (pi: ExtensionAPI) {
 
 	function liveWindowFor(model: Model<Api>): number | undefined {
 		return liveWindows.get(windowKey(model))?.window;
+	}
+
+	/** Decode rate of `message` since the first token; null before it, within MIN_RATE_SPAN_MS of it, or with no tokens after it. */
+	function decodeRate(message: AssistantMessage): number | null {
+		if (!messageInFlight || firstTokenAt === null) return null;
+		const elapsedMs = Date.now() - firstTokenAt;
+		if (elapsedMs < MIN_RATE_SPAN_MS) return null;
+		const tokens = estimateOutputTokens(message) - firstTokens;
+		if (tokens <= 0) return null;
+		return tokens / (elapsedMs / 1000);
 	}
 
 	async function refreshWindow(ctx: ExtensionContext): Promise<void> {
@@ -498,14 +515,7 @@ export default function (pi: ExtensionAPI) {
 		const dimSep = theme.fg("dim", " · ");
 		const model = ctx.model;
 		const liveWindow = model === undefined ? undefined : liveWindowFor(model);
-		let tokensPerSecond: number | null;
-		if (t0 !== null) {
-			const elapsedMs = Date.now() - t0;
-			const tokens = lastPartial === null ? 0 : estimateOutputTokens(lastPartial);
-			tokensPerSecond = elapsedMs > 0 ? tokens / (elapsedMs / 1000) : 0;
-		} else {
-			tokensPerSecond = lastTps ?? null;
-		}
+		const tokensPerSecond = (lastPartial === null ? null : decodeRate(lastPartial)) ?? lastTps ?? null;
 		const cost = renderCost(theme, ctx);
 		const samples = subagentLiveSnapshot();
 		const left = [
@@ -520,8 +530,8 @@ export default function (pi: ExtensionAPI) {
 		const agents = renderAgents(theme, samples);
 		let right = "";
 		if (agents !== "") {
-			// An idle root figure is suppressed while agents run.
-			right = t0 !== null && rootFigure !== null ? rootFigure + dimSep + agents : agents;
+			// The root figure is suppressed while agents run and no root message is in flight.
+			right = messageInFlight && rootFigure !== null ? rootFigure + dimSep + agents : agents;
 		} else {
 			right = rootFigure ?? "";
 		}
@@ -595,7 +605,9 @@ export default function (pi: ExtensionAPI) {
 		// cache tracking.
 		liveWindows.clear();
 		inFlight.clear();
-		t0 = null;
+		messageInFlight = false;
+		firstTokenAt = null;
+		firstTokens = 0;
 		lastPartial = null;
 		lastTps = undefined;
 		needsRegistryRefresh = false;
@@ -658,20 +670,31 @@ export default function (pi: ExtensionAPI) {
 
 	pi.on("message_start", (event) => {
 		if (!isAssistantMessage(event.message)) return;
-		t0 = Date.now();
+		messageInFlight = true;
+		firstTokenAt = null;
+		firstTokens = 0;
 		lastPartial = null;
 	});
 
 	pi.on("message_update", (event) => {
-		if (!isAssistantMessage(event.message)) return;
+		if (!isAssistantMessage(event.message) || !messageInFlight) return;
+		if (firstTokenAt === null) {
+			const tokens = estimateOutputTokens(event.message);
+			if (tokens === 0) return;
+			// The first token starts the clock; tokens already streamed are not counted.
+			firstTokenAt = Date.now();
+			firstTokens = tokens;
+		}
 		lastPartial = event.message;
 	});
 
 	pi.on("message_end", (event, ctx) => {
 		if (!isAssistantMessage(event.message)) return;
-		t0 = null;
+		if (messageInFlight) lastTps = decodeRate(event.message) ?? lastTps;
+		messageInFlight = false;
+		firstTokenAt = null;
+		firstTokens = 0;
 		lastPartial = null;
-		lastTps = 0;
 
 		// Cache tracking: local servers only, requests with usage only.
 		const model = ctx.model;

@@ -6,10 +6,13 @@
  *   1. Fail-soft: a dead server keeps the static window and warns (no throw).
  *   2. Gauge: a mock `/v1/models` server (max_model_len 200000) makes
  *      100000/200000 read 50% with 3 filled / 3 empty cells.
- *   3. tok/s: a live speedometer of the streaming message (400 chars ≈ 100
- *      tokens over 1s of streaming reads "100 tok/s", a slow 40-char/10s
- *      stream reads "1 tok/s"); the figure reads "0 tok/s" once the message
- *      completes and is right-aligned to the footer's right edge.
+ *   3. tok/s: the decode rate clocked from the first streamed token (5s of no
+ *      output then 400 chars ≈ 100 tokens over 1s reads "100 tok/s", not the
+ *      ≈17 a message_start clock gives; nothing shows before the first rate; a
+ *      slow 40-char/10s stream reads "1 tok/s"); once a message completes the
+ *      figure holds its final rate (not "0 tok/s"), including across the next
+ *      message's pre-first-token wait; a sub-200ms span keeps the previous
+ *      held value; the figure is right-aligned to the footer's right edge.
  *   4. Cost: the $ figure only when total cost > 0.
  *   5. Self-heal: with a typical local provider structure in a temp agent dir
  *      (stale contextWindow 120000), a live 200000 from the mock server rewrites
@@ -31,8 +34,8 @@
  *   9. Explicit off respected: a /statusline toggle-off after the auto-enable
  *      survives a further turn_start while the active product is unchanged.
  *  10. Empty-branch stream: with `state.branch = []`, `message_start` +
- *      `message_update` (400-char partial, 1s) render the speedometer with no
- *      in/out items; `message_end` reads `0 tok/s`.
+ *      `message_update` (400 chars over 1s after the first token) render the
+ *      speedometer with no in/out items; `message_end` holds `100 tok/s`.
  *  11. Cache group: a message_end with 90 cache-read of 100 input-side
  *      tokens on a private baseUrl renders the hit rate only (90%) — no
  *      countdown, cold or time-left figure, no miss counter while every
@@ -40,6 +43,10 @@
  *  12. Cache group: a message_end with cacheRead = 0 counts a miss
  *      (`1 miss`, then `2 miss`).
  *  13. Cache group: a non-private baseUrl renders no cache group.
+ *  14. Subagent tok/s: a registry entry is clocked from its first delta
+ *      (5s wait then 400 chars over 1s reads 100), holds that rate after
+ *      message_end and through the next message's pre-first-delta wait, and
+ *      the footer's agent group reads `1 agent | 100 tok/s`.
  *
  * Run with: node scripts/statusline-harness.mts
  * (This file is intentionally NOT listed in package.json pi.extensions.)
@@ -52,6 +59,15 @@ import * as path from "node:path";
 import assert from "node:assert/strict";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import statusline from "../core/extensions/statusline.ts";
+import {
+	subagentLiveDelta,
+	subagentLiveKey,
+	subagentLiveMessageEnd,
+	subagentLiveMessageStart,
+	subagentLiveRemove,
+	subagentLiveStart,
+	subagentLiveTps,
+} from "../core/extensions/subagent-live.ts";
 import { visibleWidth } from "@earendil-works/pi-tui";
 
 // Mirrors extensions/engine/product-registry.ts's ACTIVE_PRODUCT_KEY: a real
@@ -357,11 +373,17 @@ async function main(): Promise<void> {
 
 			const realNow = Date.now;
 			try {
-				// tok/s A: a 400-char partial (≈ 100 tokens) streamed over 1s reads "100 tok/s" live.
+				// tok/s A: 5s of queue/prefill with no output, then 400 chars (≈ 100 tokens)
+				// over 1s after the first token reads "100 tok/s" — a message_start clock reads ≈17.
 				Date.now = (): number => 1_000_000;
 				env.fire("message_start", { type: "message_start", message: assistantMessage(41) });
-				Date.now = (): number => 1_001_000;
-				env.fire("message_update", { type: "message_update", message: assistantMessage(41, 400) });
+				Date.now = (): number => 1_003_000;
+				const lineWait = env.render();
+				assert.equal(trailingFigure(lineWait), "", `no rate may show before the session's first token, got: ${lineWait}`);
+				Date.now = (): number => 1_005_000;
+				env.fire("message_update", { type: "message_update", message: assistantMessage(41, 4) });
+				Date.now = (): number => 1_006_000;
+				env.fire("message_update", { type: "message_update", message: assistantMessage(41, 404) });
 
 				const line = env.render();
 				assert.ok(line.includes("50%"), `gauge at 100000/200000 should read 50%, got: ${line}`);
@@ -374,38 +396,62 @@ async function main(): Promise<void> {
 				assert.ok(line.includes("↑50k") && line.includes("↓2.0k"), `cost group should show in/out totals, got: ${line}`);
 				console.log("  [2] live gauge 50% + 100 tok/s streaming + $:", line);
 
-				// Once the message completes the speedometer reads 0 tok/s.
-				Date.now = (): number => 1_002_000;
-				env.fire("message_end", { type: "message_end", message: assistantMessage(41, 400) });
+				// Once the message completes the speedometer holds its final rate.
+				env.fire("message_end", { type: "message_end", message: assistantMessage(41, 404) });
+				Date.now = (): number => 1_009_000;
 				const lineA = env.render();
-				assert.ok(lineA.endsWith("0 tok/s"), `the completed message should read 0 tok/s, got: ${lineA}`);
-				assert.equal(trailingFigure(lineA), "0 tok/s", `the completed message should read exactly 0 tok/s, got: ${lineA}`);
+				assert.equal(trailingFigure(lineA), "100 tok/s", `the completed message should hold 100 tok/s, got: ${lineA}`);
 				assert.equal(visibleWidth(lineA), 200, `the padded line should fill exactly the render width, got: ${lineA}`);
 
-				// tok/s B: a slow 40-char partial (10 tokens) over 10s reads "1 tok/s" live.
-				Date.now = (): number => 1_000_000;
+				// tok/s B: the next message holds 100 until its first token, then a slow
+				// 40-char stream (10 tokens) over 10s reads "1 tok/s" live.
+				Date.now = (): number => 1_100_000;
 				env.fire("message_start", { type: "message_start", message: assistantMessage(47) });
-				Date.now = (): number => 1_010_000;
-				env.fire("message_update", { type: "message_update", message: assistantMessage(47, 40) });
+				Date.now = (): number => 1_104_000;
+				const lineWaitB = env.render();
+				assert.equal(trailingFigure(lineWaitB), "100 tok/s", `the pre-first-token wait should hold the previous rate, got: ${lineWaitB}`);
+				env.fire("message_update", { type: "message_update", message: assistantMessage(47, 4) });
+				Date.now = (): number => 1_114_000;
+				env.fire("message_update", { type: "message_update", message: assistantMessage(47, 44) });
 
 				const lineB = env.render();
-				assert.ok(lineB.endsWith("1 tok/s"), `a slow stream should read 1 tok/s, got: ${lineB}`);
+				assert.equal(trailingFigure(lineB), "1 tok/s", `a slow stream should read 1 tok/s, got: ${lineB}`);
 				assert.equal(visibleWidth(lineB), 200, `the padded line should fill exactly the render width, got: ${lineB}`);
-				assert.ok(!lineB.includes("100 tok/s"), `stale tok/s should be replaced, got: ${lineB}`);
 				console.log("  [3] live speedometer 1 tok/s:", lineB);
 
-				// The new message's completion also reads 0 tok/s.
-				env.fire("message_end", { type: "message_end", message: assistantMessage(47, 40) });
+				// The new message's completion holds 1 tok/s.
+				env.fire("message_end", { type: "message_end", message: assistantMessage(47, 44) });
 				const lineB2 = env.render();
-				assert.ok(lineB2.endsWith("0 tok/s"), `the completed message should read 0 tok/s, got: ${lineB2}`);
-				assert.equal(trailingFigure(lineB2), "0 tok/s", `the completed message should read exactly 0 tok/s, got: ${lineB2}`);
+				assert.equal(trailingFigure(lineB2), "1 tok/s", `the completed message should hold 1 tok/s, got: ${lineB2}`);
+
+				// A sub-200ms first-token span keeps the previous held value instead of a spike.
+				Date.now = (): number => 1_200_000;
+				env.fire("message_start", { type: "message_start", message: assistantMessage(48) });
+				env.fire("message_update", { type: "message_update", message: assistantMessage(48, 4) });
+				Date.now = (): number => 1_200_050;
+				env.fire("message_update", { type: "message_update", message: assistantMessage(48, 400) });
+				assert.equal(trailingFigure(env.render()), "1 tok/s", "a sub-200ms live span should show the held value");
+				env.fire("message_end", { type: "message_end", message: assistantMessage(48, 400) });
+				const lineShort = env.render();
+				assert.equal(trailingFigure(lineShort), "1 tok/s", `a sub-200ms message should keep the held 1 tok/s, got: ${lineShort}`);
+
+				// A single-chunk message (all output in its first non-empty update) ending
+				// ≥1s later has no tokens after the first chunk, so it keeps the held value.
+				Date.now = (): number => 1_300_000;
+				env.fire("message_start", { type: "message_start", message: assistantMessage(49) });
+				env.fire("message_update", { type: "message_update", message: assistantMessage(49, 300) });
+				Date.now = (): number => 1_301_500;
+				assert.equal(trailingFigure(env.render()), "1 tok/s", "a single-chunk live message should show the held value");
+				env.fire("message_end", { type: "message_end", message: assistantMessage(49, 300) });
+				const lineSingle = env.render();
+				assert.equal(trailingFigure(lineSingle), "1 tok/s", `a single-chunk message should keep the held 1 tok/s, got: ${lineSingle}`);
+				console.log("  [3] single-chunk message keeps held 1 tok/s:", lineSingle);
 
 				// Zero cost hides the $ figure.
 				env.state.branch = [messageEntry(50000, 2000, 0)];
 				const lineC = env.render();
 				assert.ok(!lineC.includes("$"), `zero cost should hide the $ figure, got: ${lineC}`);
-				assert.ok(lineC.endsWith("0 tok/s"), `the idle 0 tok/s figure should stay right-aligned when the $ figure disappears, got: ${lineC}`);
-				assert.equal(trailingFigure(lineC), "0 tok/s", `the idle figure should read exactly 0 tok/s, got: ${lineC}`);
+				assert.equal(trailingFigure(lineC), "1 tok/s", `the held figure should stay right-aligned when the $ figure disappears, got: ${lineC}`);
 				assert.equal(visibleWidth(lineC), 200, `the padded line should fill exactly the render width, got: ${lineC}`);
 				console.log("  [4] zero cost hides $:", lineC);
 
@@ -633,8 +679,9 @@ async function main(): Promise<void> {
 			try {
 				Date.now = (): number => 1_000_000;
 				env.fire("message_start", { type: "message_start", message: assistantMessage(41) });
+				env.fire("message_update", { type: "message_update", message: assistantMessage(41, 4) });
 				Date.now = (): number => 1_001_000;
-				env.fire("message_update", { type: "message_update", message: assistantMessage(41, 400) });
+				env.fire("message_update", { type: "message_update", message: assistantMessage(41, 404) });
 
 				const line = env.render();
 				assert.equal(trailingFigure(line), "100 tok/s", `an empty-branch stream should read exactly 100 tok/s, got: ${line}`);
@@ -642,9 +689,9 @@ async function main(): Promise<void> {
 				assert.ok(!line.includes("↑"), `an empty branch must show no in/out items, got: ${line}`);
 				console.log("  [10] empty-branch stream 100 tok/s:", line);
 
-				env.fire("message_end", { type: "message_end", message: assistantMessage(41, 400) });
+				env.fire("message_end", { type: "message_end", message: assistantMessage(41, 404) });
 				const lineEnd = env.render();
-				assert.equal(trailingFigure(lineEnd), "0 tok/s", `the completed empty-branch stream should read exactly 0 tok/s, got: ${lineEnd}`);
+				assert.equal(trailingFigure(lineEnd), "100 tok/s", `the completed empty-branch stream should hold exactly 100 tok/s, got: ${lineEnd}`);
 				assert.ok(!lineEnd.includes("↑"), `an empty branch must show no in/out items, got: ${lineEnd}`);
 			} finally {
 				Date.now = realNow;
@@ -736,6 +783,51 @@ async function main(): Promise<void> {
 				assert.ok(!line.includes("90%"), `a public API should render no hit rate, got: ${line}`);
 				console.log("  [13] no cache group for a public baseUrl:", line);
 			} finally {
+				env.dispose();
+			}
+		}
+
+		// --- 14. Subagent tok/s: clocked from the first delta, held after message_end ---
+		{
+			const env = makeEnv();
+			const key = subagentLiveKey();
+			const realNow = Date.now;
+			try {
+				env.state.model = makeModel("harness-model", "harness", "", 120000);
+				env.state.contextUsage = { tokens: 100000, contextWindow: 120000, percent: null };
+				env.state.branch = [];
+				statusline(env.pi);
+				await env.fire("session_start", { type: "session_start" });
+
+				subagentLiveStart(key, "worker");
+				Date.now = (): number => 2_000_000;
+				subagentLiveMessageStart(key);
+				Date.now = (): number => 2_005_000;
+				assert.equal(subagentLiveTps(key), 0, "no subagent rate before its first delta");
+				subagentLiveDelta(key, 4);
+				Date.now = (): number => 2_006_000;
+				subagentLiveDelta(key, 400);
+				assert.equal(Math.round(subagentLiveTps(key)), 100, "a delayed first delta should read 100 tok/s, not ≈17");
+
+				subagentLiveMessageEnd(key);
+				Date.now = (): number => 2_009_000;
+				assert.equal(Math.round(subagentLiveTps(key)), 100, "the subagent should hold its last rate after message_end");
+				const line = env.render();
+				assert.ok(line.endsWith("1 agent | 100 tok/s"), `the agent group should show the held rate, got: ${line}`);
+				console.log("  [14] subagent holds its rate:", line);
+
+				subagentLiveMessageStart(key);
+				Date.now = (): number => 2_012_000;
+				assert.equal(Math.round(subagentLiveTps(key)), 100, "the next message's pre-first-delta wait should hold the previous rate");
+
+				// A single-delta message ending ≥1s later has no chars after its first delta, so it keeps the held rate.
+				subagentLiveDelta(key, 300);
+				Date.now = (): number => 2_013_500;
+				subagentLiveMessageEnd(key);
+				assert.equal(Math.round(subagentLiveTps(key)), 100, "a single-delta subagent message should keep the held rate, not 0");
+			} finally {
+				Date.now = realNow;
+				subagentLiveRemove(key);
 				env.dispose();
 			}
 		}
