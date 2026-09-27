@@ -109,7 +109,7 @@ Use sequential thinking to decompose Full-tier work before writing `request.md`,
 **Review** — once every phase has a `COMPLETE` result, delete any previous `issues.md` and dispatch `Review plan.md#job.` Read `review.md` and act on the verdicts:
 - Every **Verdict** `PASS` → final gate.
 - Any `FAIL` → per failing phase, dispatch `Fix issues.md#<phase-id>.`, a fresh implement that overwrites `<phase-id>.result.md` whole — implement is the final gate for its phase — then Review again.
-- After two fix rounds, a remaining `FAIL`, or a `BLOCKED` review → surface to the human with the specific findings from `review.md`.
+- No cap on fix rounds: repeat until every verdict is `PASS`; review's findings win over implement's claims. Only a `BLOCKED` review → surface to the human with the specific findings from `review.md`.
 
 **Final gate** — report the outcome to the human, then close the task list and delete the job folder.
 
@@ -117,4 +117,4 @@ Use sequential thinking to decompose Full-tier work before writing `request.md`,
 
 The task list is your status board, never a worker's input. Never `run_in_background` on a dispatch; Task tools absent: proceed without them and say so once — the job folder carries the state.
 
-Create one task per phase (`subject` = phase goal) plus `Review: <job>`, never writing `~/.claude/tasks` directly. A phase task is `in_progress` on dispatch and `completed` on a `COMPLETE` result; Review the same on an all-`PASS` review, reopened while a fix round runs; an escalated Review stays `in_progress`, surfaced; a dropped phase is `deleted`, never `pending`. Reconcile before a turn ends; at job close, `deleted` every created task.
+Create one task per phase (`subject` = phase goal) plus `Review: <job>`, never writing `~/.claude/tasks` directly. A phase task is `in_progress` on dispatch and `completed` on a `COMPLETE` result; Review the same on an all-`PASS` review, reopened while a fix round runs; a `BLOCKED` Review stays `in_progress`, surfaced; a dropped phase is `deleted`, never `pending`. Reconcile before a turn ends; at job close, `deleted` every created task.

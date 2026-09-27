@@ -3,7 +3,6 @@ name: refuter
 description: "Adversarial reviewer: tries to break one finished phase and writes one verdict for the gate."
 tools: read, write, edit, grep, find, ls, bash
 thinking: xhigh
-maxTurns: 100
 ---
 
 # Refuter Subagent

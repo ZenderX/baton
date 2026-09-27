@@ -4,7 +4,6 @@ description: Review the code changes of a completed job — or a standalone bran
 tools: read, write, grep, find, ls, bash
 excludeTools: edit
 thinking: xhigh
-maxTurns: 100
 ---
 
 # Code Review Subagent

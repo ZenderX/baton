@@ -45,6 +45,7 @@ import {
 	discoverAgents,
 } from "./agents.ts";
 import { BOUNDARY_PROMPT_LINE, boundaryBlockReason, filesystemWideScan, isRootToolPath, powershellRootScan } from "./boundary.ts";
+import { DRIFT_ENV, childDriftConfig } from "./drift-config.ts";
 import { registerOrchestrator } from "./orchestrator.ts";
 import { type ProductDescriptor, getActiveProductName, getProduct, listProducts } from "./product-registry.ts";
 import { envSpawnDepth } from "./spawn-depth.ts";
@@ -560,8 +561,18 @@ async function runSingleAgent(
 
 		const exitCode = await new Promise<number>((resolve) => {
 			const invocation = getPiInvocation(args);
+			// Absolute so the drift config and the spawn agree: drift.ts resolves relative paths against this cwd.
+			const childCwd = path.resolve(defaultCwd, cwd ?? ".");
+			const taskPlanRel = getProduct(productName)?.taskPlanRel;
+			const drift = childDriftConfig(
+				agent.name,
+				agent.driftProgress,
+				task,
+				childCwd,
+				taskPlanRel === undefined ? undefined : path.join(childCwd, taskPlanRel),
+			);
 			const proc = spawn(invocation.command, invocation.args, {
-				cwd: cwd ?? defaultCwd,
+				cwd: childCwd,
 				shell: false,
 				stdio: ["ignore", "pipe", "pipe"],
 				// Always set, empty included, so a grandchild never inherits its parent's allow-list.
@@ -573,6 +584,7 @@ async function runSingleAgent(
 					PI_CONDUCTOR_SPAWN_ALLOW: allowed.join(","),
 					PI_CONDUCTOR_SPAWN_DEPTH: String(envSpawnDepth() + 1),
 					PI_CONDUCTOR_PRODUCT: productName,
+					[DRIFT_ENV]: JSON.stringify(drift),
 				},
 			});
 			let buffer = "";

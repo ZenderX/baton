@@ -25,6 +25,20 @@
  *   8. pi 0.87.1 stream: tool results arrive as `message_end` (role
  *      toolResult) beside `tool_execution_end`; each lands in the collected
  *      messages once, and the guard-kill trace still lists the calls.
+ *   9. Drift detectors (core/extensions/engine/drift.ts, no model calls): a
+ *      replay of a failed implement run (121 healthy calls, 79 scratch-heavy
+ *      calls, 18 empty `TargetSymbol` greps) draws a no-progress nudge
+ *      and a search/result nudge, with and without a Surface, for the grep
+ *      tool and shell forms; read-heavy runs, repeated edit results, empty
+ *      shell output, edit/check and edit/grep loops, and build output piped
+ *      through grep or Select-String draw none; counters stay bounded.
+ *  10. Per-child drift config: the engine hands each child PI_CONDUCTOR_DRIFT,
+ *      with no-progress on only for `driftProgress: true` agents (the real
+ *      implement and builder, not code-review) and the Surface prefixes of
+ *      the `plan.md#<phase-id>` section the task names.
+ *  11. drift-nudge extension: against a stubbed pi, the failed-run replay as
+ *      tool_result events yields steer-only `[drift]` sends and no other pi
+ *      or ctx call; no config, or depth 0, yields zero sends.
  *
  * Run with: node --experimental-strip-types pi/scripts/worker-guard-harness.mts
  * (This file is intentionally NOT listed in package.json pi.extensions.)
@@ -34,8 +48,22 @@ import assert from "node:assert/strict";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { fileURLToPath } from "node:url";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import driftNudge from "../core/extensions/drift-nudge.ts";
+import { PACKAGE_ROOT, discoverAgents } from "../core/extensions/engine/agents.ts";
+import { DRIFT_ENV, childDriftConfig } from "../core/extensions/engine/drift-config.ts";
 import engine, { newRepeatLoopState, recordToolCall } from "../core/extensions/engine/index.ts";
+import {
+	DRIFT_PREFIX,
+	RESULT_WINDOW,
+	SEARCH_WINDOW,
+	isScratchPath,
+	newDriftState,
+	observeToolCall,
+	shellSearchPattern,
+} from "../core/extensions/engine/drift.ts";
+import type { DriftConfig, ToolObservation } from "../core/extensions/engine/drift.ts";
 
 type Handler = (event: unknown, ctx: unknown) => unknown;
 
@@ -62,6 +90,10 @@ interface Scenario {
 	then: "complete" | "hang";
 	/** Replay pi 0.87.1's full json-mode sequence around each call instead of bare message_end events. */
 	piStream?: boolean;
+	/** On "complete", reply with this env var's value instead of COMPLETE. */
+	echoEnv?: string;
+	/** Free text riding along in the task, e.g. a `plan.md#<phase-id>` reference. */
+	note?: string;
 }
 
 interface StreamMessage {
@@ -102,7 +134,8 @@ scenario.calls.forEach((call, i) => {
 	write({ type: "turn_end", message: assistant, toolResults: [toolResult] });
 });
 if (scenario.then === "complete") {
-	emit({ role: "assistant", content: [{ type: "text", text: "COMPLETE" }], usage, stopReason: "stop", model: "fake" });
+	const text = scenario.echoEnv ? String(process.env[scenario.echoEnv]) : "COMPLETE";
+	emit({ role: "assistant", content: [{ type: "text", text }], usage, stopReason: "stop", model: "fake" });
 } else {
 	setInterval(() => {}, 1000);
 }
@@ -118,6 +151,104 @@ function distinctReads(count: number): Scenario["calls"] {
 
 function task(scenario: Scenario): string {
 	return JSON.stringify(scenario);
+}
+
+// Deliberately outside the OS temp dir, which the drift module treats as scratch.
+const DRIFT_CWD = path.resolve("/work/proj");
+
+interface Nudge {
+	index: number;
+	message: string;
+}
+
+function observation(toolName: string, input: Record<string, unknown>, resultText: string, isError = false): ToolObservation {
+	return { toolName, input, resultText, isError };
+}
+
+function replayDrift(config: Partial<DriftConfig>, calls: ToolObservation[]): Nudge[] {
+	const state = newDriftState({ noProgress: true, cwd: DRIFT_CWD, surface: [], ...config });
+	const nudges: Nudge[] = [];
+	calls.forEach((call, index) => {
+		const message = observeToolCall(state, call);
+		if (message !== undefined) nudges.push({ index, message });
+	});
+	return nudges;
+}
+
+/** 121 calls: an edit under crates/ every 15 calls (the last at call 112), varied reads, searches and checks. */
+function healthyCalls(): ToolObservation[] {
+	return Array.from({ length: 121 }, (_v, i) => {
+		const file = `crates/app/src/part_${i}.rs`;
+		if (i % 15 === 6) return observation("edit", { path: file, edits: [] }, `Successfully replaced text in ${file}.`);
+		if (i % 5 === 0) return observation("grep", { pattern: `fn system_${i}`, path: "crates" }, `${file}:${i}: fn system_${i}() {`);
+		if (i % 5 === 3) return observation("bash", { command: `cargo check -p app --lib # ${i}` }, `Finished dev profile in ${i}.4s`);
+		return observation("read", { path: file }, `// part ${i}\npub fn part_${i}() {}`);
+	});
+}
+
+/** 79 calls with no crates/ edit: 53 on tools/tmp_* scripts, 13 on a scratch cargo project, 13 reads. */
+function scratchCalls(): ToolObservation[] {
+	return Array.from({ length: 79 }, (_v, k) => {
+		const script = `tools/tmp_probe_${k}.py`;
+		if (k % 3 === 0) return observation("write", { path: script, content: "print(1)" }, `Successfully wrote 8 bytes to ${script}`);
+		if (k % 3 === 1) return observation("bash", { command: `python ${script}` }, `probe ${k}: value=${k * 3}`);
+		if (k % 6 === 2) return observation("write", { path: `scratch_tmp/src/main_${k}.rs`, content: "fn main() {}" }, `Successfully wrote 12 bytes`);
+		return observation("read", { path: `crates/core/src/item_${k}.rs` }, `// item ${k}`);
+	});
+}
+
+/** 18 empty searches for one symbol over different paths, as the grep tool or a shell command. */
+function symbolGreps(form: "grep" | "bash"): ToolObservation[] {
+	return Array.from({ length: 18 }, (_v, j) => {
+		const dir = `crates/mod_${j}`;
+		if (form === "grep") return observation("grep", { pattern: "TargetSymbol", path: dir }, "No matches found");
+		return observation("bash", { command: `grep -rn "TargetSymbol" ${dir}` }, "(no output)\n\nCommand exited with code 1", true);
+	});
+}
+
+interface DriftSend {
+	message: unknown;
+	options: unknown;
+}
+
+/** A stub whose every property is a function recording `<label>.<name>` in `calls`, except the ones in `own`. */
+function recordingStub<T>(label: string, calls: string[], own: Record<string, unknown>): T {
+	const target = {};
+	return new Proxy(target, {
+		get: (_t, prop) =>
+			typeof prop === "string" && Object.hasOwn(own, prop)
+				? own[prop]
+				: (): void => {
+						calls.push(`${label}.${String(prop)}`);
+					},
+	}) as T;
+}
+
+/** Load the drift-nudge extension against a stubbed pi, feed each observation as a tool_result event, release its claim. */
+function replayNudgeExtension(calls: ToolObservation[]): { sends: DriftSend[]; otherCalls: string[] } {
+	const sends: DriftSend[] = [];
+	const otherCalls: string[] = [];
+	const handlers = new Map<string, Handler[]>();
+	const pi = recordingStub<ExtensionAPI>("pi", otherCalls, {
+		on: (name: string, handler: Handler): void => {
+			handlers.set(name, [...(handlers.get(name) ?? []), handler]);
+		},
+		sendUserMessage: (message: unknown, options: unknown): void => {
+			sends.push({ message, options });
+		},
+	});
+	const ctx = recordingStub<ExtensionContext>("ctx", otherCalls, { cwd: DRIFT_CWD, hasUI: false });
+	driftNudge(pi);
+	calls.forEach(({ toolName, input, resultText, isError }, i) => {
+		const event = { type: "tool_result", toolCallId: `t${i}`, toolName, input, content: [{ type: "text", text: resultText }], isError };
+		for (const handler of handlers.get("tool_result") ?? []) void handler(event, ctx);
+	});
+	for (const handler of handlers.get("session_shutdown") ?? []) void handler({ type: "session_shutdown" }, ctx);
+	return { sends, otherCalls };
+}
+
+function wordCount(text: string): number {
+	return text.split(/\s+/).filter((w) => w !== "").length;
 }
 
 /** Load the engine against a fake pi at the current spawn depth; releases its load-guard claim before returning. */
@@ -147,6 +278,7 @@ async function main(): Promise<void> {
 	const originalArgv1 = process.argv[1];
 	const originalAgentDir = process.env.PI_CODING_AGENT_DIR;
 	const originalDepth = process.env.PI_CONDUCTOR_SPAWN_DEPTH;
+	const originalDrift = process.env[DRIFT_ENV];
 	const channel = globalThis as Record<symbol, unknown>;
 	try {
 		// 1. Exact-repeat state.
@@ -173,6 +305,24 @@ async function main(): Promise<void> {
 			"---\r\nname: capped\r\ndescription: capped worker\r\nmaxTurns: 3\r\n---\r\nWork.\r\n",
 		);
 		fs.writeFileSync(path.join(agentsDir, "free.md"), "---\r\nname: free\r\ndescription: uncapped worker\r\n---\r\nWork.\r\n");
+		fs.writeFileSync(
+			path.join(agentsDir, "drifty.md"),
+			"---\r\nname: drifty\r\ndescription: progress-tracked worker\r\ndriftProgress: true\r\n---\r\nWork.\r\n",
+		);
+		// The harness product's taskPlanRel is "plan.md", resolved against the child's cwd (scratch).
+		fs.writeFileSync(
+			path.join(scratch, "plan.md"),
+			[
+				"# Plan",
+				"## p9-other",
+				"**Surface:** `wrong/`",
+				"## p9-x",
+				"**Goal:** g",
+				"**Surface:** `crates/app/`, `tools/{a,b}.rs` and `README`.",
+				"**Out of scope:** `other/`",
+				"",
+			].join("\r\n"),
+		);
 		const fakeChild = path.join(scratch, "fake-child.mjs");
 		fs.writeFileSync(fakeChild, FAKE_CHILD);
 		process.argv[1] = fakeChild;
@@ -301,6 +451,55 @@ async function main(): Promise<void> {
 			const cappedRoles = (capped.details?.results[0]?.messages ?? []).filter(isStreamMessage).map((m) => m.role);
 			assert.deepEqual(cappedRoles.slice(0, 5), ["assistant", "toolResult", "assistant", "toolResult", "assistant"]);
 			console.log("  [8] pi 0.87.1 stream: tool results collected once via message_end; trace intact");
+		}
+
+		// 10. Per-child drift config (run before 7, at depth 0 like the other spawns).
+		{
+			const echo = async (agent: string, note: string): Promise<unknown> =>
+				JSON.parse(textOf(await run({ agent, task: task({ calls: [], then: "complete", echoEnv: DRIFT_ENV, note }) })));
+			assert.deepEqual(await echo("drifty", "Implement plan.md#p9-x."), {
+				agent: "drifty",
+				noProgress: true,
+				cwd: scratch,
+				surface: ["crates/app/", "tools/"],
+			});
+			assert.deepEqual(await echo("drifty", "Fix issues.md#p9-x."), {
+				agent: "drifty",
+				noProgress: true,
+				cwd: scratch,
+				surface: ["crates/app/", "tools/"],
+			});
+			// A relative cwd resolves once, against ctx.cwd, for both the spawn and the config (plan.md read from there too).
+			const sub = path.join(scratch, "sub");
+			fs.mkdirSync(sub);
+			fs.copyFileSync(path.join(scratch, "plan.md"), path.join(sub, "plan.md"));
+			const relative = await run({
+				agent: "drifty",
+				cwd: "sub",
+				task: task({ calls: [], then: "complete", echoEnv: DRIFT_ENV, note: "Implement plan.md#p9-x." }),
+			});
+			assert.deepEqual(JSON.parse(textOf(relative)), {
+				agent: "drifty",
+				noProgress: true,
+				cwd: sub,
+				surface: ["crates/app/", "tools/"],
+			});
+			assert.deepEqual(await echo("free", "Review plan.md#p9-missing."),{ agent: "free", noProgress: false, cwd: scratch, surface: [] });
+			assert.deepEqual(await echo("drifty", "no plan section"), { agent: "drifty", noProgress: true, cwd: scratch, surface: [] });
+
+			const piRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+			const noProgressOf = (product: string, name: string): boolean => {
+				const found = discoverAgents(scratch, "user", path.join(piRoot, product, "agents"), PACKAGE_ROOT).agents.find(
+					(a) => a.name === name,
+				);
+				assert.ok(found !== undefined && found.source === "package", `${product}/${name} is a package agent`);
+				return childDriftConfig(found.name, found.driftProgress, "task", scratch, undefined).noProgress;
+			};
+			assert.equal(noProgressOf("conductor", "implement"), true);
+			assert.equal(noProgressOf("refuter", "builder"), true);
+			assert.equal(noProgressOf("conductor", "code-review"), false);
+			assert.equal(noProgressOf("refuter", "auditor"), false);
+			console.log("  [10] per-child drift config: no-progress for implement/builder only; Surface from the named plan section");
 		}
 
 		// 7. Boundary hook.
@@ -460,12 +659,173 @@ async function main(): Promise<void> {
 			await allowed("read", { path: "../claude/plugins/x/skills/SKILL.md" });
 			console.log("  [7] boundary hook: off at depth 0, blocks root scans (wrapped, subshell, powershell), allows scoped and out-of-project scans");
 		}
+
+		// 9. Drift detectors.
+		{
+			assert.equal(isScratchPath("tools/tmp_probe.py", DRIFT_CWD), true);
+			assert.equal(isScratchPath("scratch_tmp/src/main.rs", DRIFT_CWD), true);
+			assert.equal(isScratchPath("out/TEMP/x.rs", DRIFT_CWD), true, "segment match is case-insensitive");
+			assert.equal(isScratchPath("../other/a.rs", DRIFT_CWD), true, "outside cwd is scratch");
+			assert.equal(isScratchPath(path.join(os.tmpdir(), "x.rs"), DRIFT_CWD), true, "the OS temp dir is scratch");
+			assert.equal(isScratchPath("crates/a.rs", path.join(os.tmpdir(), "proj")), false, "a cwd under the OS temp dir is not all scratch");
+			assert.equal(isScratchPath("crates/app/src/lib.rs", DRIFT_CWD), false);
+			assert.equal(isScratchPath("templates/tmpl.rs", DRIFT_CWD), false, "tmp must be a whole segment or a tmp_/tmp- prefix");
+
+			assert.equal(shellSearchPattern('cd crates && rg -n -g "*.rs" TargetSymbol src'), "TargetSymbol");
+			assert.equal(shellSearchPattern("git grep -n -e Foo -- crates"), "Foo");
+			assert.equal(shellSearchPattern('findstr /s /i /c:"Target Symbol" *.rs'), '"Target Symbol"');
+			assert.equal(shellSearchPattern("Get-ChildItem -Recurse crates | Select-String -Path x -Pattern 'Foo'"), "'Foo'");
+			assert.equal(shellSearchPattern("grep -A 3 needle src"), "needle", "a flag's value is not the pattern");
+			assert.equal(shellSearchPattern("cargo check"), undefined);
+			assert.equal(shellSearchPattern('grep "foo|bar" src'), '"foo|bar"', "a quoted | does not split the command");
+			assert.equal(shellSearchPattern("rg 'a|b' crates"), "'a|b'");
+			assert.equal(shellSearchPattern('cargo build 2>&1 | grep -E "^(error|warning)"'), undefined, "a piped grep filters output");
+			assert.equal(shellSearchPattern("cargo test 2>&1 | Select-String FAIL"), undefined, "a piped Select-String filters output");
+
+			for (const surface of [["crates/"], []]) {
+				for (const form of ["grep", "bash"] as const) {
+					const label = `surface ${JSON.stringify(surface)}, ${form} form`;
+					const nudges = replayDrift({ surface }, [...healthyCalls(), ...scratchCalls(), ...symbolGreps(form)]);
+					for (const { message } of nudges) {
+						assert.ok(message.startsWith(`${DRIFT_PREFIX} `), `${label}: prefixed: ${message}`);
+						assert.ok(wordCount(message) <= 50, `${label}: at most 50 words: ${message}`);
+						assert.match(message, /write your result as BLOCKED with what is missing under Gaps\.$/);
+					}
+					assert.equal(nudges.filter((n) => n.index < 121).length, 0, `${label}: no nudge in the healthy calls`);
+					const noProgress = nudges.find((n) => n.index >= 121);
+					assert.ok(noProgress !== undefined && noProgress.index < 121 + 40, `${label}: no-progress nudge by call 40 of the stretch`);
+					assert.match(noProgress.message, /^\[drift\] 40 tool calls since your last edit to the task's files; 16 writes in that stretch went to scratch/);
+					const search = nudges.find((n) => n.index >= 200);
+					assert.ok(search !== undefined && search.index < 205, `${label}: search or result nudge within the first 5 greps`);
+					assert.match(search.message, /searched for "targetsymbol"|returned the same result/);
+				}
+			}
+
+			// "No matches found" is not a repeated result, so near-repeat search fires at 5 of 10, then again once 5 more greps pass the 8-call cooldown.
+			const greps = replayDrift({ noProgress: false }, symbolGreps("grep"));
+			assert.deepEqual(
+				greps.map((n) => n.index + 1),
+				[5, 13],
+			);
+			assert.match(greps[0].message, /^\[drift\] You searched for "targetsymbol" in 5 of your last 10 tool calls\./);
+			assert.match(greps[1].message, /^\[drift\] You searched for "targetsymbol" in 10 of your last 10 tool calls\./);
+			// Unrelated searches and checks that come back empty share pi's sentinel text; that is not a repeated result.
+			const emptyGreps = Array.from({ length: 8 }, (_v, i) =>
+				i % 2 === 0
+					? observation("read", { path: `crates/p${i}/src/lib.rs` }, `// crate ${i}`)
+					: observation("grep", { pattern: `caller_${i}`, path: "crates" }, "No matches found"),
+			);
+			const emptyChecks = [
+				"git grep -n maxTurns -- pi/core",
+				"git grep -n -e readStallLimit -e triage -- pi/core",
+				"git diff HEAD~1 -- pi/core | grep -E 'kill|abort'",
+				"test -f pi/core/missing.ts",
+			].map((command) => observation("bash", { command }, "(no output)\n\nCommand exited with code 1", true));
+			for (const [label, calls] of [["empty grep results", emptyGreps], ["empty failing shell checks", emptyChecks]] as const) {
+				assert.deepEqual(replayDrift({ noProgress: false, surface: [] }, calls), [], `${label}: no nudge`);
+			}
+
+			const readHeavy = Array.from({ length: 60 }, (_v, i) =>
+				i % 4 === 0
+					? observation("grep", { pattern: `impl Plugin for P${i}` }, `crates/p${i}/src/lib.rs:1: impl Plugin for P${i}`)
+					: observation("read", { path: `crates/p${i}/src/lib.rs` }, `// crate ${i}`),
+			);
+			assert.deepEqual(replayDrift({ noProgress: false }, readHeavy), [], "a read-heavy run with no-progress off draws no nudge");
+			assert.equal(replayDrift({ noProgress: true }, readHeavy).length, 1, "the same run with no-progress on nudges once, at call 40");
+
+			const sameEdit = Array.from({ length: 12 }, () =>
+				observation("edit", { path: "crates/app/src/lib.rs", edits: [] }, "Successfully replaced text in crates/app/src/lib.rs."),
+			);
+			assert.deepEqual(replayDrift({ surface: ["crates/"] }, sameEdit), [], "identical edit results draw no nudge");
+
+			const quietShell = Array.from({ length: 16 }, (_v, i) =>
+				i % 2 === 0
+					? observation("bash", { command: `mkdir -p out/dir_${i}` }, "(no output)")
+					: observation("powershell", { command: `New-Item -Force out\\f${i}.txt | Out-Null` }, "  "),
+			);
+			assert.deepEqual(replayDrift({ noProgress: false }, quietShell), [], "empty shell output draws no nudge");
+			// An edit/check loop whose check output is byte-stable is progress, whether or not no-progress is on.
+			const editCheck = Array.from({ length: 16 }, (_v, i) =>
+				i % 2 === 0
+					? observation("edit", { path: `crates/app/src/a${i}.rs`, edits: [] }, `Successfully replaced text in crates/app/src/a${i}.rs.`)
+					: observation("bash", { command: "cargo test -p app" }, "All 12 tests passed."),
+			);
+			for (const surface of [["crates/"], []]) {
+				for (const noProgress of [true, false]) {
+					assert.deepEqual(replayDrift({ surface, noProgress }, editCheck), [], `edit/check loop, surface ${JSON.stringify(surface)}, noProgress ${noProgress}: no nudge`);
+				}
+			}
+			// Build/test output filtered through a piped grep or Select-String is not a codebase search.
+			const filteredChecks: Array<[string, string]> = [
+				["bash", 'cargo build 2>&1 | grep -E "^(error|warning)"'],
+				["powershell", "cargo test 2>&1 | Select-String FAIL"],
+			];
+			for (const [shell, command] of filteredChecks) {
+				const loop = Array.from({ length: 20 }, (_v, i) =>
+					i % 2 === 0
+						? observation("edit", { path: `crates/app/src/m${i}.rs`, edits: [] }, `Successfully replaced text in crates/app/src/m${i}.rs.`)
+						: observation(shell, { command }, `error[E0308]: mismatched types at crates/app/src/m${i - 1}.rs:${i}`),
+				);
+				for (const surface of [["crates/"], []]) {
+					for (const noProgress of [true, false]) {
+						assert.deepEqual(replayDrift({ surface, noProgress }, loop), [], `${shell} filtered check loop, surface ${JSON.stringify(surface)}, noProgress ${noProgress}: no nudge`);
+					}
+				}
+			}
+			// An edit/grep loop (chasing one symbol's call sites) repeats the pattern while making progress.
+			const renameLoop = Array.from({ length: 20 }, (_v, i) =>
+				i % 2 === 0
+					? observation("edit", { path: `crates/app/src/r${i}.rs`, edits: [] }, `Successfully replaced text in crates/app/src/r${i}.rs.`)
+					: observation("grep", { pattern: "old_name", path: "crates" }, `crates/app/src/r${i + 1}.rs:1: old_name()`),
+			);
+			assert.deepEqual(replayDrift({ surface: ["crates/"], noProgress: false }, renameLoop), [], "edit/grep loop: no nudge");
+			// Counters hold only keys still in their window.
+			const longRun = newDriftState({ noProgress: true, cwd: DRIFT_CWD, surface: [] });
+			for (let i = 0; i < 1000; i++) {
+				observeToolCall(longRun, observation("grep", { pattern: `symbol_${i}` }, `crates/a/src/f${i}.rs:1: symbol_${i}`));
+			}
+			assert.ok(longRun.searchCounts.size <= SEARCH_WINDOW, `searchCounts bounded, got ${longRun.searchCounts.size}`);
+			assert.ok(longRun.resultCounts.size <= RESULT_WINDOW, `resultCounts bounded, got ${longRun.resultCounts.size}`);
+			console.log("  [9] drift: failed-run replay nudges (no-progress, then search/result), quiet runs draw none");
+		}
+
+		// 11. drift-nudge extension (this process is at depth 1 since case 7).
+		{
+			const failedRun = [...healthyCalls(), ...scratchCalls(), ...symbolGreps("grep")];
+			const childConfig = { agent: "implement", noProgress: true, cwd: DRIFT_CWD, surface: ["crates/"] };
+			process.env[DRIFT_ENV] = JSON.stringify(childConfig);
+			const child = replayNudgeExtension(failedRun);
+			assert.ok(child.sends.length >= 2, `at least two nudges, got ${child.sends.length}`);
+			for (const { message, options } of child.sends) {
+				assert.deepEqual(options, { deliverAs: "steer" });
+				assert.ok(typeof message === "string" && message.startsWith(`${DRIFT_PREFIX} `), `prefixed: ${String(message)}`);
+			}
+			assert.deepEqual(
+				child.sends.map(({ message }) => message),
+				replayDrift({ surface: ["crates/"] }, failedRun).map(({ message }) => message),
+				"the extension sends exactly what the detectors return",
+			);
+			assert.deepEqual(child.otherCalls, [], "no pi or ctx call besides on and sendUserMessage (nothing kills or aborts)");
+
+			process.env.PI_CONDUCTOR_SPAWN_DEPTH = "0";
+			const topLevel = replayNudgeExtension(failedRun);
+			assert.deepEqual(topLevel.sends, [], "the top-level session never sends, even with config");
+			process.env.PI_CONDUCTOR_SPAWN_DEPTH = "1";
+
+			delete process.env[DRIFT_ENV];
+			const unconfigured = replayNudgeExtension(failedRun);
+			assert.deepEqual(unconfigured.sends, [], "no drift config, no sends");
+			assert.deepEqual([...topLevel.otherCalls, ...unconfigured.otherCalls], []);
+			console.log(`  [11] drift-nudge: ${child.sends.length} steer sends on the failed-run replay; none without config or at depth 0`);
+		}
 	} finally {
 		process.argv[1] = originalArgv1;
 		if (originalAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
 		else process.env.PI_CODING_AGENT_DIR = originalAgentDir;
 		if (originalDepth === undefined) delete process.env.PI_CONDUCTOR_SPAWN_DEPTH;
 		else process.env.PI_CONDUCTOR_SPAWN_DEPTH = originalDepth;
+		if (originalDrift === undefined) delete process.env[DRIFT_ENV];
+		else process.env[DRIFT_ENV] = originalDrift;
 		delete channel[PRODUCTS_KEY];
 		delete channel[ACTIVE_PRODUCT_KEY];
 		fs.rmSync(scratch, { recursive: true, force: true });

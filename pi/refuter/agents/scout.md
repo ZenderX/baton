@@ -4,7 +4,6 @@ description: "Fast reconnaissance: codebase map and dated web facts. Returns a m
 tools: read, write, grep, find, ls, bash, pi-baton__context7_resolve-library-id, pi-baton__context7_query-docs
 excludeTools: edit
 thinking: medium
-maxTurns: 60
 ---
 
 # Scout Subagent

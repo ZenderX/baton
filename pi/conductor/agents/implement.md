@@ -4,7 +4,7 @@ description: Autonomous implementation specialist, the senior programmer on its 
 # context7 is named because the body calls it; pi's --tools is a strict allowlist
 tools: read, write, edit, grep, find, ls, bash, pi-baton__context7_resolve-library-id, pi-baton__context7_query-docs
 thinking: xhigh
-maxTurns: 200
+driftProgress: true
 ---
 
 # Implementation Subagent

@@ -4,7 +4,6 @@ description: "Product owner and architect: frames requirements, splits the task 
 tools: read, write, find, ls, subagent
 spawn: [scout]
 thinking: xhigh
-maxTurns: 150
 ---
 
 You never pause for user feedback.

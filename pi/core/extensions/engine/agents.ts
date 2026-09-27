@@ -35,6 +35,8 @@ export interface AgentConfig {
 	spawn?: string[];
 	/** Hard cap on the child's assistant turns; undefined means uncapped. */
 	maxTurns?: number;
+	/** Opts the child into the no-progress drift nudge (frontmatter `driftProgress: true`). */
+	driftProgress: boolean;
 	skillDirs: string[];
 	systemPrompt: string;
 	source: AgentSource;
@@ -63,6 +65,7 @@ type AgentFrontmatter = {
 	thinking?: unknown;
 	spawn?: unknown;
 	maxTurns?: unknown;
+	driftProgress?: unknown;
 	skills?: unknown;
 };
 
@@ -196,6 +199,7 @@ function loadAgentsFromDir(dir: string, source: AgentSource, packageRoot: string
 			thinking: parseThinking(frontmatter.thinking),
 			spawn: parseToolList(frontmatter.spawn),
 			maxTurns: parseMaxTurns(frontmatter.maxTurns),
+			driftProgress: frontmatter.driftProgress === true,
 			skillDirs: resolveSkillDirs(parseToolList(frontmatter.skills) ?? [], packageRoot),
 			systemPrompt: body,
 			source,

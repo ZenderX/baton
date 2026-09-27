@@ -88,7 +88,7 @@ Batch independent `Agent` calls into one message, deliberately under the platfor
    - `PASS`, or `FAIL` whose issues were all dropped → accept.
    - `FAIL` with issues left → `Fix issues.md#<phase-id>.`, a fresh builder that overwrites `<phase-id>.result.md`, then a fresh `Refute` from step 2.
    - Refuter `BLOCKED` → surface its reason and `review.md#<phase-id>` to the user, a marked section as partial findings.
-5. Cap fix passes at 2 per phase; past it, surface to the user.
+5. No cap on fix passes: repeat until the phase is accepted.
 
 ## Memory
 

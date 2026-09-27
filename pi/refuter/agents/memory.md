@@ -3,7 +3,6 @@ name: memory
 description: "Owns the memory vault: ingests, prunes, and links notes, or runs a memory-review pass when asked."
 tools: read, write, edit, grep, find, bash, powershell
 thinking: low
-maxTurns: 60
 ---
 
 Own `.claude/agent-memory/refuter-main/`: ingest notes, prune stale ones, and reorganize `MEMORY.md`. Supersede, prune, and delete notes as `memory-write` and `memory-review` direct; deletion is ordinary once inbound `[[links]]` are re-pointed or tombstoned.

@@ -179,6 +179,7 @@ fi
 # ~/.claude/.statusline-window.json. Any failure falls through to the
 # payload/model-family fallbacks below.
 live_window=""
+served_model=""
 _base="${ANTHROPIC_BASE_URL:-}"
 if [ -n "$_base" ] && command -v curl >/dev/null 2>&1 && command -v jq >/dev/null 2>&1; then
   _host=$(printf '%s' "$_base" | sed -e 's|^[a-zA-Z][a-zA-Z0-9+.-]*://||' -e 's|/.*$||' -e 's|:[0-9]*$||')
@@ -210,12 +211,16 @@ if [ -n "$_base" ] && command -v curl >/dev/null 2>&1 && command -v jq >/dev/nul
         _w=$(printf '%s' "$_body" | jq -r '.data[]?.max_model_len // empty' 2>/dev/null | head -n1)
         if [ -n "$_w" ] && [ "$_w" -gt 0 ] 2>/dev/null; then
           live_window=$_w
-          [ -d "$HOME/.claude" ] && printf '{"window":%s}' "$_w" > "$wcache"
+          # The model the server actually serves (e.g. example-27b) — the
+          # tier label Claude Code reports (e.g. "Opus 5.5") is not what runs.
+          served_model=$(printf '%s' "$_body" | jq -r '.data[]? | select(.max_model_len != null) | .id // empty' 2>/dev/null | head -n1)
+          [ -d "$HOME/.claude" ] && printf '{"window":%s,"model":"%s"}' "$_w" "${served_model//\"/}" > "$wcache"
           break
         fi
       done
     else
       live_window=$(jq -r '.window // empty' "$wcache" 2>/dev/null)
+      served_model=$(jq -r '.model // empty' "$wcache" 2>/dev/null)
     fi
   fi
 fi
@@ -259,8 +264,11 @@ if [ -z "$limit" ] || [ "${limit:-0}" -eq 0 ]; then
   esac
 fi
 
-if [ -n "$model" ]; then
-  g2=$(printf '%b[%s]%b' "$C_MODEL" "$model" "$R")
+# On a local server show the model it actually serves; fall back to the tier
+# label Claude Code reports when the probe found nothing.
+display_model="${served_model:-$model}"
+if [ -n "$display_model" ]; then
+  g2=$(printf '%b[%s]%b' "$C_MODEL" "$display_model" "$R")
   if [ -n "$used" ] && [ "$used" -gt 0 ] 2>/dev/null; then
     [ -z "$pct" ] && pct=$(( used * 100 / limit ))
     g2+=" $(gauge "" "$pct" "$(fmt_num "$used")/$(fmt_num "$limit")" tokens)"

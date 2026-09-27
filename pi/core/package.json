@@ -14,7 +14,8 @@
       "./extensions/engine/index.ts",
       "./extensions/statusline.ts",
       "./extensions/task-list.ts",
-      "./extensions/lmstudio-reasoning.ts"
+      "./extensions/lmstudio-reasoning.ts",
+      "./extensions/drift-nudge.ts"
     ],
     "skills": [
       "../../claude/plugins/baton/skills",

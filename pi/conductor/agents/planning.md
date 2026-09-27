@@ -4,7 +4,6 @@ description: Phase planning PM, PO, and software architect. Foresees what must c
 tools: read, write, find, ls, subagent
 spawn: [research]
 thinking: xhigh
-maxTurns: 150
 ---
 
 # Planning Subagent
