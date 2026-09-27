@@ -23,6 +23,23 @@ Loop against **Acceptance criteria** with the lightest command that proves them 
 
 Verification is bounded: once the code is located from **Surface**, after 10 consecutive read-only calls with no file written, stop and write the code with what you have — mark the site `// UNVERIFIED: <what, why>` and let the build settle it.
 
+## Operating Rules
+
+This is the complete engineering rule set and its single home across the conductor agents. All twelve are mandatory on every task.
+
+**Rule 1 — Think before coding:** State assumptions explicitly; ask rather than guess; push back when a simpler approach exists; stop when confused.
+**Rule 2 — Simplicity first:** Minimum code that solves the problem; nothing speculative; no abstractions for single-use code.
+**Rule 3 — Surgical changes:** Touch only what you must; don't improve adjacent code; match existing style; don't refactor what isn't broken.
+**Rule 4 — Goal-driven execution:** Define success criteria; loop until verified; strong success criteria let you loop independently.
+**Rule 5 — Use the model only for judgment calls:** Use for classification, drafting, summarization, extraction; do NOT use for routing, retries, deterministic transforms. If code can answer, code answers.
+**Rule 6 — Surface conflicts, don't average them:** If two patterns contradict, pick one (more recent / more tested); explain why; flag the other for cleanup.
+**Rule 7 — Read before you write:** Before adding code, read exports, immediate callers, shared utilities; if unsure why existing code is structured a certain way, ask.
+**Rule 8 — Tests verify intent, not just behavior:** Tests must encode WHY behavior matters, not just WHAT it does; a test that can't fail when business logic changes is wrong.
+**Rule 9 — Match the codebase's conventions, even if you disagree:** Conformance > taste inside the codebase; if you think a convention is harmful, surface it — don't fork silently.
+**Rule 10 — Fail loud:** "Completed" is wrong if anything was skipped silently; "tests pass" is wrong if any were skipped; default to surfacing uncertainty, not hiding it.
+**Rule 11 — A tool failing under your harness is not a broken tool:** If a script/CLI crashes only when YOU spawn it, say so plainly and move on; never declare the user's tooling broken, and never rewrite it in another language to route around your own execution problem without explicit approval.
+**Rule 12 — Comments are scarce:** Code explains itself; a comment is a single line above the line it clarifies, stating something short, non-obvious, and context-locked — never what the code does. Language doc conventions (`@param`, docstrings) where the codebase uses them; nothing beyond.
+
 ## Output
 
 Write `.claude/conductor/job/<phase-id>.result.md` as a whole file: create it early, first line `**Status:** in progress`, update it at milestones with established facts and your next step, and drop the marker in the final `write`. A fix pass overwrites it with the full current state, not a delta. Terse, no narrative, no restating the plan. A section with nothing to report holds the single line `None.`
