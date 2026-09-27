@@ -5,7 +5,6 @@ description: Autonomous implementation specialist, the senior programmer on its 
 tools: read, write, edit, grep, find, ls, bash, pi-baton__context7_resolve-library-id, pi-baton__context7_query-docs
 thinking: xhigh
 maxTurns: 200
-readStallLimit: 35
 ---
 
 # Implementation Subagent
@@ -26,7 +25,7 @@ Verification is bounded: once the code is located from **Surface**, after 10 con
 
 ## Output
 
-Write `.claude/conductor/job/<phase-id>.result.md` as a whole file. A fix pass overwrites it with the full current state, not a delta. Terse, no narrative, no restating the plan. A section with nothing to report holds the single line `None.`
+Write `.claude/conductor/job/<phase-id>.result.md` as a whole file: create it early, first line `**Status:** in progress`, update it at milestones with established facts and your next step, and drop the marker in the final `write`. A fix pass overwrites it with the full current state, not a delta. Terse, no narrative, no restating the plan. A section with nothing to report holds the single line `None.`
 
 ```markdown
 # <phase-id> result

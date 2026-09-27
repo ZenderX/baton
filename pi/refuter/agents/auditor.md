@@ -3,6 +3,7 @@ name: auditor
 description: Samples a local model on the refuter's disputed claims via scripts/spanda-audit.py and reports per-claim risk; never decides.
 tools: read, write, edit, grep, find, ls, bash
 thinking: xhigh
+maxTurns: 100
 ---
 
 # Auditor Subagent
@@ -25,7 +26,7 @@ The orchestrator copies the script to `.claude/refuter/job/scripts/spanda-audit.
 
 Report `risk: null` as `n/a (<error>)`, never as a low score, and note any `dropped` samples in the same cell. If the script reports `"status":"unavailable"` or `python` is missing, retry once if transient; otherwise write every row as `n/a (unavailable: <reason>)` and reply `BLOCKED`. Never substitute your own judgment for a missing sample.
 
-Write this phase's section of `.claude/refuter/job/audit.md`, replacing any earlier one. End each claim cell with the sampled majority answer, so the orchestrator can tell which side sampling supports:
+Write only this phase's section of `.claude/refuter/job/audit.md`, replacing any earlier one; the orchestrator creates it; parallel auditors share it, so only `edit` your section, `read` it right before each `edit`, and re-append it if missing. Add it early, first line `**Status:** in progress`, listing samples and next claim at milestones; the final `edit` drops the marker and writes the table. End each claim cell with the sampled majority answer, so the orchestrator can tell which side sampling supports:
 
 ```markdown
 # Audit
@@ -37,4 +38,4 @@ Write this phase's section of `.claude/refuter/job/audit.md`, replacing any earl
 | <claim from review.md> — majority: <answer> | <spanda risk> | <K> |
 ```
 
-Then reply with exactly one line: `COMPLETE`, or `BLOCKED: <one sentence naming what is missing or contradictory>`. When blocked, still write `audit.md`.
+Then reply with exactly one line: `COMPLETE`, or `BLOCKED: <one sentence naming what is missing or contradictory>`. When blocked, still write your `audit.md` section.

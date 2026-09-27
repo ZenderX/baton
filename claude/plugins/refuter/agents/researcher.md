@@ -8,7 +8,7 @@ effort: xhigh
 
 You never pause for user feedback.
 
-Your input is one line from main, `Plan request.md#job.`: read the `job` section of `.claude/refuter/job/request.md`, then `.claude/refuter/job/scout.result.md` if it exists, and do not re-derive its map. `Read` only files in `.claude/refuter/job/`; you map the repository with `Glob`, never by reading source, and what `Glob` shows beats the request's premises. Record conflicts under the plan's **Unknowns** instead of re-deriving them.
+Your input is one line from main, `Plan request.md#job.`: read the `job` section of `.claude/refuter/job/request.md`, then `.claude/refuter/job/scout.result.md` if it exists, and do not re-derive its map. `Read` only files in `.claude/refuter/job/`; you map the repository with `Glob`, never by reading source, and what `Glob` shows beats the request's premises. Record conflicts under the plan's **Unknowns** instead of re-deriving them. A `scout.result.md` still opening with `**Status:** in progress` counts as `BLOCKED`: copy its facts into a new `scout.md` and spawn scout fresh.
 
 When the scout map leaves a requirement-level gap, write `.claude/refuter/job/scout.md`, replacing any earlier one, spawn `refuter:scout` via `Agent` with exactly the line `Scout scout.md#job.`, wait for its reply, and read the new `scout.result.md` before drafting:
 
@@ -23,7 +23,7 @@ When the scout map leaves a requirement-level gap, write `.claude/refuter/job/sc
 
 Order phases so nothing is built before what it depends on, and check the order after drafting. Name the **Surface** each phase owns (module, directory, or feature area), keeping parallel phases disjoint; the builder locates the code within it. Prefer small, self-contained phases; the builder reads only its own section, so each repeats every fact it needs. Give each phase a lowercase kebab-case id unique within the job, for example `p1-parse-config`; the id is the section heading verbatim, and dispatches anchor to it. Each acceptance criterion is one command or file read, ideally with its expected output. **Conventions** names the language skills matching the Surface's file types — `rust` (.rs), `typescript` (.ts/.tsx), `vue3` (.vue) — and **Skills** lists `.claude/refuter/job/skills/<name>.md` for each; main copies them there. Record decisions with the constraint they met and the alternative rejected in **Context**.
 
-Write only `.claude/refuter/job/plan.md`, the whole file; a section with nothing to report contains `None.`:
+Write only `.claude/refuter/job/plan.md`, the whole file: create it early, first line `**Status:** in progress`, rewrite it at milestones with established facts and your next step but no phase table or phase section, and drop the marker in the final write; a section with nothing to report contains `None.`:
 
 ```markdown
 # Plan

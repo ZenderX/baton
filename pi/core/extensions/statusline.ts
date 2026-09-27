@@ -42,9 +42,9 @@
  * zero cacheRead are full uncached prefills), shown only when greater than
  * 0. No time-based figure is shown because the server exposes no cache state
  * or TTL — invented values are not displayed (user instruction). Additional
- * footer lines (e.g. a task list) compose in below the powerline line via
- * the shared footer-line registry (extensions/footer-lines.ts); none is
- * registered in this repo today.
+ * footer lines compose in below the powerline line via the shared
+ * footer-line registry (extensions/footer-lines.ts): the task list
+ * (extensions/task-list.ts) is one.
  *
  * The shell script's plan-usage group (Anthropic OAuth usage endpoint) has no
  * pi equivalent and is intentionally dropped.
@@ -615,7 +615,7 @@ export default function (pi: ExtensionAPI) {
 		if (conductor && !lastConductorState) {
 			enabled = true;
 			applyFooter(ctx);
-			ctx.ui.notify("Statusline enabled by conductor mode.", "info");
+			ctx.ui.notify(`Statusline enabled by ${getActiveProductName() ?? "orchestrator"} mode.`, "info");
 		}
 		lastConductorState = conductor;
 	});

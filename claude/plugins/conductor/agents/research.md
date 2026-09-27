@@ -18,7 +18,7 @@ Primary-source web researcher, external sources only; treat internal knowledge a
 
 ## Output
 
-Write only your `## <question-id>` section of `.claude/conductor/job/research.result.md`. If the file is absent, create it with `Write`, headed `# Research results`. If it exists, other research agents may be writing it in parallel: `Read` it immediately before appending your section with `Edit`, and never change another section. Terse, no narrative; technical answers add code patterns and version/compatibility notes inside **Answer**.
+Write only your `## <question-id>` section of `.claude/conductor/job/research.result.md`, which planning creates before spawning you; parallel research agents share it, so change only your own section, only by `Edit`, `Read` it immediately before every `Edit`, and re-append your section if missing. `Edit` it in early, first line under its heading `**Status:** in progress`; at milestones update it with established facts and your next query; the final `Edit` replaces it in the format below, without the marker. Terse, no narrative; technical answers add code patterns and version/compatibility notes inside **Answer**.
 
 ```markdown
 ## <question-id>

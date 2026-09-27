@@ -17,6 +17,7 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { PACKAGE_ROOT, discoverAgents, getSkillRoots } from "./agents.ts";
 import { type ProductDescriptor, getActiveProductName, getProduct } from "./product-registry.ts";
 import { envSpawnDepth } from "./spawn-depth.ts";
+import { resolveTaskStorePath } from "./tasks.ts";
 
 const ENVIRONMENT_RELATIVE = path.join(".claude", "conductor", "environment.md");
 
@@ -68,6 +69,7 @@ ${agentList}
 ${memoryIndex}
 - environment.md: ${environmentState}
 - Task plan: ${taskPlanPath}
+- Task store: ${resolveTaskStorePath(cwd)}
 `;
 }
 

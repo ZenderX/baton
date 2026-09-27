@@ -18,11 +18,11 @@ Then run the linter, in order: `pwsh ${CLAUDE_PLUGIN_ROOT}/../baton/scripts/memo
 
 **Write pass:** given a subject, not slugs, search the vault, then prune, correct, or write the note per memory-write. A dirty note touched this way is refreshed in place — verified and cleared per memory-write — never propagating, dedupe reserved for review. Close by propagating over the slugs you created or whose claims you changed — never a refreshed dirty note — then the linter. Re-read `MEMORY.md` immediately before each append, and edit it — never rewrite the whole file.
 
-**Review pass:** run the memory-review procedure. Main requests one only when the human asks. Git is read-only here — inspect history, never commit or reset.
+**Review pass:** run the memory-review procedure, reading only the notes its Scope section lists — never the whole vault. Main requests one only when the human asks. Git is read-only here — inspect history, never commit or reset.
 
 ## Output
 
-Write only your `## <request-id>` section of `.claude/conductor/job/memory.result.md`. If the file is absent, create it with `Write`, headed `# Memory results`; otherwise `Read` it immediately before appending your section with `Edit`.
+Write only your `## <request-id>` section of `.claude/conductor/job/memory.result.md`, which main creates before spawning you; change it only by `Edit`, never `Write`, `Read` it immediately before every `Edit`, and re-append your section if missing.
 
 ```markdown
 ## <request-id>

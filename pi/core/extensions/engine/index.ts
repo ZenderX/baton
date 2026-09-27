@@ -32,6 +32,7 @@ import {
 	type ExtensionAPI,
 	getAgentDir,
 	getMarkdownTheme,
+	isToolCallEventType,
 	withFileMutationQueue,
 } from "@earendil-works/pi-coding-agent";
 import { Container, Markdown, Spacer, Text } from "@earendil-works/pi-tui";
@@ -43,9 +44,11 @@ import {
 	PACKAGE_ROOT,
 	discoverAgents,
 } from "./agents.ts";
+import { BOUNDARY_PROMPT_LINE, boundaryBlockReason, filesystemWideScan, isRootToolPath, powershellRootScan } from "./boundary.ts";
 import { registerOrchestrator } from "./orchestrator.ts";
 import { type ProductDescriptor, getActiveProductName, getProduct, listProducts } from "./product-registry.ts";
 import { envSpawnDepth } from "./spawn-depth.ts";
+import { registerTaskTools } from "./tasks.ts";
 import {
 	formatTps,
 	subagentLiveDelta,
@@ -175,7 +178,8 @@ function formatToolCall(
 	switch (toolName) {
 		case "bash": {
 			const command = (args.command as string) || "...";
-			const preview = command.length > 60 ? `${command.slice(0, 60)}...` : command;
+			// Head+tail: commands sharing a long prefix stay distinguishable by their tail.
+			const preview = command.length > 60 ? `${command.slice(0, 30)}...${command.slice(-30)}` : command;
 			return themeFg("muted", "$ ") + themeFg("toolOutput", preview);
 		}
 		case "read": {
@@ -252,8 +256,15 @@ interface SingleResult {
 	stopReason?: string;
 	errorMessage?: string;
 	step?: number;
+	/** Set when the engine killed the child: the turn cap or the exact-repeat guard. */
+	guardKill?: GuardKill;
 	/** Live t/s while streaming (set by emitUpdate, cleared on close). */
 	liveTps?: number;
+}
+
+interface GuardKill {
+	guard: "turn cap" | "repeat loop";
+	reason: string;
 }
 
 interface SubagentDetails {
@@ -280,6 +291,7 @@ function isFailedResult(result: SingleResult): boolean {
 }
 
 function getResultOutput(result: SingleResult): string {
+	if (result.guardKill) return formatGuardKill(result, result.guardKill);
 	if (isFailedResult(result)) {
 		return result.errorMessage || result.stderr || getFinalOutput(result.messages) || "(no output)";
 	}
@@ -310,6 +322,59 @@ function getDisplayItems(messages: Message[]): DisplayItem[] {
 		}
 	}
 	return items;
+}
+
+/** Tool calls shown in a guard kill's trace; enough to see the loop without flooding the orchestrator. */
+const GUARD_KILL_TRACE_CAP = 8;
+
+/**
+ * The orchestrator-facing text of a guard-killed run: a `BLOCKED:` line like a
+ * worker's own reply, then the last calls, since the killed worker may have
+ * written no result file. The orchestrator never sees tool details, so the
+ * trace must live in the content.
+ */
+function formatGuardKill(result: SingleResult, kill: GuardKill): string {
+	const calls = getDisplayItems(result.messages).filter(
+		(item): item is Extract<DisplayItem, { type: "toolCall" }> => item.type === "toolCall",
+	);
+	const lines = calls.slice(-GUARD_KILL_TRACE_CAP).map((c) => `→ ${formatToolCall(c.name, c.args, (_c, t) => t)}`);
+	const trace = lines.length > 0 ? lines.join("\n") : "(no tool calls)";
+	return `BLOCKED: ${kill.guard} — ${kill.reason}\n\nLast calls:\n${trace}`;
+}
+
+/** A child that issues the same tool call (name + arguments) this many times in a row is killed. */
+const REPEAT_LOOP_LIMIT = 3;
+
+/** JSON with recursively sorted object keys, so key order never changes the result. */
+export function stableStringify(value: unknown): string {
+	if (value === null || typeof value !== "object") return JSON.stringify(value) ?? "undefined";
+	if (Array.isArray(value)) return `[${value.map((item) => stableStringify(item)).join(",")}]`;
+	const entries = Object.entries(value)
+		.sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+		.map(([key, val]) => `${JSON.stringify(key)}:${stableStringify(val)}`);
+	return `{${entries.join(",")}}`;
+}
+
+export interface RepeatLoopState {
+	lastKey: string | null;
+	streak: number;
+	/** Name of the call that tripped the guard; null until then. */
+	hitName: string | null;
+}
+
+export function newRepeatLoopState(): RepeatLoopState {
+	return { lastKey: null, streak: 0, hitName: null };
+}
+
+/** Records one tool call in order; true exactly when the identical-call streak first reaches REPEAT_LOOP_LIMIT. */
+export function recordToolCall(state: RepeatLoopState, name: string, args: unknown): boolean {
+	if (state.hitName !== null) return false;
+	const key = `${name}\u0000${stableStringify(args)}`;
+	state.streak = key === state.lastKey ? state.streak + 1 : 1;
+	state.lastKey = key;
+	if (state.streak < REPEAT_LOOP_LIMIT) return false;
+	state.hitName = name;
+	return true;
 }
 
 async function mapWithConcurrencyLimit<TIn, TOut>(
@@ -476,16 +541,21 @@ async function runSingleAgent(
 	};
 
 	try {
-		const systemPrompt = skillsPreamble(agent) + agent.systemPrompt;
-		if (systemPrompt.trim()) {
-			const tmp = await writePromptToTempFile(agent.name, systemPrompt);
-			tmpPromptDir = tmp.dir;
-			tmpPromptPath = tmp.filePath;
-			args.push("--append-system-prompt", tmpPromptPath);
+		let systemPrompt = skillsPreamble(agent) + agent.systemPrompt;
+		if (agent.maxTurns !== undefined) {
+			systemPrompt += `\n\nTurn budget: this run is hard-capped at ${agent.maxTurns} assistant turns; the engine terminates the process at the cap. Near the end, stop starting new work and write your result from what you have.`;
 		}
+		systemPrompt += `\n\n${BOUNDARY_PROMPT_LINE}`;
+		const tmp = await writePromptToTempFile(agent.name, systemPrompt);
+		tmpPromptDir = tmp.dir;
+		tmpPromptPath = tmp.filePath;
+		args.push("--append-system-prompt", tmpPromptPath);
 
 		args.push(`Task: ${task}`);
 		let wasAborted = false;
+		let turnCapHit = false;
+		const repeatLoop = newRepeatLoopState();
+		let closeSignal: NodeJS.Signals | null = null;
 		let lastLiveEmit = 0;
 
 		const exitCode = await new Promise<number>((resolve) => {
@@ -506,6 +576,13 @@ async function runSingleAgent(
 				},
 			});
 			let buffer = "";
+
+			const terminate = () => {
+				proc.kill("SIGTERM");
+				setTimeout(() => {
+					if (!proc.killed) proc.kill("SIGKILL");
+				}, 5000);
+			};
 
 			const processLine = (line: string) => {
 				if (!line.trim()) return;
@@ -533,6 +610,7 @@ async function runSingleAgent(
 					}
 				}
 
+				// Tool results also arrive here (role "toolResult"); tool_execution_end only repeats them, so it is not parsed.
 				if (event.type === "message_end" && event.message) {
 					const msg = event.message as Message;
 					currentResult.messages.push(msg);
@@ -540,6 +618,19 @@ async function runSingleAgent(
 					if (msg.role === "assistant") {
 						subagentLiveMessageEnd(liveKey);
 						currentResult.usage.turns++;
+						if (agent.maxTurns !== undefined && !turnCapHit && currentResult.usage.turns >= agent.maxTurns) {
+							turnCapHit = true;
+							terminate();
+						}
+						if (repeatLoop.hitName === null) {
+							for (const part of msg.content) {
+								if (part.type !== "toolCall") continue;
+								if (recordToolCall(repeatLoop, part.name, part.arguments)) {
+									terminate();
+									break;
+								}
+							}
+						}
 						const usage = msg.usage;
 						if (usage) {
 							currentResult.usage.input += usage.input || 0;
@@ -555,11 +646,6 @@ async function runSingleAgent(
 					}
 					emitUpdate();
 				}
-
-				if (event.type === "tool_result_end" && event.message) {
-					currentResult.messages.push(event.message as Message);
-					emitUpdate();
-				}
 			};
 
 			proc.stdout.on("data", (data) => {
@@ -573,9 +659,10 @@ async function runSingleAgent(
 				currentResult.stderr += data.toString();
 			});
 
-			proc.on("close", (code) => {
+			proc.on("close", (code, closedBy) => {
 				if (buffer.trim()) processLine(buffer);
 				subagentLiveRemove(liveKey);
+				closeSignal = closedBy;
 				resolve(code ?? 0);
 			});
 
@@ -588,10 +675,7 @@ async function runSingleAgent(
 			if (signal) {
 				const killProc = () => {
 					wasAborted = true;
-					proc.kill("SIGTERM");
-					setTimeout(() => {
-						if (!proc.killed) proc.kill("SIGKILL");
-					}, 5000);
+					terminate();
 				};
 				if (signal.aborted) killProc();
 				else signal.addEventListener("abort", killProc, { once: true });
@@ -600,7 +684,30 @@ async function runSingleAgent(
 
 		currentResult.exitCode = exitCode;
 		currentResult.liveTps = undefined;
-		if (wasAborted) throw new Error("Subagent was aborted");
+		// Return, don't throw: the child ran with --no-session, so these messages are the only copy of its log.
+		if (wasAborted) {
+			currentResult.stopReason = "aborted";
+			currentResult.errorMessage = "Subagent was aborted";
+			return currentResult;
+		}
+		// A SIGTERM-killed child can close with code null (read as 0), so the close signal is the evidence of the kill;
+		// a child that finished on its own before the kill landed is not a guard kill.
+		const killed = exitCode !== 0 || closeSignal !== null;
+		if (!killed) return currentResult;
+		// The repeat guard wins when both fire: it is the more specific diagnosis.
+		if (repeatLoop.hitName !== null) {
+			currentResult.stopReason = "aborted";
+			currentResult.guardKill = {
+				guard: "repeat loop",
+				reason: `${agent.name} issued the same ${repeatLoop.hitName} call ${REPEAT_LOOP_LIMIT} times in a row and was terminated.`,
+			};
+		} else if (turnCapHit) {
+			currentResult.stopReason = "aborted";
+			currentResult.guardKill = {
+				guard: "turn cap",
+				reason: `${agent.name} reached its ${agent.maxTurns}-turn limit and was terminated.`,
+			};
+		}
 		return currentResult;
 	} finally {
 		// Idempotent with the close/error removals; covers a reject before the child's handlers are registered.
@@ -823,6 +930,16 @@ export default function (pi: ExtensionAPI) {
 					);
 					results.push(result);
 
+					if (result.guardKill) {
+						return {
+							content: [
+								{ type: "text", text: `${getResultOutput(result)}
+
+Chain stopped at step ${i + 1} (${step.agent}).` },
+							],
+							details: makeDetails("chain")(results),
+						};
+					}
 					const isError = isFailedResult(result);
 					if (isError) {
 						const errorMsg = getResultOutput(result);
@@ -898,31 +1015,47 @@ export default function (pi: ExtensionAPI) {
 
 				const results = await mapWithConcurrencyLimit(params.tasks, MAX_CONCURRENCY, async (t, index) => {
 					started.add(index);
-					const result = await runSingleAgent(
-						ctx.cwd,
-						dispatchDefaults,
-						agents,
-						product.name,
-						t.agent,
-						t.task,
-						t.cwd,
-						undefined,
-						signal,
-						// Per-task update callback: the -1 placeholder stays authoritative (exitCode -1
-						// means "running" for the renderResult guards), so copy live state into it.
-						(partial) => {
-							const streaming = partial.details?.results[0];
-							if (streaming === undefined) return;
-							allResults[index].messages = streaming.messages;
-							allResults[index].liveTps = streaming.liveTps;
-							emitParallelUpdate();
-						},
-						makeDetails("parallel"),
-					);
-					allResults[index] = result;
-					completed.add(index);
-					emitParallelUpdate();
-					return result;
+					try {
+						const result = await runSingleAgent(
+							ctx.cwd,
+							dispatchDefaults,
+							agents,
+							product.name,
+							t.agent,
+							t.task,
+							t.cwd,
+							undefined,
+							signal,
+							// Per-task update callback: the -1 placeholder stays authoritative (exitCode -1
+							// means "running" for the renderResult guards), so copy live state into it.
+							(partial) => {
+								const streaming = partial.details?.results[0];
+								if (streaming === undefined) return;
+								allResults[index].messages = streaming.messages;
+								allResults[index].liveTps = streaming.liveTps;
+								emitParallelUpdate();
+							},
+							makeDetails("parallel"),
+						);
+						allResults[index] = result;
+						completed.add(index);
+						emitParallelUpdate();
+						return result;
+					} catch (err: unknown) {
+						// A throw must not reject the whole dispatch: that would discard every task's messages,
+						// and the children ran with --no-session, so those are the only copy of their logs.
+						const failed: SingleResult = {
+							...allResults[index],
+							exitCode: 1,
+							liveTps: undefined,
+							stopReason: "error",
+							errorMessage: err instanceof Error ? err.message : String(err),
+						};
+						allResults[index] = failed;
+						completed.add(index);
+						emitParallelUpdate();
+						return failed;
+					}
 				});
 
 				const successCount = results.filter((r) => !isFailedResult(r)).length;
@@ -958,6 +1091,12 @@ export default function (pi: ExtensionAPI) {
 					onUpdate,
 					makeDetails("single"),
 				);
+				if (result.guardKill) {
+					return {
+						content: [{ type: "text", text: getResultOutput(result) }],
+						details: makeDetails("single")([result]),
+					};
+				}
 				const isError = isFailedResult(result);
 				if (isError) {
 					const errorMsg = getResultOutput(result);
@@ -1299,4 +1438,25 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	registerOrchestrator(pi);
+	// Workers take their input from the job folder; only the root orchestrator keeps the status board.
+	if (envSpawnDepth() === 0) {
+		registerTaskTools(pi);
+		return;
+	}
+	// Workers only: the root orchestrator is trusted with its own scans and gets no hook.
+	pi.on("tool_call", async (event, ctx) => {
+		if (isToolCallEventType("bash", event)) {
+			const { command } = event.input;
+			return filesystemWideScan(command) ? { block: true, reason: boundaryBlockReason(command) } : undefined;
+		}
+		if (isToolCallEventType("powershell", event)) {
+			const { command } = event.input;
+			return powershellRootScan(command) ? { block: true, reason: boundaryBlockReason(command) } : undefined;
+		}
+		if (isToolCallEventType("find", event) || isToolCallEventType("grep", event) || isToolCallEventType("ls", event)) {
+			const target = event.input.path;
+			if (target !== undefined && isRootToolPath(target, ctx.cwd)) return { block: true, reason: boundaryBlockReason(target) };
+		}
+		return undefined;
+	});
 }

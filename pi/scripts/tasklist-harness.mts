@@ -1,0 +1,581 @@
+/**
+ * Task-list harness — drives core/extensions/task-list.ts together with
+ * core/extensions/statusline.ts (both compose into one multi-line footer
+ * through the shared footer-line registry) with a fake ExtensionAPI,
+ * ExtensionContext, Theme, TUI and footer provider, plus the task tools of
+ * core/extensions/engine/tasks.ts, to verify (without touching a live server
+ * or the real agent dir):
+ *
+ *   1. Both on + a 7-task mixed-status store: 2 lines — line 0 the powerline
+ *      (contains [harness-model]), line 1 five tasks ordered in_progress ->
+ *      pending with a `2 more` count (no rotation indicator).
+ *   2. Stable window + store refresh on tick: the 3s tick leaves line 1
+ *      unchanged; a store mutation picked up on the next tick updates the
+ *      line (`3 more` after an 8th task).
+ *   3. <= 5 tasks: no position indicator, completed struck through.
+ *   4. Missing store and empty store: exactly 1 line (powerline only).
+ *   5. /tasklist off -> 1 line; on again -> 2 lines.
+ *   6. /statusline off + tasklist on: exactly 1 line = the task line only
+ *      (no [harness-model]).
+ *   7. Both off: the footer factory is undefined (built-in restored; render
+ *      throws "footer not applied").
+ *   8. Active product: flags {} + globalThis baton.activeProduct set (a
+ *      product shim's activation) -> 2 lines with the task line.
+ *  8b. Spawned child: the same with PI_CONDUCTOR_SPAWN_DEPTH=1 -> the footer
+ *      stays off.
+ *   9. Product transition: no product at session_start, then the refuter
+ *      becomes active; turn_start auto-enables the task line.
+ *  10. Tool registration: the engine registers TaskCreate/TaskGet/TaskUpdate/
+ *      TaskList at depth 0 and none of them at depth 1.
+ *  11. Tool behaviour: create persists to the per-project store, an unknown
+ *      addBlockedBy id rejects the update without persisting, and `deleted`
+ *      removes the task and every relation to it.
+ *
+ * Run with: node --experimental-strip-types pi/scripts/tasklist-harness.mts
+ * (This file is intentionally NOT listed in package.json pi.extensions.)
+ */
+
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
+import assert from "node:assert/strict";
+import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { FOOTER_REFRESH_MS } from "../core/extensions/footer-lines.ts";
+import { resolveTaskStorePath } from "../core/extensions/engine/tasks.ts";
+import engine from "../core/extensions/engine/index.ts";
+import statusline from "../core/extensions/statusline.ts";
+import tasklist from "../core/extensions/task-list.ts";
+
+// Mirrors extensions/engine/product-registry.ts's ACTIVE_PRODUCT_KEY: a real
+// product shim writes this same globalThis slot on activation, so setting it
+// directly here stands in for that shim without importing across packages.
+const ACTIVE_PRODUCT_KEY = Symbol.for("baton.activeProduct");
+
+function setActiveProduct(name: string | undefined): void {
+	const channel = globalThis as Record<symbol, unknown>;
+	if (name === undefined) delete channel[ACTIVE_PRODUCT_KEY];
+	else channel[ACTIVE_PRODUCT_KEY] = name;
+}
+
+const PROJECT_CWD = "/home/u/proj";
+const TASK_TOOL_NAMES = ["TaskCreate", "TaskGet", "TaskUpdate", "TaskList"];
+
+// A deliberately minimal structural subset of pi's footer component and the
+// event/context/registry shapes the extensions read. Test-only seams.
+interface FooterComponent {
+	dispose?: () => void;
+	invalidate: () => void;
+	render: (width: number) => string[];
+}
+
+type Handler = (event: unknown, ctx: ExtensionContext) => unknown;
+type CommandHandler = (args: string, ctx: ExtensionContext) => unknown;
+
+interface AppendedEntry {
+	customType: string;
+	data: unknown;
+}
+
+interface Env {
+	pi: ExtensionAPI;
+	fire: (name: string, event: unknown) => void;
+	/** The full footer: line 0 the powerline, line 1 the task line (when present). */
+	render: (width?: number) => string[];
+	/** Fire session_shutdown (unregisters this env's shared-registry providers) and drop the component. */
+	dispose: () => void;
+	state: { model: unknown; contextUsage: unknown; branch: unknown[] };
+	notified: string[];
+	commands: Map<string, CommandHandler>;
+	appended: AppendedEntry[];
+	ctx: ExtensionContext;
+}
+
+interface MakeEnvOptions {
+	/** Flags the fake pi reports via getFlag; defaults to `{ statusline: true, tasklist: true }`. */
+	flags?: Record<string, boolean>;
+	/** Session entries the fake session manager returns (checks may push into it). */
+	entries?: unknown[];
+}
+
+interface HarnessTask {
+	id: number;
+	subject: string;
+	status: "pending" | "in_progress" | "completed";
+}
+
+interface ToolResult {
+	content: Array<{ type: string; text: string }>;
+}
+
+interface CapturedTool {
+	name: string;
+	execute: (toolCallId: string, params: unknown, signal: undefined, onUpdate: undefined, ctx: ExtensionContext) => Promise<ToolResult>;
+}
+
+interface StoredTask {
+	id: number;
+	subject: string;
+	status: string;
+	blocks: number[];
+	blockedBy: number[];
+}
+
+function makeModel(id: string): unknown {
+	return {
+		id,
+		name: id,
+		api: "openai-completions",
+		provider: "harness",
+		baseUrl: "",
+		reasoning: false,
+		input: ["text"],
+		cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+		contextWindow: 120000,
+		maxTokens: 8192,
+	};
+}
+
+function writeStore(storePath: string, tasks: HarnessTask[]): void {
+	fs.writeFileSync(storePath, JSON.stringify({ nextId: tasks.length + 1, tasks }), "utf8");
+}
+
+function readStoredTasks(storePath: string): StoredTask[] {
+	return (JSON.parse(fs.readFileSync(storePath, "utf8")) as { tasks: StoredTask[] }).tasks;
+}
+
+function makeEnv(options: MakeEnvOptions = {}): Env {
+	const { flags = { statusline: true, tasklist: true }, entries = [] } = options;
+	const handlers = new Map<string, Handler[]>();
+	const commands = new Map<string, CommandHandler>();
+	const appended: AppendedEntry[] = [];
+	const notified: string[] = [];
+	let footerFactory: ((t: unknown, th: unknown, fd: unknown) => FooterComponent) | undefined;
+
+	const state: { model: unknown; contextUsage: unknown; branch: unknown[] } = { model: undefined, contextUsage: undefined, branch: [] };
+
+	const tui = { requestRender: (): void => undefined };
+	const theme = {
+		fg: (_color: string, text: string): string => text,
+		strikethrough: (text: string): string => `~~${text}~~`,
+	};
+	const footerData = { getGitBranch: (): string => "main", onBranchChange: (): (() => void) => () => undefined };
+
+	// One live component per env (like a real session): the composite footer's
+	// 3s tick keeps firing between renders, which case 2's store refresh relies on.
+	let component: FooterComponent | undefined;
+
+	const ui = {
+		setFooter: (factory: unknown): void => {
+			// Re-install: dispose the previously created component and store the
+			// new factory; render lazily recreates the component from it.
+			component?.dispose?.();
+			component = undefined;
+			footerFactory = factory as (t: unknown, th: unknown, fd: unknown) => FooterComponent;
+		},
+		notify: (message: string): void => {
+			notified.push(message);
+		},
+	};
+
+	const ctx = {
+		get cwd(): string {
+			return PROJECT_CWD;
+		},
+		get model(): unknown {
+			return state.model;
+		},
+		get hasUI(): boolean {
+			return true;
+		},
+		ui,
+		sessionManager: { getEntries: (): unknown[] => entries, getBranch: (): unknown[] => state.branch },
+		modelRegistry: {
+			getApiKeyAndHeaders: async (): Promise<unknown> => ({ ok: true, apiKey: "local-secret", headers: {} }),
+			refresh: async (): Promise<unknown> => undefined,
+		},
+		getContextUsage: (): unknown => state.contextUsage,
+	} as unknown as ExtensionContext;
+
+	const pi = {
+		registerFlag: (): void => undefined,
+		registerCommand: (name: string, spec: { description: string; handler: CommandHandler }): void => {
+			commands.set(name, spec.handler);
+		},
+		getFlag: (name: string): boolean => flags[name] === true,
+		appendEntry: (customType: string, data: unknown): void => {
+			appended.push({ customType, data });
+		},
+		on: (name: string, handler: Handler): void => {
+			const list = handlers.get(name);
+			if (list === undefined) {
+				handlers.set(name, [handler]);
+				return;
+			}
+			list.push(handler);
+		},
+	} as unknown as ExtensionAPI;
+
+	function fire(name: string, event: unknown): void {
+		const list = handlers.get(name);
+		if (list === undefined) throw new Error(`no handler registered for ${name}`);
+		for (const handler of list) void handler(event, ctx);
+	}
+
+	function render(width = 200): string[] {
+		if (footerFactory === undefined) throw new Error("footer not applied");
+		if (component === undefined) component = footerFactory(tui, theme, footerData);
+		return component.render(width);
+	}
+
+	function dispose(): void {
+		// The shared footer-line registry lives on globalThis and is
+		// process-wide: session_shutdown unregisters this env's providers
+		// before the component is dropped, so nothing leaks into the next env.
+		fire("session_shutdown", { type: "session_shutdown" });
+		component?.dispose?.();
+		component = undefined;
+	}
+
+	return { pi, fire, render, dispose, state, notified, ctx, commands, appended };
+}
+
+/** Load the engine against a fake pi that captures registered tools; releases its load-guard claim before returning. */
+function loadEngineTools(): CapturedTool[] {
+	const tools: CapturedTool[] = [];
+	const shutdown: Handler[] = [];
+	const pi = {
+		on: (name: string, handler: Handler): void => {
+			if (name === "session_shutdown") shutdown.push(handler);
+		},
+		registerTool: (tool: CapturedTool): void => {
+			tools.push(tool);
+		},
+	} as unknown as ExtensionAPI;
+	engine(pi);
+	for (const handler of shutdown) void handler({ type: "session_shutdown" }, {} as ExtensionContext);
+	return tools;
+}
+
+function sleep(ms: number): Promise<void> {
+	return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** Poll `predicate` (real clock) until true or `timeoutMs`. */
+async function until(predicate: () => boolean, timeoutMs = 3000, intervalMs = 15): Promise<void> {
+	const deadline = Date.now() + timeoutMs;
+	for (;;) {
+		if (predicate()) return;
+		if (Date.now() > deadline) throw new Error("timed out waiting for condition");
+		await sleep(intervalMs);
+	}
+}
+
+/** Both extensions into one env, session started, model set. */
+async function startEnv(options: MakeEnvOptions = {}): Promise<Env> {
+	const env = makeEnv(options);
+	env.state.model = makeModel("harness-model");
+	env.state.contextUsage = { tokens: 100000, contextWindow: 120000, percent: null };
+	env.state.branch = [];
+	statusline(env.pi);
+	tasklist(env.pi);
+	await env.fire("session_start", { type: "session_start" });
+	return env;
+}
+
+async function main(): Promise<void> {
+	// Redirect the agent dir to a temp dir: the task store resolves under it, and
+	// the statusline's self-heal write path never touches the real ~/.pi/agent.
+	const agentDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-tasklist-harness-"));
+	const originalAgentDirEnv = process.env.PI_CODING_AGENT_DIR;
+	const originalSpawnDepth = process.env.PI_CONDUCTOR_SPAWN_DEPTH;
+	process.env.PI_CODING_AGENT_DIR = agentDir;
+	delete process.env.PI_CONDUCTOR_SPAWN_DEPTH;
+	setActiveProduct(undefined);
+	const taskStorePath = resolveTaskStorePath(PROJECT_CWD);
+	assert.ok(taskStorePath.startsWith(agentDir), `the store must resolve under the temp agent dir, got: ${taskStorePath}`);
+	fs.mkdirSync(path.dirname(taskStorePath), { recursive: true });
+
+	try {
+		// --- 1. Both on + 7 mixed-status tasks: 2 lines, ordered, with a `2 more` count ---
+		{
+			writeStore(taskStorePath, [
+				{ id: 1, subject: "alpha", status: "pending" },
+				{ id: 2, subject: "bravo", status: "completed" },
+				{ id: 3, subject: "charlie", status: "in_progress" },
+				{ id: 4, subject: "delta", status: "pending" },
+				{ id: 5, subject: "echo", status: "completed" },
+				{ id: 6, subject: "foxtrot", status: "in_progress" },
+				{ id: 7, subject: "golf", status: "pending" },
+			]);
+			const env = await startEnv();
+
+			// session_start's initial refresh loads the snapshot; the window holds the first five tasks.
+			await until(() => (env.render()[1] ?? "").includes("2 more"));
+			const lines = env.render();
+			assert.equal(lines.length, 2, `both extensions on should render two footer lines, got: ${JSON.stringify(lines)}`);
+			assert.ok(lines[0].includes("[harness-model]"), `line 0 should be the powerline, got: ${lines[0]}`);
+			const taskLine = lines[1];
+			assert.ok(taskLine.includes("2 more"), `the overflow count should read 2 more, got: ${taskLine}`);
+			assert.ok(!taskLine.includes("1/7"), `no rotation indicator, got: ${taskLine}`);
+			assert.ok(taskLine.includes("▶ #3 charlie"), `the in_progress task should lead with an accent marker, got: ${taskLine}`);
+			assert.ok(taskLine.includes("▶ #6 foxtrot"), `both in_progress tasks should be in the window, got: ${taskLine}`);
+			const order = ["charlie", "foxtrot", "alpha", "delta", "golf"].map((name) => taskLine.indexOf(name));
+			assert.ok(order.every((idx) => idx !== -1), `the window should hold the 5 in_progress/pending tasks, got: ${taskLine}`);
+			assert.ok(
+				order[0] < order[1] && order[1] < order[2] && order[2] < order[3] && order[3] < order[4],
+				`items should be ordered in_progress -> pending, got: ${taskLine}`,
+			);
+			assert.ok(!taskLine.includes("bravo") && !taskLine.includes("echo"), `completed tasks outside the window must not render, got: ${taskLine}`);
+			console.log("  [1] task line 5 of 7, ordered:", taskLine);
+
+			// The 3s tick leaves the static window unchanged (no rotation).
+			const stable = env.render()[1];
+			await sleep(FOOTER_REFRESH_MS + 300);
+			assert.equal(env.render()[1], stable, `the tick must leave the window unchanged, got: ${env.render()[1]}`);
+
+			// A store mutation picked up on the next tick updates the line.
+			writeStore(taskStorePath, [
+				{ id: 1, subject: "alpha", status: "pending" },
+				{ id: 2, subject: "bravo", status: "completed" },
+				{ id: 3, subject: "charlie", status: "in_progress" },
+				{ id: 4, subject: "delta", status: "pending" },
+				{ id: 5, subject: "echo", status: "completed" },
+				{ id: 6, subject: "foxtrot", status: "in_progress" },
+				{ id: 7, subject: "golf", status: "pending" },
+				{ id: 8, subject: "hotel", status: "pending" },
+			]);
+			await until(() => (env.render()[1] ?? "").includes("3 more"), 8000);
+			const taskLine2 = env.render()[1];
+			assert.ok(taskLine2.includes("3 more"), `the tick should pick up the 8th task with a 3 more count, got: ${taskLine2}`);
+			assert.ok(taskLine2.includes("▶ #3 charlie"), `the in_progress task should still lead, got: ${taskLine2}`);
+			assert.ok(!taskLine2.includes("hotel"), `the 8th task sits outside the window, got: ${taskLine2}`);
+			console.log("  [2] stable window, store refresh on tick:", taskLine2);
+			env.dispose();
+		}
+
+		// --- 3. <= 5 tasks: no position indicator, completed struck through ---
+		{
+			writeStore(taskStorePath, [
+				{ id: 1, subject: "active work", status: "in_progress" },
+				{ id: 2, subject: "done thing", status: "completed" },
+				{ id: 3, subject: "waiting", status: "pending" },
+			]);
+			const env = await startEnv();
+
+			await until(() => (env.render()[1] ?? "").includes("~~done thing~~"));
+			const lines = env.render();
+			assert.equal(lines.length, 2, `both extensions on should render two footer lines, got: ${JSON.stringify(lines)}`);
+			const taskLine = lines[1];
+			assert.ok(taskLine.includes("~~done thing~~"), `the completed task's title should be struck through, got: ${taskLine}`);
+			assert.ok(taskLine.includes("▶ #1 active work"), `the in_progress task should lead, got: ${taskLine}`);
+			assert.ok(!taskLine.includes("/3"), `no position indicator when the store has <= 5 tasks, got: ${taskLine}`);
+			console.log("  [3] completed task struck through:", taskLine);
+			env.dispose();
+		}
+
+		// --- 4. Missing store and empty store: exactly 1 line (powerline only) ---
+		{
+			fs.rmSync(taskStorePath, { force: true });
+			const env = await startEnv();
+			// Give the async refresh time to observe the missing file.
+			await sleep(50);
+			const lines = env.render();
+			assert.equal(lines.length, 1, `a missing store should render the powerline line only, got: ${JSON.stringify(lines)}`);
+			assert.ok(lines[0].includes("[harness-model]"), `the powerline line should still render, got: ${lines[0]}`);
+			console.log("  [4] missing store renders powerline only:", lines[0]);
+			env.dispose();
+
+			fs.writeFileSync(taskStorePath, JSON.stringify({ nextId: 1, tasks: [] }), "utf8");
+			const empty = await startEnv();
+			await sleep(50);
+			const lines2 = empty.render();
+			assert.equal(lines2.length, 1, `an empty store should render the powerline line only, got: ${JSON.stringify(lines2)}`);
+			console.log("  [4] empty store renders powerline only:", lines2[0]);
+			empty.dispose();
+		}
+
+		// --- 5. /tasklist off -> 1 line; on again -> 2 lines ---
+		{
+			writeStore(taskStorePath, [
+				{ id: 1, subject: "active work", status: "in_progress" },
+				{ id: 2, subject: "done thing", status: "completed" },
+				{ id: 3, subject: "waiting", status: "pending" },
+			]);
+			const env = await startEnv();
+			await until(() => env.render().length === 2);
+
+			const toggle = env.commands.get("tasklist");
+			assert.ok(toggle !== undefined, "the /tasklist command handler must be captured");
+			await toggle("", env.ctx);
+			const lines = env.render();
+			assert.equal(lines.length, 1, `/tasklist off should leave the powerline line only, got: ${JSON.stringify(lines)}`);
+			assert.ok(lines[0].includes("[harness-model]"), `the powerline line should still render, got: ${lines[0]}`);
+			assert.deepEqual(env.appended.at(-1), { customType: "tasklist", data: { enabled: false } }, "/tasklist off persists the toggle");
+			console.log("  [5] /tasklist off leaves powerline only:", lines[0]);
+
+			await toggle("", env.ctx);
+			await until(() => env.render().length === 2);
+			const lines2 = env.render();
+			assert.ok(lines2[1].includes("▶ #1 active work"), `/tasklist on again should restore the task line, got: ${lines2[1]}`);
+			console.log("  [5] /tasklist on restores the task line:", lines2[1]);
+			env.dispose();
+		}
+
+		// --- 6. /statusline off + tasklist on: the task line stands alone ---
+		{
+			writeStore(taskStorePath, [
+				{ id: 1, subject: "active work", status: "in_progress" },
+				{ id: 2, subject: "done thing", status: "completed" },
+				{ id: 3, subject: "waiting", status: "pending" },
+			]);
+			const env = await startEnv();
+			await until(() => env.render().length === 2);
+
+			const toggle = env.commands.get("statusline");
+			assert.ok(toggle !== undefined, "the /statusline command handler must be captured");
+			await toggle("", env.ctx);
+			const lines = env.render();
+			assert.equal(lines.length, 1, `/statusline off should leave the task line only, got: ${JSON.stringify(lines)}`);
+			assert.ok(!lines[0].includes("[harness-model]"), `the task line must not carry the powerline model label, got: ${lines[0]}`);
+			assert.ok(lines[0].includes("▶ #1 active work"), `the task line should still render, got: ${lines[0]}`);
+			console.log("  [6] /statusline off leaves the task line alone:", lines[0]);
+			env.dispose();
+		}
+
+		// --- 7. Both off: the built-in footer is restored ---
+		{
+			writeStore(taskStorePath, [
+				{ id: 1, subject: "active work", status: "in_progress" },
+				{ id: 2, subject: "done thing", status: "completed" },
+			]);
+			const env = await startEnv();
+			await until(() => env.render().length === 2);
+
+			const toggleTasklist = env.commands.get("tasklist");
+			const toggleStatusline = env.commands.get("statusline");
+			assert.ok(toggleTasklist !== undefined && toggleStatusline !== undefined, "both command handlers must be captured");
+			await toggleTasklist("", env.ctx);
+			await toggleStatusline("", env.ctx);
+			assert.throws(() => env.render(), /footer not applied/, "both off restores the built-in footer");
+			console.log("  [7] both off restores the built-in footer");
+			env.dispose();
+		}
+
+		// --- 8. Active product: a session with a product already active enables both lines ---
+		{
+			assert.ok(!process.argv.includes("--conductor") && !process.argv.includes("--refuter"), "check 8 must not rely on an argv flag");
+			writeStore(taskStorePath, [
+				{ id: 1, subject: "active work", status: "in_progress" },
+				{ id: 2, subject: "done thing", status: "completed" },
+			]);
+			setActiveProduct("conductor");
+			try {
+				const env = await startEnv({ flags: {} });
+				await until(() => env.render().length === 2);
+				const lines = env.render();
+				assert.ok(lines[0].includes("[harness-model]"), `the active product should enable the powerline line, got: ${lines[0]}`);
+				assert.ok(lines[1].includes("▶ #1 active work"), `the active product should enable the task line, got: ${lines[1]}`);
+				console.log("  [8] active product enables both lines:", lines[1]);
+				env.dispose();
+			} finally {
+				setActiveProduct(undefined);
+			}
+		}
+
+		// --- 8b. Spawned child: an active product at depth 1 leaves the footer off ---
+		{
+			setActiveProduct("conductor");
+			process.env.PI_CONDUCTOR_SPAWN_DEPTH = "1";
+			try {
+				const env = await startEnv({ flags: {} });
+				await sleep(50);
+				assert.throws(() => env.render(), /footer not applied/, "a spawned child must not auto-enable the task line");
+				console.log("  [8b] spawned child leaves the footer off despite an active product");
+				env.dispose();
+			} finally {
+				delete process.env.PI_CONDUCTOR_SPAWN_DEPTH;
+				setActiveProduct(undefined);
+			}
+		}
+
+		// --- 9. Off->on product transition auto-enables the task line on turn_start ---
+		{
+			const env = await startEnv({ flags: {} });
+			assert.throws(() => env.render(), /footer not applied/, "no active product at session_start leaves the default footer");
+			setActiveProduct("refuter");
+			try {
+				env.fire("turn_start", { type: "turn_start", turnIndex: 1, timestamp: Date.now() });
+				await until(() => env.render().length === 2);
+				const lines = env.render();
+				assert.ok(lines[1].includes("▶ #1 active work"), `the refuter's activation should enable the task line, got: ${lines[1]}`);
+				assert.ok(env.notified.includes("Task list enabled by refuter mode."), `one task-list auto-enable notify expected, got: ${JSON.stringify(env.notified)}`);
+				assert.ok(!env.appended.some(({ customType }) => customType === "tasklist"), "the auto-enable must not persist a tasklist entry");
+				console.log("  [9] product transition auto-enables:", lines[1]);
+				env.dispose();
+			} finally {
+				setActiveProduct(undefined);
+			}
+		}
+
+		// --- 10. Tool registration: root only ---
+		{
+			const rootNames = loadEngineTools().map(({ name }) => name);
+			for (const name of TASK_TOOL_NAMES) assert.ok(rootNames.includes(name), `the root engine should register ${name}, got: ${rootNames.join(", ")}`);
+			process.env.PI_CONDUCTOR_SPAWN_DEPTH = "1";
+			try {
+				const childNames = loadEngineTools().map(({ name }) => name);
+				assert.ok(childNames.includes("subagent"), `the child engine still registers subagent, got: ${childNames.join(", ")}`);
+				for (const name of TASK_TOOL_NAMES) assert.ok(!childNames.includes(name), `a child must not register ${name}, got: ${childNames.join(", ")}`);
+			} finally {
+				delete process.env.PI_CONDUCTOR_SPAWN_DEPTH;
+			}
+			console.log("  [10] task tools registered at depth 0 only");
+		}
+
+		// --- 11. Tool behaviour: persist, reject unknown ids, delete removes ---
+		{
+			fs.rmSync(taskStorePath, { force: true });
+			const tools = new Map(loadEngineTools().map((tool) => [tool.name, tool]));
+			const call = async (name: string, params: unknown): Promise<string> => {
+				const tool = tools.get(name);
+				assert.ok(tool !== undefined, `${name} must be registered`);
+				const result = await tool.execute("call", params, undefined, undefined, { cwd: PROJECT_CWD } as ExtensionContext);
+				return result.content[0]?.text ?? "";
+			};
+
+			assert.equal(await call("TaskCreate", { subject: "p1", description: "phase one" }), "Created task #1: p1");
+			assert.equal(await call("TaskCreate", { subject: "Review: job", description: "review" }), "Created task #2: Review: job");
+			await call("TaskUpdate", { taskId: "#2", addBlockedBy: ["1"] });
+			await call("TaskUpdate", { taskId: "1", status: "in_progress" });
+			let stored = readStoredTasks(taskStorePath);
+			assert.deepEqual(stored.map(({ id, status }) => [id, status]), [[1, "in_progress"], [2, "pending"]], "create and update persist to the per-project store");
+			assert.deepEqual(stored[1].blockedBy, [1], "addBlockedBy persists the relation");
+			assert.equal(await call("TaskList", {}), "#1 [in_progress] p1\n#2 [pending] Review: job (blocked by #1)");
+
+			await assert.rejects(call("TaskUpdate", { taskId: "2", status: "completed", addBlockedBy: ["99"] }), /Unknown task id\(s\) referenced: 99/);
+			assert.equal(readStoredTasks(taskStorePath)[1].status, "pending", "a rejected update persists nothing");
+
+			await call("TaskUpdate", { taskId: "1", status: "deleted" });
+			stored = readStoredTasks(taskStorePath);
+			assert.deepEqual(stored.map(({ id }) => id), [2], "a deleted task disappears from the store");
+			assert.deepEqual(stored[0].blockedBy, [], "deleting a task drops every relation to it");
+			await assert.rejects(call("TaskGet", { taskId: "1" }), /Task #1 not found/);
+			await call("TaskUpdate", { taskId: "2", status: "deleted" });
+			assert.equal(await call("TaskList", {}), "No tasks.");
+			console.log("  [11] task tools persist, reject unknown ids, and delete");
+		}
+	} finally {
+		if (originalAgentDirEnv === undefined) delete process.env.PI_CODING_AGENT_DIR;
+		else process.env.PI_CODING_AGENT_DIR = originalAgentDirEnv;
+		if (originalSpawnDepth === undefined) delete process.env.PI_CONDUCTOR_SPAWN_DEPTH;
+		else process.env.PI_CONDUCTOR_SPAWN_DEPTH = originalSpawnDepth;
+		fs.rmSync(agentDir, { recursive: true, force: true });
+	}
+
+	console.log("\nAll tasklist harness checks passed.");
+}
+
+main().catch((err: unknown): void => {
+	console.error(err instanceof Error ? err.stack : String(err));
+	process.exit(1);
+});

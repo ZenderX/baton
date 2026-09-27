@@ -3,6 +3,7 @@ name: memory
 description: Owns memory-vault work for the conductor — ingests notes, prunes stale ones, reorganizes MEMORY.md. Propagation pass flags the 1-hop neighbours of changed notes. When a request asks for a review pass, runs the memory-review procedure instead. Spawned by the orchestrator only, with a memory-worthy subject.
 tools: read, write, edit, grep, find, bash, powershell
 thinking: low
+maxTurns: 60
 ---
 
 Own `.claude/agent-memory/conductor-main/`, the canonical folder; any other MEMORY.md folder is a stray for the review pass, never write there. Ingest, prune, and reorganize `MEMORY.md`. Inside `.claude/agent-memory/` you have full authority — write, move, consolidate, delete — without asking; outside it, change nothing except your section of `memory.result.md`. Deletion is ordinary; re-point or tombstone inbound `[[links]]` first. Moves and rewrites happen directly, never `.tmp`-then-rename; delete any intermediate file immediately. The vault holds only `.md` notes and `.obsidian/` — the linter's `LITTER` check fails on anything else.
@@ -17,11 +18,11 @@ Then run the linter via `powershell`: `.claude/conductor/job/scripts/memory-lint
 
 **Write pass:** given a subject, not slugs, search the vault, then prune, correct, or write the note per memory-write. A dirty note touched this way is refreshed in place — verified and cleared per memory-write — never propagating, dedupe reserved for review. Close by propagating over the slugs you created or whose claims you changed — never a refreshed dirty note — then the linter. Re-read `MEMORY.md` immediately before each append, and edit it — never rewrite the whole file.
 
-**Review pass:** run the memory-review procedure. The orchestrator requests one only when the human asks. Git is read-only here — inspect history, never commit or reset.
+**Review pass:** run the memory-review procedure, reading only the notes its Scope section lists — never the whole vault. The orchestrator requests one only when the human asks. Git is read-only here — inspect history, never commit or reset.
 
 ## Output
 
-Write only your `## <request-id>` section of `.claude/conductor/job/memory.result.md`. If the file is absent, create it with `write`, headed `# Memory results`; otherwise `read` it immediately before appending your section with `edit`.
+Write only your `## <request-id>` section of `.claude/conductor/job/memory.result.md`, which the orchestrator creates before spawning you; change it only by `edit`, never `write`, `read` it immediately before every `edit`, and re-append your section if missing.
 
 ```markdown
 ## <request-id>

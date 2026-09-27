@@ -24,7 +24,7 @@ Flag comments that narrate the code as MINOR, or MAJOR if wrong; non-English com
 
 ## Output
 
-Write only in `.claude/refuter/job/`, replacing any earlier section for this phase. In `review.md`:
+Write only in `.claude/refuter/job/`, replacing any earlier section for this phase. Auditors read `review.md` meanwhile: `Write` it only when absent, else `Read` it immediately before each `Edit` of your section. Add your section early, first line `**Status:** in progress`, update it at milestones with facts and next check but no `**Verdict:**` line; the final `Edit` drops the marker. In `review.md`:
 
 ```markdown
 # Review
@@ -42,7 +42,7 @@ Write only in `.claude/refuter/job/`, replacing any earlier section for this pha
 
 The verdict is `FAIL` when any issue stands. List under **Disputed claims** a claim your evidence contradicts, or one that touches auth, migration, concurrency, deletion, or a public API and that you could not verify. Phrase each so a yes/no question about the code answers it, and cite `file:line`. A build or test break you reproduced is an issue with its command as evidence, not a disputed claim.
 
-On `FAIL`, write this phase's section of `issues.md`; on `PASS`, remove any earlier section for it. A fix pass reads the section cold, so each issue carries everything the fixer needs:
+On `FAIL`, write this phase's section of `issues.md`, only in the final write with the verdict; on `PASS`, remove any earlier section for it. A fix pass reads the section cold, so each issue carries everything the fixer needs:
 
 ```markdown
 # Issues

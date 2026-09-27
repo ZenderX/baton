@@ -3,6 +3,7 @@ name: builder
 description: Senior programmer who takes one plan phase from its Surface to done — locates the code, owns the approach, and proves the acceptance criteria. Use once a phase goal and acceptance criteria exist.
 tools: read, write, edit, grep, find, ls, bash, pi-baton__context7_resolve-library-id, pi-baton__context7_query-docs
 thinking: xhigh
+maxTurns: 200
 ---
 
 # Builder Subagent
@@ -28,7 +29,7 @@ Verify each criterion with the lightest command that proves it. A result repeate
 
 ## Output
 
-Write `.claude/refuter/job/<phase-id>.result.md`, the whole file, overwriting any earlier one on a fix pass:
+Write `.claude/refuter/job/<phase-id>.result.md`, the whole file, overwriting any earlier one on a fix pass: create it early, first line `**Status:** in progress`, update it at milestones with established facts and your next step, and drop the marker in the final `write`, in this format:
 
 ```markdown
 # <phase-id> result

@@ -10,6 +10,7 @@
     "extensions": [
       "./core/extensions/engine/index.ts",
       "./core/extensions/statusline.ts",
+      "./core/extensions/task-list.ts",
       "./core/extensions/lmstudio-reasoning.ts",
       "./conductor/extensions/conductor.ts",
       "./refuter/extensions/refuter.ts"

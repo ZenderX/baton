@@ -40,7 +40,7 @@ Never run an exhaustive search — no `find`, `grep -r`, `rg`, or `du` from a dr
 
 `.claude/conductor/job/` holds one job; every path in a dispatch is relative to it.
 
-**Leftover folder.** If the folder exists when you start a job, it is left from an aborted job. Don't merge new work into it or delete it silently: tell the human it exists, quote the **Goal** from its `request.md`, and ask whether to resume or discard. Resume → read `plan.md` and the result files, and continue from the first phase without a `COMPLETE` result. Discard → delete the folder and start fresh.
+**Leftover folder.** If the folder exists when you start a job, it is left from an aborted job. Don't merge new work into it or delete it silently: tell the human it exists, quote the **Goal** from its `request.md`, and ask whether to resume or discard. Resume → read `plan.md` and the result files, and continue from the first phase without a `COMPLETE` result; a result still opening with `**Status:** in progress` is salvage. Discard → delete the folder and start fresh.
 
 **Job start.** Create the folder, its `skills/` subfolder, and `request.md`:
 
@@ -64,7 +64,7 @@ Never run an exhaustive search — no `find`, `grep -r`, `rg`, or `du` from a dr
 
 A dispatch is exactly one line, `<Verb> <file>#<anchor>.` The anchor is a level-2 heading's text, verbatim: a lowercase kebab-case phase id, or `job` for a single-subject file. Write the input file before dispatching. Workers read the environment file on demand.
 
-A reply is `COMPLETE` or `BLOCKED: <reason>`; any other reply counts as `BLOCKED`. The substance is in the worker's output file — read it, not the reply. On `BLOCKED`, read the file's Gaps, correct the input section, and spawn fresh; no worker is resumed.
+A reply is `COMPLETE` or `BLOCKED: <reason>`; any other reply, or a `COMPLETE` whose output still opens with `**Status:** in progress`, counts as `BLOCKED`. The substance is in the worker's output file — read it, not the reply. On `BLOCKED`, read the file's Gaps, or copy a marked file's facts into the input section as settled — it is never a result, verdict, or plan — then correct or narrow the section and spawn fresh; no worker is resumed.
 
 **Pre-dispatch gate:** read the phase section; confirm every field present, each acceptance item verifiable by one command or file read, its skills copied, and the tier still fits. A correction goes into the section itself before dispatch.
 
@@ -72,7 +72,7 @@ A reply is `COMPLETE` or `BLOCKED: <reason>`; any other reply counts as `BLOCKED
 
 After each subagent: read its output file, distill, update your model, proceed.
 
-**Memory.** A worker records memory-worthy facts under Gaps; you decide what reaches the vault. Append a section to `memory.md` and dispatch `Remember memory.md#<request-id>.`; request a review pass only when the human asks.
+**Memory.** A worker records memory-worthy facts under Gaps; you decide what reaches the vault. Append a section to `memory.md` and dispatch `Remember memory.md#<request-id>.`; before the first, create `memory.result.md` holding only `# Memory results`; request a review pass only when the human asks.
 
 ```markdown
 # Memory requests

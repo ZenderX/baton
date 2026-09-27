@@ -33,6 +33,8 @@ export interface AgentConfig {
 	thinking?: ThinkingLevel;
 	/** Agents this one may dispatch via `subagent`; undefined means it gets no `subagent` tool at all. */
 	spawn?: string[];
+	/** Hard cap on the child's assistant turns; undefined means uncapped. */
+	maxTurns?: number;
 	skillDirs: string[];
 	systemPrompt: string;
 	source: AgentSource;
@@ -60,6 +62,7 @@ type AgentFrontmatter = {
 	model?: unknown;
 	thinking?: unknown;
 	spawn?: unknown;
+	maxTurns?: unknown;
 	skills?: unknown;
 };
 
@@ -69,6 +72,23 @@ function parseThinking(value: unknown): ThinkingLevel | undefined {
 	return typeof value === "string" && (THINKING_LEVELS as readonly string[]).includes(value)
 		? (value as ThinkingLevel)
 		: undefined;
+}
+
+/**
+ * Normalize a frontmatter `maxTurns` value to a positive integer turn cap.
+ *
+ * Both spellings are valid YAML and both are in use:
+ *
+ *     maxTurns: 200            # number
+ *     maxTurns: "200"          # string
+ *
+ * so accept either. Anything else (a float, a value <= 0, a non-numeric, null)
+ * yields no cap rather than throwing: this runs inside agent discovery, where
+ * a single bad file must not take down every other agent in the same directory.
+ */
+function parseMaxTurns(value: unknown): number | undefined {
+	const n = typeof value === "number" ? value : typeof value === "string" ? Number(value) : Number.NaN;
+	return Number.isInteger(n) && n > 0 ? n : undefined;
 }
 
 /**
@@ -175,6 +195,7 @@ function loadAgentsFromDir(dir: string, source: AgentSource, packageRoot: string
 			model: typeof frontmatter.model === "string" ? frontmatter.model : undefined,
 			thinking: parseThinking(frontmatter.thinking),
 			spawn: parseToolList(frontmatter.spawn),
+			maxTurns: parseMaxTurns(frontmatter.maxTurns),
 			skillDirs: resolveSkillDirs(parseToolList(frontmatter.skills) ?? [], packageRoot),
 			systemPrompt: body,
 			source,

@@ -5,7 +5,6 @@ description: Web research specialist — technical docs/library evaluation AND g
 tools: read, write, edit, web_search, fetch_content, pi-baton__context7_resolve-library-id, pi-baton__context7_query-docs
 thinking: medium
 maxTurns: 60
-readStallLimit: 0
 ---
 
 # Research Subagent
@@ -20,7 +19,7 @@ Primary-source web researcher, external sources only; treat internal knowledge a
 
 ## Output
 
-Write only your `## <question-id>` section of `.claude/conductor/job/research.result.md`. If the file is absent, create it with `write`, headed `# Research results`. If it exists, other research agents may be writing it in parallel: `read` it immediately before appending your section with `edit`, and never change another section. Terse, no narrative; technical answers add code patterns and version/compatibility notes inside **Answer**.
+Write only your `## <question-id>` section of `.claude/conductor/job/research.result.md`, which planning creates before spawning you; parallel research agents share it, so change only your own section, only by `edit`, `read` it immediately before every `edit`, and re-append your section if missing. `edit` it in early, first line under its heading `**Status:** in progress`; at milestones update it with established facts and your next query; the final `edit` replaces it in the format below, without the marker. Terse, no narrative; technical answers add code patterns and version/compatibility notes inside **Answer**.
 
 ```markdown
 ## <question-id>

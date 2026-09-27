@@ -190,7 +190,7 @@ async function runShape(shape: string, entries: string[], secondRoot: string): P
 	await fire(loaded, "session_start", ctx);
 	const advisories = notices.filter((message) => message.startsWith(NOTICE_PREFIX));
 	assert.equal(advisories.length, 1, `${shape}: exactly one advisory notice expected, got ${advisories.length}`);
-	for (const id of ["core.engine", "core.statusline", "core.lmstudio-reasoning", "conductor", "refuter"]) {
+	for (const id of ["core.engine", "core.statusline", "core.task-list", "core.lmstudio-reasoning", "conductor", "refuter"]) {
 		assert.ok(advisories[0].includes(id), `${shape}: the notice should name ${id}: ${advisories[0]}`);
 	}
 

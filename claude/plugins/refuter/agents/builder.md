@@ -29,7 +29,7 @@ Verify each criterion with the lightest command that proves it. A result repeate
 
 ## Output
 
-Write `.claude/refuter/job/<phase-id>.result.md`, the whole file, overwriting any earlier one on a fix pass:
+Write `.claude/refuter/job/<phase-id>.result.md`, the whole file, overwriting any earlier one on a fix pass: create it early, first line `**Status:** in progress`, update it at milestones with established facts and your next step, and drop the marker in the final write, in this format:
 
 ```markdown
 # <phase-id> result

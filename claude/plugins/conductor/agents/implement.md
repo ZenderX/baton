@@ -22,7 +22,7 @@ Loop against **Acceptance criteria** with the lightest command that proves them 
 
 ## Output
 
-Write `.claude/conductor/job/<phase-id>.result.md` as a whole file. A fix pass overwrites it with the full current state, not a delta. Terse, no narrative, no restating the plan. A section with nothing to report holds the single line `None.`
+Write `.claude/conductor/job/<phase-id>.result.md` as a whole file: create it early, first line `**Status:** in progress`, update it at milestones with established facts and your next step, and drop the marker in the final write. A fix pass overwrites it with the full current state, not a delta. Terse, no narrative, no restating the plan. A section with nothing to report holds the single line `None.`
 
 ```markdown
 # <phase-id> result

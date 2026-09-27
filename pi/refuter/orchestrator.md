@@ -29,7 +29,7 @@ Every worker is a transaction: it reads one input file in `.claude/refuter/job/`
   **Diff base:** <branch or commit that review diffs against>
   ```
 
-- **Leftover folder.** If `.claude/refuter/job/` already exists when a job starts, it is from an aborted job. Do not merge into it or delete it silently: tell the human it exists, quote the goal from its `request.md`, and ask whether to resume or discard. On resume, read `plan.md` and the result files and continue from the first phase without a `COMPLETE` result. On discard, delete the folder and start fresh.
+- **Leftover folder.** If `.claude/refuter/job/` already exists when a job starts, it is from an aborted job. Do not merge into it or delete it silently: tell the human it exists, quote the goal from its `request.md`, and ask whether to resume or discard. On resume, read `plan.md` and the result files and continue from the first phase without a `COMPLETE` result; a result still opening with `**Status:** in progress` is salvage. On discard, delete the folder and start fresh.
 - **Job end.** After the last phase's final gate and any memory pass, delete the whole job folder.
 
 **Skill delivery.** Workers get no skill preload; they `read` copies you place in `skills/`. Each skill root under *Conductor runtime* holds `<name>/SKILL.md` folders; copy each needed `SKILL.md` to `skills/<name>.md`: `git-diff` at job start for the refuter; after `plan.md` exists, every file a phase's **Skills** list names; `memory-write`, plus `memory-review` for a review pass, before dispatching memory. Available language skills are `rust` (.rs), `typescript` (.ts/.tsx), and `vue3` (.vue).
@@ -48,7 +48,7 @@ Every worker is a transaction: it reads one input file in `.claude/refuter/job/`
 | `Audit` | `auditor` | `Audit review.md#<phase-id>.` |
 | `Remember` | `memory` | `Remember memory.md#<request-id>.` |
 
-A worker replies `COMPLETE` or `BLOCKED: <reason>`; treat any other reply as `BLOCKED`. A blocked worker still writes its output file; read its Gaps before deciding. For `Scout`, first write `scout.md`:
+A worker replies `COMPLETE` or `BLOCKED: <reason>`; treat any other reply, or a `COMPLETE` whose output still opens with `**Status:** in progress`, as `BLOCKED`. A blocked worker still writes its output file; read its Gaps before deciding. A guard-killed worker (turn cap or repeat loop) replies `BLOCKED: <guard> — <reason>` with its last calls and may leave no output file: narrow or correct the phase section using that trace, then spawn it fresh. Unless steps 3–4 say otherwise, copy a marked file's facts into the input section as settled and spawn fresh; it is never a result or verdict. For `Scout`, first write `scout.md`:
 
 ```markdown
 # Scout
@@ -63,7 +63,7 @@ A worker replies `COMPLETE` or `BLOCKED: <reason>`; treat any other reply as `BL
 
 Never skip planning, only scale it: **Direct** — write `plan.md` yourself, no researcher; **Lightweight** — orient → `Scout` if needed → `Plan` → build/refute; **Full** — sequential thinking → `Scout` → `Plan` → phases. Decompose Full-tier work with sequential thinking, and use it again when a refuter verdict or an audit claim at `risk ≥ 0.35` contradicts your model. The researcher may dispatch its own follow-up scout through `scout.md`.
 
-`plan.md` is the only channel to a builder. Before dispatching a phase, confirm its section is self-contained: settled facts were observed this session, unknowns are named, each acceptance criterion is one command, and parallel phases own disjoint **Surface**s. A phase that touches third-party sources names their location in **Context**: Cargo `~/.cargo/registry/src/index.crates.io-*/<crate>-<version>/`, Node `node_modules/<pkg>`, or the vendored path. Correct or split a section in place before its first dispatch; never edit it after.
+`plan.md` is the only channel to a builder. Before dispatching a phase, confirm its section is self-contained: settled facts were observed this session, unknowns are named, each acceptance criterion is one command, and parallel phases own disjoint **Surface**s. A phase that touches third-party sources names their location in **Context**: Cargo `~/.cargo/registry/src/index.crates.io-*/<crate>-<version>/`, Node `node_modules/<pkg>`, or the vendored path. Correct or split a section in place before its first dispatch; never edit it after, except for salvage.
 
 Batch independent dispatches into one `subagent` call with `tasks: [...]`; the tool caps 8 tasks per call and 4 running concurrently, and `PI_CONDUCTOR_SPAWN_DEPTH` refuses a call past depth 2. Dispatch sequentially, or with `chain`, only for genuine data dependencies. Dispatch one refuter per phase, one at a time.
 
@@ -71,19 +71,19 @@ Batch independent dispatches into one `subagent` call with `tasks: [...]`; the t
 
 1. `Build plan.md#<phase-id>.` The builder writes `<phase-id>.result.md`.
 2. `Refute plan.md#<phase-id>.` The refuter writes `review.md#<phase-id>` with **Verdict** `PASS | FAIL` and **Disputed claims**, plus `issues.md#<phase-id>` on `FAIL`.
-3. **Disputed claims** other than `None.` → `Audit review.md#<phase-id>.` The auditor writes `audit.md#<phase-id>`: per claim, a risk and the sampled majority. Auditor `BLOCKED` means sampling was unavailable; rule on the refuter alone.
+3. **Disputed claims** other than `None.` → `Audit review.md#<phase-id>.` The auditor writes `audit.md#<phase-id>`: per claim, a risk and the sampled majority. Create `audit.md` holding only `# Audit` before the first `Audit` dispatch; auditors may run in parallel. Auditor `BLOCKED` means sampling was unavailable; rule on the refuter alone.
 4. Rule, using the audit when there is one:
    - `PASS`, no disputed claims → accept.
    - A claim at `risk < 0.35` whose majority sides with the builder → drop the issues that rest on it from `issues.md#<phase-id>`.
    - A claim at `risk ≥ 0.35` → read the code and rule on it yourself, editing `issues.md#<phase-id>` to match.
    - `PASS`, or `FAIL` whose issues were all dropped → accept.
    - `FAIL` with issues left → `Fix issues.md#<phase-id>.`, a fresh builder that overwrites `<phase-id>.result.md`, then a fresh `Refute` from step 2.
-   - Refuter `BLOCKED` → surface its reason and `review.md#<phase-id>` to the user.
+   - Refuter `BLOCKED` → surface its reason and `review.md#<phase-id>` to the user, a marked section as partial findings.
 5. Cap fix passes at 2 per phase; past it, surface to the user.
 
 ## Memory
 
-Only you dispatch `memory`. Workers record memory-worthy facts under Gaps in their result files; decide which are durable and not already shown by the code, write each as a section of `memory.md`, and dispatch `Remember memory.md#<request-id>.`. It writes `memory.result.md#<request-id>`.
+Only you dispatch `memory`. Workers record memory-worthy facts under Gaps in their result files; decide which are durable and not already shown by the code, write each as a section of `memory.md`, and dispatch `Remember memory.md#<request-id>.`. It writes `memory.result.md#<request-id>`; create `memory.result.md` holding only `# Memory results` before the first `Remember`.
 
 ```markdown
 # Memory requests
@@ -97,4 +97,4 @@ Only you dispatch `memory`. Workers record memory-worthy facts under Gaps in the
 
 ## Task list
 
-There is no task-tracking tool; `plan.md` plus the phase index you retain is the task list, never a worker's input. State phase status in your turn output, and reconcile it before ending a turn.
+The task list is your status board, never a worker's input; `plan.md` holds the phases, and the operator sees the list as a footer line under the statusline. `TaskList` resumes the list at orient. Create one task per phase from the `plan.md` index, completing at final-gate acceptance; `addBlockedBy` follows its **Depends on** column, empty `blockedBy` marking the parallel-dispatch set. Status: `in_progress` at dispatch, held through fix passes and surfaced failures. Reconcile before ending a turn; set every task `deleted` at job end.

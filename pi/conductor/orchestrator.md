@@ -18,7 +18,6 @@ Invoke every subagent through `subagent`, by bare name — **Single** `{ agent, 
 | `implement` | `Implement plan.md#<phase-id>.`; fix pass `Fix issues.md#<phase-id>.` | that section | `<phase-id>.result.md` |
 | `code-review` | `Review plan.md#job.` | `plan.md#job` plus every `<phase-id>.result.md` | `review.md`, plus `issues.md` when any phase fails |
 | `memory` | `Remember memory.md#<request-id>.` | `memory.md#<request-id>` | `memory.result.md#<request-id>` |
-| `triage` | `Triage plan.md#<phase-id>.` after a guard kill | `plan.md#<phase-id>` plus `<phase-id>.result.md` | `triage.md#<phase-id>` |
 
 ## Project Environment
 
@@ -32,7 +31,7 @@ Stay within the project root and `~/.pi`; never a filesystem-wide scan (`find /`
 
 `.claude/conductor/job/` holds one job; every path in a dispatch is relative to it.
 
-**Leftover folder.** If the folder exists when you start a job, it is left from an aborted job. Don't merge new work into it or delete it silently: tell the human it exists, quote the **Goal** from its `request.md`, and ask whether to resume or discard. Resume → read `plan.md` and the result files, and continue from the first phase without a `COMPLETE` result. Discard → delete the folder and start fresh.
+**Leftover folder.** If the folder exists when you start a job, it is left from an aborted job. Don't merge new work into it or delete it silently: tell the human it exists, quote the **Goal** from its `request.md`, and ask whether to resume or discard. Resume → read `plan.md` and the result files, and continue from the first phase without a `COMPLETE` result; a result still opening with `**Status:** in progress` is salvage. Discard → delete the folder and start fresh.
 
 **Job start.** Create the folder, its `skills/` and `scripts/` subfolders, and `request.md`:
 
@@ -56,13 +55,13 @@ Stay within the project root and `~/.pi`; never a filesystem-wide scan (`find /`
 
 A dispatch is exactly one line, `<Verb> <file>#<anchor>.`, sent as the `task` of a `subagent` call. The anchor is a level-2 heading's text, verbatim: a lowercase kebab-case phase id, or `job` for a single-subject file. Write the input file before dispatching. Workers read the environment file on demand.
 
-A reply is `COMPLETE` or `BLOCKED: <reason>`; any other reply counts as `BLOCKED`. The substance is in the worker's output file — read it, not the reply. On `BLOCKED`, read the file's Gaps, correct the input section, and spawn fresh; no worker is resumed.
+A reply is `COMPLETE` or `BLOCKED: <reason>`; any other reply, or a `COMPLETE` whose output still opens with `**Status:** in progress`, counts as `BLOCKED`. The substance is in the worker's output file — read it, not the reply. On `BLOCKED`, read the file's Gaps, or copy a marked file's facts into the input section as settled — it is never a result, verdict, or plan — then correct or narrow the section and spawn fresh; no worker is resumed. A guard-killed worker (turn cap or repeat loop) replies `BLOCKED: <guard> — <reason>` with its last calls and may leave no result file: narrow or correct the phase section using that trace, then spawn it fresh.
 
 **Pre-dispatch gate:** read the phase section; confirm every field present, each acceptance item verifiable by one command or file read, its skills copied, and the tier still fits. A correction goes into the section itself before dispatch.
 
 After each subagent: read its output file, distill, update your model, proceed.
 
-**Memory.** A worker records memory-worthy facts under Gaps; you decide what reaches the vault. Append a section to `memory.md` and dispatch `Remember memory.md#<request-id>.`; request a review pass only when the human asks.
+**Memory.** A worker records memory-worthy facts under Gaps; you decide what reaches the vault. Append a section to `memory.md` and dispatch `Remember memory.md#<request-id>.`; before the first, create `memory.result.md` holding only `# Memory results`; request a review pass only when the human asks.
 
 ```markdown
 # Memory requests
@@ -101,12 +100,10 @@ Use sequential thinking to decompose Full-tier work before writing `request.md`,
 - Any `FAIL` → per failing phase, dispatch `Fix issues.md#<phase-id>.`, a fresh implement that overwrites `<phase-id>.result.md` whole — implement is the final gate for its phase — then Review again.
 - After two fix rounds, a remaining `FAIL`, or a `BLOCKED` review → surface to the human with the specific findings from `review.md`.
 
-**Guard-kill triage** — a guard-killed worker returns a classified error and trace instead of a reply. Append a `## Kill` section to its `<phase-id>.result.md`, creating the file if absent, with the class line, the trace verbatim, and the worker's last stated intent; then dispatch `Triage plan.md#<phase-id>.` and read `triage.md#<phase-id>`. **Kill valid** `no` → add its **Established** bullets to the phase's input section, noting they need no re-reading, and re-dispatch the worker. `yes` → apply the remedy its reason names — missing facts into the input section, a narrower section, or `PI_CONDUCTOR_MODEL` — and re-dispatch. No section → the error's own remedy.
-
 **Final gate** — report the outcome to the human, then close the task list and delete the job folder.
 
 ## Task List
 
-The task list is your status board, never a worker's input. Task tools absent: proceed without them and say so once — the job folder carries the state.
+The task list is your status board, never a worker's input; the operator sees it as a footer line under the statusline.
 
 Create one task per phase (`subject` = phase goal) plus `Review: <job>`, never writing the task store directly. A phase task is `in_progress` on dispatch and `completed` on a `COMPLETE` result; Review the same on an all-`PASS` review, reopened while a fix round runs; an escalated Review stays `in_progress`, surfaced; a dropped phase is `deleted`, never `pending`. Reconcile before a turn ends; at job close, `deleted` every created task.

@@ -27,7 +27,7 @@ Run each phase's **Acceptance criteria**, the job's **Acceptance criteria**, and
 
 ## Output
 
-Overwrite `.claude/conductor/job/review.md` whole: one section per phase, plus a `## job` section in the same shape for diff-wide checks (build, typecheck, lint, tests, scope, commits and churn). A phase with any CRITICAL or MAJOR issue is `FAIL`. A section with nothing to report holds the single line `None.`
+Overwrite `.claude/conductor/job/review.md` whole: one section per phase, plus a `## job` section in the same shape for diff-wide checks (build, typecheck, lint, tests, scope, commits and churn). A phase with any CRITICAL or MAJOR issue is `FAIL`. A section with nothing to report holds the single line `None.` Create it early, first line `**Status:** in progress`, rewrite it at milestones with established findings and your next check but no `**Verdict:**` line, and drop the marker in the final write.
 
 ```markdown
 # Review
@@ -43,7 +43,7 @@ Overwrite `.claude/conductor/job/review.md` whole: one section per phase, plus a
 - <claim from the result file that the reviewer could not confirm, or None.>
 ```
 
-When any phase fails, also write `.claude/conductor/job/issues.md`, one section per failing phase. A fix pass reads it cold, with no memory of this review, so each section repeats everything the fixer needs. Each **Problem** opens with its severity, `[CRITICAL]`, `[MAJOR]`, or `[MINOR]`; a diff-wide issue goes to the phase whose **Surface** owns the file.
+When any phase fails, also write `.claude/conductor/job/issues.md`, only in the final write with the verdicts, one section per failing phase. A fix pass reads it cold, with no memory of this review, so each section repeats everything the fixer needs. Each **Problem** opens with its severity, `[CRITICAL]`, `[MAJOR]`, or `[MINOR]`; a diff-wide issue goes to the phase whose **Surface** owns the file.
 
 ```markdown
 # Issues

@@ -17,12 +17,16 @@ The linter handles mechanics; this skill handles the judgment the linter cannot.
 
 Invoke when:
 - The linter reports strays, orphans, stale notes, or contradictions
-- A significant architectural change may have invalidated existing memories
+- A significant architectural change may have invalidated existing memories — the request's Subject names the affected notes
 - Monthly cadence for routine vault hygiene
 
 This skill is preloaded into the `memory` agent. The conductor delegates a vault review/stewardship pass to that agent (the same way it delegates any other brief), and the agent runs this procedure — either with `pwsh ${CLAUDE_PLUGIN_ROOT}/scripts/memory-lint.ps1 -Canonical <product>-main` results already in hand, or by running the full workflow below itself. **Always pass `-Canonical`** — the flagless form defaults to `conductor-main`, which would lint `conductor-main` and exempt `refuter-main` from a refuter memory agent's run, reporting a false clean. The orchestrator dispatches this pass only on user request.
 
 **This skill has no authority over agent, skill, or rule files.** It reads and writes memory notes under `.claude/agent-memory/` and nothing else. A vault insight that seems to belong in an agent definition gets surfaced to the user in the summary, never written there.
+
+## Scope
+
+Only the linter scans every file. A review pass reads only these notes: notes the linter flags, dirty-flagged notes, notes the request's Subject names, notes a targeted `Grep` surfaces as a duplicate, contradiction, or link target of one of those, and the 1-hop neighbours of a changed note when it links them. `MEMORY.md` is always readable. Never `Glob`-and-read the vault, read through the notes the index lists, or audit notes outside these sets.
 
 ## Workflow
 
@@ -66,7 +70,7 @@ The vault legitimately contains only `.md` notes, `MEMORY.md` indexes, and `.obs
 
 ### 3. Plan the Epoch
 
-Snapshot the full flagged/dirty worklist once, from step 1's linter run. That snapshot is the entire work plan for this pass — nothing joins it later.
+Snapshot the full flagged/dirty worklist once, from step 1's linter run, plus the notes the request's Subject names. That snapshot is the entire work plan for this pass — nothing joins it later.
 
 Every note edited during the pass is **settled**: never re-verified, re-flagged, or rewritten again in the same pass, even if a later edit changes one of its neighbours. Without this, a pass processing flagged notes in arbitrary order rewrites a note, then its neighbour, then decides the first needs touching again — cycles and rework that never converge. A genuine late finding that would invalidate a settled note goes into the summary's **Deferred** list, to be picked up by the next pass; it does not reopen the note.
 
@@ -97,7 +101,7 @@ For each flagged item, classify:
 
 ### 5. Fix Categorization
 
-The linter only checks that `type/*` and `topic/*` tags are *present* — it cannot judge whether they're *correct*. For every note flagged during triage, or otherwise touched during this review, verify categorization by reading the note:
+The linter only checks that `type/*` and `topic/*` tags are *present* — it cannot judge whether they're *correct*. For every worklist note and every note edited during this review, verify categorization by reading the note:
 
 - **Type:** confirm `metadata.type`, the `type/*` tag, and the note's actual content all agree. If a note tagged `type/research` is really recording feedback (or vice versa), retag it — update the `type/*` tag and `metadata.type` together, and adjust `description` if it no longer matches.
 - **Topic:** confirm the `topic/*` tag actually describes the content. If it's a synonym or near-duplicate of an established topic (e.g. `topic/state-mgmt` vs an existing `topic/state-management`), retag to the established one rather than letting the taxonomy fragment.
@@ -105,7 +109,7 @@ The linter only checks that `type/*` and `topic/*` tags are *present* — it can
 
 ### 6. Verify Against Repo State
 
-For each note flagged as stale, freshly migrated, or carrying a load-bearing claim, verify it reflects current reality: `Grep` with pattern `<keyword>` and path `.claude/` to check whether the described file/pattern still exists, and cross-check recent history:
+For each worklist note that is flagged stale, freshly migrated, or carries a load-bearing claim, verify it reflects current reality: `Grep` with pattern `<keyword>` and path `.claude/` to check whether the described file/pattern still exists, and cross-check recent history:
 
 ```bash
 git log --oneline -10
@@ -122,7 +126,7 @@ Never clear without verifying. Never leave the banner line inside the `metadata:
 
 ### 7. Reconcile Contradictions
 
-If two notes make conflicting claims about the same topic, surface the conflict — don't average it:
+If a worklist note conflicts with another note on the same topic, surface the conflict — don't average it:
 1. Determine which is more recent or more battle-tested (check `metadata.updated`, git log).
 2. Keep the authoritative note; update it to acknowledge the resolved conflict.
 3. Tombstone the superseded note.

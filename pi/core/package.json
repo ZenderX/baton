@@ -13,6 +13,7 @@
     "extensions": [
       "./extensions/engine/index.ts",
       "./extensions/statusline.ts",
+      "./extensions/task-list.ts",
       "./extensions/lmstudio-reasoning.ts"
     ],
     "skills": [
