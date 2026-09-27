@@ -6,30 +6,35 @@
  * core/extensions/engine/tasks.ts, to verify (without touching a live server
  * or the real agent dir):
  *
- *   1. Both on + a 7-task mixed-status store: 2 lines — line 0 the powerline
- *      (contains [harness-model]), line 1 five tasks ordered in_progress ->
- *      pending with a `2 more` count (no rotation indicator).
- *   2. Stable window + store refresh on tick: the 3s tick leaves line 1
- *      unchanged; a store mutation picked up on the next tick updates the
- *      line (`3 more` after an 8th task).
- *   3. <= 5 tasks: no position indicator, completed struck through.
+ *   1. Both on + a 7-task mixed-status store: 7 lines — line 0 the powerline
+ *      (contains [harness-model]), lines 1-5 one task each ordered
+ *      in_progress -> pending, line 6 a dim `2 more` row (no rotation
+ *      indicator, no inline ` · ` separator).
+ *   2. Stable window + store refresh on tick: the 3s tick leaves the task
+ *      rows unchanged; a store mutation picked up on the next tick updates
+ *      them (`3 more` row after an 8th task).
+ *   3. <= 5 tasks: one row per task, no `more` row, completed struck through
+ *      on its own row at the bottom.
  *   4. Missing store and empty store: exactly 1 line (powerline only).
- *   5. /tasklist off -> 1 line; on again -> 2 lines.
- *   6. /statusline off + tasklist on: exactly 1 line = the task line only
+ *   5. /tasklist off -> 1 line; on again -> 1 + N lines.
+ *   6. /statusline off + tasklist on: exactly N lines = the task rows only
  *      (no [harness-model]).
  *   7. Both off: the footer factory is undefined (built-in restored; render
  *      throws "footer not applied").
  *   8. Active product: flags {} + globalThis baton.activeProduct set (a
- *      product shim's activation) -> 2 lines with the task line.
+ *      product shim's activation) -> 1 + N lines with the task rows.
  *  8b. Spawned child: the same with PI_CONDUCTOR_SPAWN_DEPTH=1 -> the footer
  *      stays off.
  *   9. Product transition: no product at session_start, then the refuter
- *      becomes active; turn_start auto-enables the task line.
+ *      becomes active; turn_start auto-enables the task rows.
  *  10. Tool registration: the engine registers TaskCreate/TaskGet/TaskUpdate/
  *      TaskList at depth 0 and none of them at depth 1.
  *  11. Tool behaviour: create persists to the per-project store, an unknown
  *      addBlockedBy id rejects the update without persisting, and `deleted`
  *      removes the task and every relation to it.
+ *  12. Narrow width: at 16 cells every task row fits the width with its
+ *      subject truncated; at 7 cells the task rows hide (powerline only, or
+ *      [""] with the statusline off), and they return at 8.
  *
  * Run with: node --experimental-strip-types pi/scripts/tasklist-harness.mts
  * (This file is intentionally NOT listed in package.json pi.extensions.)
@@ -39,6 +44,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import assert from "node:assert/strict";
+import { visibleWidth } from "@earendil-works/pi-tui";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { FOOTER_REFRESH_MS } from "../core/extensions/footer-lines.ts";
 import { resolveTaskStorePath } from "../core/extensions/engine/tasks.ts";
@@ -79,7 +85,7 @@ interface AppendedEntry {
 interface Env {
 	pi: ExtensionAPI;
 	fire: (name: string, event: unknown) => void;
-	/** The full footer: line 0 the powerline, line 1 the task line (when present). */
+	/** The full footer: line 0 the powerline, then one row per task (when present). */
 	render: (width?: number) => string[];
 	/** Fire session_shutdown (unregisters this env's shared-registry providers) and drop the component. */
 	dispose: () => void;
@@ -296,7 +302,7 @@ async function main(): Promise<void> {
 	fs.mkdirSync(path.dirname(taskStorePath), { recursive: true });
 
 	try {
-		// --- 1. Both on + 7 mixed-status tasks: 2 lines, ordered, with a `2 more` count ---
+		// --- 1. Both on + 7 mixed-status tasks: one row per task, ordered, then a `2 more` row ---
 		{
 			writeStore(taskStorePath, [
 				{ id: 1, subject: "alpha", status: "pending" },
@@ -310,30 +316,25 @@ async function main(): Promise<void> {
 			const env = await startEnv();
 
 			// session_start's initial refresh loads the snapshot; the window holds the first five tasks.
-			await until(() => (env.render()[1] ?? "").includes("2 more"));
+			await until(() => (env.render()[6] ?? "") === "2 more");
 			const lines = env.render();
-			assert.equal(lines.length, 2, `both extensions on should render two footer lines, got: ${JSON.stringify(lines)}`);
+			assert.equal(lines.length, 7, `powerline + 5 task rows + a more row expected, got: ${JSON.stringify(lines)}`);
 			assert.ok(lines[0].includes("[harness-model]"), `line 0 should be the powerline, got: ${lines[0]}`);
-			const taskLine = lines[1];
-			assert.ok(taskLine.includes("2 more"), `the overflow count should read 2 more, got: ${taskLine}`);
-			assert.ok(!taskLine.includes("1/7"), `no rotation indicator, got: ${taskLine}`);
-			assert.ok(taskLine.includes("▶ #3 charlie"), `the in_progress task should lead with an accent marker, got: ${taskLine}`);
-			assert.ok(taskLine.includes("▶ #6 foxtrot"), `both in_progress tasks should be in the window, got: ${taskLine}`);
-			const order = ["charlie", "foxtrot", "alpha", "delta", "golf"].map((name) => taskLine.indexOf(name));
-			assert.ok(order.every((idx) => idx !== -1), `the window should hold the 5 in_progress/pending tasks, got: ${taskLine}`);
-			assert.ok(
-				order[0] < order[1] && order[1] < order[2] && order[2] < order[3] && order[3] < order[4],
-				`items should be ordered in_progress -> pending, got: ${taskLine}`,
+			assert.deepEqual(
+				lines.slice(1),
+				["▶ #3 charlie", "▶ #6 foxtrot", "· #1 alpha", "· #4 delta", "· #7 golf", "2 more"],
+				`one row per task ordered in_progress -> pending, then the overflow row, got: ${JSON.stringify(lines)}`,
 			);
-			assert.ok(!taskLine.includes("bravo") && !taskLine.includes("echo"), `completed tasks outside the window must not render, got: ${taskLine}`);
-			console.log("  [1] task line 5 of 7, ordered:", taskLine);
+			assert.ok(!lines.some((line) => line.includes("1/7")), `no rotation indicator, got: ${JSON.stringify(lines)}`);
+			assert.ok(!lines.some((line) => line.includes("bravo") || line.includes("echo")), `completed tasks outside the window must not render, got: ${JSON.stringify(lines)}`);
+			console.log("  [1] task rows 5 of 7, ordered:", JSON.stringify(lines.slice(1)));
 
 			// The 3s tick leaves the static window unchanged (no rotation).
-			const stable = env.render()[1];
+			const stable = env.render();
 			await sleep(FOOTER_REFRESH_MS + 300);
-			assert.equal(env.render()[1], stable, `the tick must leave the window unchanged, got: ${env.render()[1]}`);
+			assert.deepEqual(env.render(), stable, `the tick must leave the window unchanged, got: ${JSON.stringify(env.render())}`);
 
-			// A store mutation picked up on the next tick updates the line.
+			// A store mutation picked up on the next tick updates the rows.
 			writeStore(taskStorePath, [
 				{ id: 1, subject: "alpha", status: "pending" },
 				{ id: 2, subject: "bravo", status: "completed" },
@@ -344,16 +345,17 @@ async function main(): Promise<void> {
 				{ id: 7, subject: "golf", status: "pending" },
 				{ id: 8, subject: "hotel", status: "pending" },
 			]);
-			await until(() => (env.render()[1] ?? "").includes("3 more"), 8000);
-			const taskLine2 = env.render()[1];
-			assert.ok(taskLine2.includes("3 more"), `the tick should pick up the 8th task with a 3 more count, got: ${taskLine2}`);
-			assert.ok(taskLine2.includes("▶ #3 charlie"), `the in_progress task should still lead, got: ${taskLine2}`);
-			assert.ok(!taskLine2.includes("hotel"), `the 8th task sits outside the window, got: ${taskLine2}`);
-			console.log("  [2] stable window, store refresh on tick:", taskLine2);
+			await until(() => (env.render()[6] ?? "") === "3 more", 8000);
+			const lines2 = env.render();
+			assert.equal(lines2.length, 7, `the window stays 5 rows + a more row, got: ${JSON.stringify(lines2)}`);
+			assert.equal(lines2[6], "3 more", `the tick should pick up the 8th task with a 3 more row, got: ${JSON.stringify(lines2)}`);
+			assert.equal(lines2[1], "▶ #3 charlie", `the in_progress task should still lead, got: ${JSON.stringify(lines2)}`);
+			assert.ok(!lines2.some((line) => line.includes("hotel")), `the 8th task sits outside the window, got: ${JSON.stringify(lines2)}`);
+			console.log("  [2] stable window, store refresh on tick:", JSON.stringify(lines2.slice(1)));
 			env.dispose();
 		}
 
-		// --- 3. <= 5 tasks: no position indicator, completed struck through ---
+		// --- 3. <= 5 tasks: one row each, no more row, completed struck through ---
 		{
 			writeStore(taskStorePath, [
 				{ id: 1, subject: "active work", status: "in_progress" },
@@ -362,14 +364,15 @@ async function main(): Promise<void> {
 			]);
 			const env = await startEnv();
 
-			await until(() => (env.render()[1] ?? "").includes("~~done thing~~"));
+			await until(() => env.render().length === 4);
 			const lines = env.render();
-			assert.equal(lines.length, 2, `both extensions on should render two footer lines, got: ${JSON.stringify(lines)}`);
-			const taskLine = lines[1];
-			assert.ok(taskLine.includes("~~done thing~~"), `the completed task's title should be struck through, got: ${taskLine}`);
-			assert.ok(taskLine.includes("▶ #1 active work"), `the in_progress task should lead, got: ${taskLine}`);
-			assert.ok(!taskLine.includes("/3"), `no position indicator when the store has <= 5 tasks, got: ${taskLine}`);
-			console.log("  [3] completed task struck through:", taskLine);
+			assert.deepEqual(
+				lines.slice(1),
+				["▶ #1 active work", "· #3 waiting", "#2 ~~done thing~~"],
+				`one row per task, completed struck through at the bottom, got: ${JSON.stringify(lines)}`,
+			);
+			assert.ok(!lines.some((line) => line.includes("more") || line.includes("/3")), `no more row or position indicator when the store has <= 5 tasks, got: ${JSON.stringify(lines)}`);
+			console.log("  [3] one row per task, completed struck through:", JSON.stringify(lines.slice(1)));
 			env.dispose();
 		}
 
@@ -394,7 +397,7 @@ async function main(): Promise<void> {
 			empty.dispose();
 		}
 
-		// --- 5. /tasklist off -> 1 line; on again -> 2 lines ---
+		// --- 5. /tasklist off -> 1 line; on again -> 1 + 3 lines ---
 		{
 			writeStore(taskStorePath, [
 				{ id: 1, subject: "active work", status: "in_progress" },
@@ -402,7 +405,7 @@ async function main(): Promise<void> {
 				{ id: 3, subject: "waiting", status: "pending" },
 			]);
 			const env = await startEnv();
-			await until(() => env.render().length === 2);
+			await until(() => env.render().length === 4);
 
 			const toggle = env.commands.get("tasklist");
 			assert.ok(toggle !== undefined, "the /tasklist command handler must be captured");
@@ -414,14 +417,14 @@ async function main(): Promise<void> {
 			console.log("  [5] /tasklist off leaves powerline only:", lines[0]);
 
 			await toggle("", env.ctx);
-			await until(() => env.render().length === 2);
+			await until(() => env.render().length === 4);
 			const lines2 = env.render();
-			assert.ok(lines2[1].includes("▶ #1 active work"), `/tasklist on again should restore the task line, got: ${lines2[1]}`);
-			console.log("  [5] /tasklist on restores the task line:", lines2[1]);
+			assert.equal(lines2[1], "▶ #1 active work", `/tasklist on again should restore the task rows, got: ${JSON.stringify(lines2)}`);
+			console.log("  [5] /tasklist on restores the task rows:", JSON.stringify(lines2.slice(1)));
 			env.dispose();
 		}
 
-		// --- 6. /statusline off + tasklist on: the task line stands alone ---
+		// --- 6. /statusline off + tasklist on: the task rows stand alone ---
 		{
 			writeStore(taskStorePath, [
 				{ id: 1, subject: "active work", status: "in_progress" },
@@ -429,16 +432,18 @@ async function main(): Promise<void> {
 				{ id: 3, subject: "waiting", status: "pending" },
 			]);
 			const env = await startEnv();
-			await until(() => env.render().length === 2);
+			await until(() => env.render().length === 4);
 
 			const toggle = env.commands.get("statusline");
 			assert.ok(toggle !== undefined, "the /statusline command handler must be captured");
 			await toggle("", env.ctx);
 			const lines = env.render();
-			assert.equal(lines.length, 1, `/statusline off should leave the task line only, got: ${JSON.stringify(lines)}`);
-			assert.ok(!lines[0].includes("[harness-model]"), `the task line must not carry the powerline model label, got: ${lines[0]}`);
-			assert.ok(lines[0].includes("▶ #1 active work"), `the task line should still render, got: ${lines[0]}`);
-			console.log("  [6] /statusline off leaves the task line alone:", lines[0]);
+			assert.deepEqual(
+				lines,
+				["▶ #1 active work", "· #3 waiting", "#2 ~~done thing~~"],
+				`/statusline off should leave the task rows only (no [harness-model]), got: ${JSON.stringify(lines)}`,
+			);
+			console.log("  [6] /statusline off leaves the task rows alone:", JSON.stringify(lines));
 			env.dispose();
 		}
 
@@ -449,7 +454,7 @@ async function main(): Promise<void> {
 				{ id: 2, subject: "done thing", status: "completed" },
 			]);
 			const env = await startEnv();
-			await until(() => env.render().length === 2);
+			await until(() => env.render().length === 3);
 
 			const toggleTasklist = env.commands.get("tasklist");
 			const toggleStatusline = env.commands.get("statusline");
@@ -471,11 +476,11 @@ async function main(): Promise<void> {
 			setActiveProduct("conductor");
 			try {
 				const env = await startEnv({ flags: {} });
-				await until(() => env.render().length === 2);
+				await until(() => env.render().length === 3);
 				const lines = env.render();
 				assert.ok(lines[0].includes("[harness-model]"), `the active product should enable the powerline line, got: ${lines[0]}`);
-				assert.ok(lines[1].includes("▶ #1 active work"), `the active product should enable the task line, got: ${lines[1]}`);
-				console.log("  [8] active product enables both lines:", lines[1]);
+				assert.deepEqual(lines.slice(1), ["▶ #1 active work", "#2 ~~done thing~~"], `the active product should enable the task rows, got: ${JSON.stringify(lines)}`);
+				console.log("  [8] active product enables powerline + task rows:", JSON.stringify(lines.slice(1)));
 				env.dispose();
 			} finally {
 				setActiveProduct(undefined);
@@ -505,12 +510,12 @@ async function main(): Promise<void> {
 			setActiveProduct("refuter");
 			try {
 				env.fire("turn_start", { type: "turn_start", turnIndex: 1, timestamp: Date.now() });
-				await until(() => env.render().length === 2);
+				await until(() => env.render().length === 3);
 				const lines = env.render();
-				assert.ok(lines[1].includes("▶ #1 active work"), `the refuter's activation should enable the task line, got: ${lines[1]}`);
+				assert.deepEqual(lines.slice(1), ["▶ #1 active work", "#2 ~~done thing~~"], `the refuter's activation should enable the task rows, got: ${JSON.stringify(lines)}`);
 				assert.ok(env.notified.includes("Task list enabled by refuter mode."), `one task-list auto-enable notify expected, got: ${JSON.stringify(env.notified)}`);
 				assert.ok(!env.appended.some(({ customType }) => customType === "tasklist"), "the auto-enable must not persist a tasklist entry");
-				console.log("  [9] product transition auto-enables:", lines[1]);
+				console.log("  [9] product transition auto-enables:", JSON.stringify(lines.slice(1)));
 				env.dispose();
 			} finally {
 				setActiveProduct(undefined);
@@ -563,6 +568,37 @@ async function main(): Promise<void> {
 			await call("TaskUpdate", { taskId: "2", status: "deleted" });
 			assert.equal(await call("TaskList", {}), "No tasks.");
 			console.log("  [11] task tools persist, reject unknown ids, and delete");
+		}
+
+		// --- 12. Narrow width: each task row truncates to the width; below 8 cells the rows hide ---
+		{
+			writeStore(taskStorePath, [
+				{ id: 1, subject: "a very long in-progress subject", status: "in_progress" },
+				{ id: 2, subject: "a very long completed subject", status: "completed" },
+				{ id: 3, subject: "a very long pending subject", status: "pending" },
+			]);
+			const env = await startEnv();
+			await until(() => env.render().length === 4);
+
+			const narrow = env.render(16);
+			assert.equal(narrow.length, 4, `powerline + 3 task rows expected at width 16, got: ${JSON.stringify(narrow)}`);
+			const rows = narrow.slice(1);
+			for (const row of rows) assert.ok(visibleWidth(row) <= 16, `each task row must fit width 16, got ${visibleWidth(row)}: ${JSON.stringify(row)}`);
+			assert.deepEqual(rows.map((row) => row.slice(0, 6)), ["▶ #1 a", "· #3 a", "#2 ~~a"], `rows keep their order and markers when truncated, got: ${JSON.stringify(rows)}`);
+			assert.ok(rows.every((row) => row.includes("...") && !row.includes("subject")), `long subjects must be truncated with an ellipsis, got: ${JSON.stringify(rows)}`);
+			console.log("  [12] width 16 truncates each task row:", JSON.stringify(rows));
+
+			const tiny = env.render(7);
+			assert.equal(tiny.length, 1, `below 8 cells only the powerline row should render, got: ${JSON.stringify(tiny)}`);
+			assert.ok(!tiny[0].includes("#1"), `no task row below 8 cells, got: ${JSON.stringify(tiny)}`);
+
+			const toggle = env.commands.get("statusline");
+			assert.ok(toggle !== undefined, "the /statusline command handler must be captured");
+			await toggle("", env.ctx);
+			assert.deepEqual(env.render(7), [""], `statusline off + width 7 should render the blank row only, got: ${JSON.stringify(env.render(7))}`);
+			assert.equal(env.render(8).length, 3, `width 8 is the threshold where the task rows render again, got: ${JSON.stringify(env.render(8))}`);
+			console.log("  [12] below 8 cells the task rows hide");
+			env.dispose();
 		}
 	} finally {
 		if (originalAgentDirEnv === undefined) delete process.env.PI_CODING_AGENT_DIR;

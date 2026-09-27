@@ -1,18 +1,19 @@
 /**
- * Task-list footer line
+ * Task-list footer rows
  *
- * Renders the root orchestrator's task list on its own line below the
- * statusline's powerline line (extensions/statusline.ts), composed through
- * the shared footer-line registry (extensions/footer-lines.ts).
+ * Renders the root orchestrator's task list below the statusline's powerline
+ * line (extensions/statusline.ts), one task per row, composed through the
+ * shared footer-line registry (extensions/footer-lines.ts) as a multi-row
+ * provider.
  *
  * Data source: the task store of extensions/engine/tasks.ts, resolved via
  * resolveTaskStorePath and refreshed async on session_start and the 3s
  * footer tick.
  *
- * Window: five titles at a time, sorted in_progress then pending then
+ * Window: five task rows at a time, sorted in_progress then pending then
  * completed (done struck through and at the bottom); a static window with
- * an `N more` count when the store holds more than five tasks. The line
- * renders null when the store is empty/missing or the per-item budget is
+ * a final dim `N more` row when the store holds more than five tasks. The
+ * provider renders null when the store is empty/missing or the width is
  * < 8 cells.
  *
  * Toggle with the `--tasklist` flag or the `/tasklist` command; an active
@@ -31,8 +32,8 @@ import { claimExtension } from "./load-guard.ts";
 
 const STATE_KEY = "tasklist";
 const TASK_WINDOW = 5;
-// Hide the line when the per-item budget drops below this.
-const TASK_MIN_ITEM_CELLS = 8;
+// Hide the rows when the footer width drops below this.
+const TASK_MIN_ROW_CELLS = 8;
 
 /** Task store (extensions/engine/tasks.ts), narrowed to the footer's needs. */
 type TaskStatus = "pending" | "in_progress" | "completed";
@@ -71,7 +72,7 @@ function isTaskStore(value: unknown): value is TaskStoreFile {
 	return Array.isArray(tasks) && tasks.every(isTaskItem);
 }
 
-/** Display order of the task line: active first, done at the bottom. */
+/** Display order of the task rows: active first, done at the bottom. */
 const TASK_STATUS_ORDER: Record<TaskStatus, number> = { in_progress: 0, pending: 1, completed: 2 };
 
 function renderTaskItem(theme: Theme, task: TaskItem, budget: number): string {
@@ -86,25 +87,20 @@ function renderTaskItem(theme: Theme, task: TaskItem, budget: number): string {
 }
 
 /**
- * The full-width task line: a static five-wide window over the store sorted
- * by TASK_STATUS_ORDER (id ascending within a status), with an `N more`
- * count when the store holds more than five tasks. null when the store is
- * empty or the per-item budget is too small.
+ * The task rows, one full-width row per task: a static five-wide window over
+ * the store sorted by TASK_STATUS_ORDER (id ascending within a status), plus
+ * a dim `N more` row when the store holds more than five tasks. null when
+ * the store is empty or the width is too small.
  */
-function renderTaskLine(theme: Theme, tasks: TaskItem[] | null, width: number): string | null {
+function renderTaskRows(theme: Theme, tasks: TaskItem[] | null, width: number): string[] | null {
 	if (tasks === null || tasks.length === 0) return null;
+	if (width < TASK_MIN_ROW_CELLS) return null;
 
 	const sorted = [...tasks].sort((a, b) => TASK_STATUS_ORDER[a.status] - TASK_STATUS_ORDER[b.status] || a.id - b.id);
 	const shown = sorted.slice(0, TASK_WINDOW);
 	const more = sorted.length - shown.length;
-	const indicator = more > 0 ? `${more} more` : "";
-	const itemSep = theme.fg("dim", " · ");
-	const taken = (shown.length - 1) * visibleWidth(itemSep) + (indicator === "" ? 0 : visibleWidth(itemSep) + visibleWidth(indicator));
-	const perItem = Math.floor((width - taken) / shown.length);
-	if (perItem < TASK_MIN_ITEM_CELLS) return null;
-
-	const group = shown.map((task) => renderTaskItem(theme, task, perItem)).join(itemSep);
-	return indicator === "" ? group : group + itemSep + theme.fg("dim", indicator);
+	const rows = shown.map((task) => renderTaskItem(theme, task, width));
+	return more > 0 ? [...rows, theme.fg("dim", `${more} more`)] : rows;
 }
 
 export default function (pi: ExtensionAPI) {
@@ -115,18 +111,18 @@ export default function (pi: ExtensionAPI) {
 	let lastConductorState = false;
 
 	// Task-store snapshot (async refresh on session_start + the 3s tick; null
-	// hides the line).
+	// hides the rows).
 	let snapshot: TaskItem[] | null = null;
 
 	pi.registerFlag("tasklist", {
-		description: "Show the orchestrator task list on its own line under the statusline",
+		description: "Show the orchestrator task list under the statusline, one task per row",
 		type: "boolean",
 		default: false,
 	});
 
 	/**
 	 * Refresh the task-store snapshot. Fail-soft: a missing/unreadable store
-	 * hides the line; a parse error keeps the last good snapshot.
+	 * hides the rows; a parse error keeps the last good snapshot.
 	 */
 	async function refreshTasks(ctx: ExtensionContext): Promise<void> {
 		let raw: string;
@@ -156,7 +152,7 @@ export default function (pi: ExtensionAPI) {
 		registerFooterLine({
 			id: STATE_KEY,
 			priority: 1,
-			render: (w, t, _fd) => renderTaskLine(t, snapshot, w),
+			render: (w, t, _fd) => renderTaskRows(t, snapshot, w),
 		});
 		registerFooterTick(STATE_KEY, () => {
 			void refreshTasks(ctx);
@@ -177,7 +173,7 @@ export default function (pi: ExtensionAPI) {
 	}
 
 	pi.registerCommand("tasklist", {
-		description: "Toggle the task-list footer line",
+		description: "Toggle the task-list footer",
 		handler: async (_args, ctx) => {
 			enabled = !enabled;
 			applyState(ctx);
@@ -192,7 +188,7 @@ export default function (pi: ExtensionAPI) {
 		const restored = ctx.sessionManager.getEntries().filter(isTasklistEntry).pop();
 		if (restored?.data !== undefined) enabled = restored.data.enabled;
 
-		// An active product implies the task line, even over a restored "off"; the
+		// An active product implies the task list, even over a restored "off"; the
 		// tracker seeds here so the auto-enable below only fires on a fresh off->on.
 		lastConductorState = conductorEnabled();
 		if (lastConductorState) enabled = true;

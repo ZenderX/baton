@@ -2,11 +2,13 @@
  * Shared footer-line registry
  *
  * Lets multiple extensions compose into one multi-line footer. Each
- * extension registers a footer line (rendered in priority order — lower
- * priority higher on screen), an optional per-tick callback, and a footer
- * applier; the registry installs a single composite footer component that
- * renders every line and owns the footer's 3s tick (FOOTER_REFRESH_MS).
- * Zero registered lines restores the built-in footer.
+ * extension registers a footer line provider (rendered in priority order —
+ * lower priority higher on screen) that contributes one row or several
+ * (e.g. one per task), an optional per-tick callback, and a footer applier;
+ * the registry installs a single composite footer component that flattens
+ * every provider's rows, truncates each to the width, and owns the footer's
+ * 3s tick (FOOTER_REFRESH_MS). Zero registered lines restores the built-in
+ * footer.
  *
  * pi's loader compiles each extension with its own jiti instance
  * (moduleCache: false, no shared parentCache), so the extensions get
@@ -24,8 +26,8 @@ import type { ReadonlyFooterDataProvider, Theme } from "@earendil-works/pi-codin
 /** The footer's repaint cadence, shared by every line. */
 export const FOOTER_REFRESH_MS = 3_000;
 
-/** One footer line; null hides the line (e.g. an empty task store). */
-export type FooterLineRender = (width: number, theme: Theme, footerData: ReadonlyFooterDataProvider) => string | null;
+/** One footer row, or several rows top to bottom; null hides the provider (e.g. an empty task store). */
+export type FooterLineRender = (width: number, theme: Theme, footerData: ReadonlyFooterDataProvider) => string | string[] | null;
 
 export interface FooterLineProvider {
 	id: string;
@@ -141,8 +143,7 @@ function createCompositeFactory(): FooterFactory {
 			invalidate() {},
 			render(width: number): string[] {
 				const lines = footerLineSnapshot()
-					.map((p) => p.render(width, theme, footerData))
-					.filter((l): l is string => l !== null)
+					.flatMap((p) => p.render(width, theme, footerData) ?? [])
 					.map((line) => truncateToWidth(line, width));
 				// A blank line keeps the footer present when every line hides.
 				return lines.length === 0 ? [""] : lines;
