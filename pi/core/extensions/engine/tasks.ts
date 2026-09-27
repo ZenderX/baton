@@ -67,12 +67,11 @@ function readStore(storePath: string): TaskStore {
 	return parsed;
 }
 
-// Tmp+rename makes the write atomic; withFileMutationQueue serializes the read-modify-write.
+// In place: Windows cannot replace (MoveFileEx) a file another handle holds open. Sync so TaskGet/TaskList (sync readStore) never
+// see a partial file; the footer's async poll can tear and keeps its last snapshot; the queue serializes read-modify-write.
 function writeStore(storePath: string, store: TaskStore): void {
 	fs.mkdirSync(path.dirname(storePath), { recursive: true });
-	const tmpPath = `${storePath}.tmp-${process.pid}`;
-	fs.writeFileSync(tmpPath, JSON.stringify(store, null, "\t"));
-	fs.renameSync(tmpPath, storePath);
+	fs.writeFileSync(storePath, JSON.stringify(store, null, "\t"));
 }
 
 function normalizeTaskId(taskId: string): number {

@@ -35,6 +35,10 @@
  *  12. Narrow width: at 16 cells every task row fits the width with its
  *      subject truncated; at 7 cells the task rows hide (powerline only, or
  *      [""] with the statusline off), and they return at 8.
+ *  13. Open-handle write: while another handle holds the store open for
+ *      reading, TaskCreate and TaskUpdate persist; no `.tmp-` file appears.
+ *  14. Parallel reads: TaskList and TaskGet called on setImmediate while a
+ *      TaskUpdate is in flight never reject (no partial store is visible).
  *
  * Run with: node --experimental-strip-types pi/scripts/tasklist-harness.mts
  * (This file is intentionally NOT listed in package.json pi.extensions.)
@@ -599,6 +603,63 @@ async function main(): Promise<void> {
 			assert.equal(env.render(8).length, 3, `width 8 is the threshold where the task rows render again, got: ${JSON.stringify(env.render(8))}`);
 			console.log("  [12] below 8 cells the task rows hide");
 			env.dispose();
+		}
+
+		// --- 13. Open-handle write: a reader holding the store open (footer poll, AV) must not block writes ---
+		{
+			fs.rmSync(taskStorePath, { force: true });
+			const tools = new Map(loadEngineTools().map((tool) => [tool.name, tool]));
+			const call = async (name: string, params: unknown): Promise<string> => {
+				const tool = tools.get(name);
+				assert.ok(tool !== undefined, `${name} must be registered`);
+				const result = await tool.execute("call", params, undefined, undefined, { cwd: PROJECT_CWD } as ExtensionContext);
+				return result.content[0]?.text ?? "";
+			};
+			assert.equal(await call("TaskCreate", { subject: "first", description: "first" }), "Created task #1: first");
+			const readHandle = fs.openSync(taskStorePath, "r");
+			try {
+				assert.equal(await call("TaskCreate", { subject: "second", description: "second" }), "Created task #2: second");
+				await call("TaskUpdate", { taskId: "1", status: "in_progress" });
+				const stored = readStoredTasks(taskStorePath);
+				assert.deepEqual(stored.map(({ subject }) => subject), ["first", "second"], "a create lands while another handle has the store open");
+				assert.equal(stored[0].status, "in_progress", "an update lands while another handle has the store open");
+				const tmpSiblings = fs.readdirSync(path.dirname(taskStorePath)).filter((name) => name.includes(".tmp-"));
+				assert.deepEqual(tmpSiblings, [], "the write is in place, no tmp sibling");
+			} finally {
+				fs.closeSync(readHandle);
+			}
+			console.log("  [13] writes succeed while another handle holds the store open");
+		}
+
+		// --- 14. Parallel reads: TaskList/TaskGet racing an in-flight TaskUpdate never see a partial store ---
+		{
+			fs.rmSync(taskStorePath, { force: true });
+			const tools = new Map(loadEngineTools().map((tool) => [tool.name, tool]));
+			const call = async (name: string, params: unknown): Promise<string> => {
+				const tool = tools.get(name);
+				assert.ok(tool !== undefined, `${name} must be registered`);
+				const result = await tool.execute("call", params, undefined, undefined, { cwd: PROJECT_CWD } as ExtensionContext);
+				return result.content[0]?.text ?? "";
+			};
+			// A larger store widens the window an async truncate-then-write would leave open.
+			for (let i = 1; i <= 40; i++) await call("TaskCreate", { subject: `task ${i}`, description: "x".repeat(200) });
+			let reads = 0;
+			for (let trial = 0; trial < 50; trial++) {
+				let settled = false;
+				const update = call("TaskUpdate", { taskId: "1", status: trial % 2 === 0 ? "in_progress" : "pending" }).finally(() => {
+					settled = true;
+				});
+				while (!settled) {
+					await new Promise<void>((resolve) => setImmediate(resolve));
+					if (settled) break;
+					await call("TaskList", {});
+					await call("TaskGet", { taskId: "1" });
+					reads++;
+				}
+				await update;
+			}
+			assert.ok(reads > 0, "at least one read must overlap an in-flight update");
+			console.log(`  [14] ${reads} parallel TaskList/TaskGet reads during in-flight updates, none rejected`);
 		}
 	} finally {
 		if (originalAgentDirEnv === undefined) delete process.env.PI_CODING_AGENT_DIR;
