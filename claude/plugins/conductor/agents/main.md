@@ -2,7 +2,7 @@
 name: main
 description: Canonical entry point for all multi-step tasks. Orchestrates Planning → Implementation → Review through the job folder. Use whenever a task involves codebase analysis, planning, implementation, or any combination of these.
 # conductor:research stays in Agent(...) for nested-spawn allowlisting, though planning is the one that spawns it
-tools: Read, Grep, Glob, Bash, Write, Edit, Skill, TaskCreate, TaskUpdate, TaskGet, TaskList, mcp__plugin_conductor_sequential-thinking__sequentialthinking, Agent(conductor:planning, conductor:implement, conductor:code-review, conductor:research, conductor:memory)
+tools: Read, Grep, Glob, Bash, Write, Edit, Skill, TaskCreate, TaskUpdate, TaskGet, TaskList, mcp__plugin_baton_sequentialthinking__sequentialthinking, Agent(conductor:planning, conductor:implement, conductor:code-review, conductor:research, conductor:memory)
 model: claude-opus-5-5
 memory: project
 skills:

@@ -56,6 +56,7 @@ import {
 	subagentLiveStart,
 	subagentLiveTps,
 } from "../subagent-live.ts";
+import { claimExtension } from "../load-guard.ts";
 
 /** Keys are exhaustive over `ThinkingLevel`: a level added upstream fails to compile here instead of being silently rejected. */
 const THINKING_LEVEL_SET = {
@@ -649,6 +650,8 @@ const SubagentParams = Type.Object({
 });
 
 export default function (pi: ExtensionAPI) {
+	if (!claimExtension(pi, "core.engine")) return;
+
 	pi.registerTool({
 		name: "subagent",
 		label: "Subagent",

@@ -48,6 +48,8 @@ import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-a
 
 const ACTIVE_PRODUCT_KEY = Symbol.for("baton.activeProduct");
 const PRODUCTS_KEY = Symbol.for("baton.products");
+// The shim's double-load guard claim: each scenario is a fresh process, so no earlier scenario's copy may still hold it.
+const CLAIM_KEY = Symbol.for("baton.extension.refuter");
 
 type GlobalChannel = typeof globalThis & Record<symbol, unknown>;
 
@@ -60,6 +62,7 @@ function getActiveProduct(): string | undefined {
 function resetRegistry(): void {
 	delete (globalThis as GlobalChannel)[ACTIVE_PRODUCT_KEY];
 	delete (globalThis as GlobalChannel)[PRODUCTS_KEY];
+	delete (globalThis as GlobalChannel)[CLAIM_KEY];
 }
 
 const SHIM_PATH = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "refuter", "extensions", "refuter.ts");

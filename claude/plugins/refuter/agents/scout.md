@@ -1,7 +1,7 @@
 ---
 name: scout
 description: "Fast reconnaissance: codebase map and dated web facts. Returns a map, never a plan."
-tools: WebFetch, WebSearch, Read, Write, Glob, Grep, mcp__plugin_refuter_context7__resolve-library-id, mcp__plugin_refuter_context7__query-docs
+tools: WebFetch, WebSearch, Read, Write, Glob, Grep, mcp__plugin_baton_context7__resolve-library-id, mcp__plugin_baton_context7__query-docs
 disallowedTools: Edit
 model: claude-sonnet-5
 effort: low

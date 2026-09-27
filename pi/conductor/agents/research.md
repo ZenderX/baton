@@ -2,7 +2,7 @@
 name: research
 description: Web research specialist — technical docs/library evaluation AND general web research (news, versions, regulations, prices) from up-to-date sources. Spawned by planning only.
 # web_search/fetch_content come from the pi-web-access package (pi install npm:pi-web-access) and replace Claude's web search/fetch tools; no bash — retrieval only through these tools
-tools: read, write, edit, web_search, fetch_content, the-pi-conductor__context7_resolve-library-id, the-pi-conductor__context7_query-docs
+tools: read, write, edit, web_search, fetch_content, pi-baton__context7_resolve-library-id, pi-baton__context7_query-docs
 thinking: medium
 maxTurns: 60
 readStallLimit: 0

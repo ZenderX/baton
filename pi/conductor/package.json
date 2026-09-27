@@ -15,8 +15,7 @@
     ],
     "prompts": [
       "./prompts"
-    ],
-    "mcp": "./.mcp.json"
+    ]
   },
   "peerDependencies": {
     "@earendil-works/pi-coding-agent": "*",

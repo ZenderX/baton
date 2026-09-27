@@ -16,6 +16,7 @@
 
 import type { Api, Model, ProviderHeaders } from "@earendil-works/pi-ai";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { claimExtension } from "./load-guard.ts";
 
 const FETCH_TIMEOUT_MS = 5000;
 
@@ -117,6 +118,8 @@ async function authHeaders(registry: ExtensionContext["modelRegistry"], model: M
 }
 
 export default function (pi: ExtensionAPI) {
+	if (!claimExtension(pi, "core.lmstudio-reasoning")) return;
+
 	// Keyed by server root; a server maps to UNKNOWN once its fetch has failed.
 	const servers = new Map<string, Map<string, string[]> | typeof UNKNOWN>();
 	const inFlight = new Map<string, Promise<void>>();

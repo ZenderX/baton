@@ -465,6 +465,8 @@ async function main(): Promise<void> {
 			console.log("  [5] self-heal rewrote models.json:", JSON.stringify(env.notified[0]));
 
 			// Re-running with the now-correct value is a no-op (no second write/notify/refresh).
+			// The first session shuts down first: its double-load guard claim (extensions/load-guard.ts) holds until then.
+			env.dispose();
 			const second = makeEnv();
 			second.state.model = makeModel("example-27b", "local", `http://127.0.0.1:${healServer.port}/v1`, 200000);
 			second.state.contextUsage = { tokens: 100000, contextWindow: 200000, percent: null };
@@ -477,7 +479,6 @@ async function main(): Promise<void> {
 			await second.fire("turn_end", { type: "turn_end" });
 			await sleep(50);
 			assert.equal(second.refreshes, 0, "no registry refresh when the value is already correct");
-			env.dispose();
 			second.dispose();
 		} finally {
 			await healServer.close();

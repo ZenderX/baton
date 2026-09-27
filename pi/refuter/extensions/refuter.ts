@@ -62,7 +62,59 @@ function getOrCreateProductsMap(): Map<string, ProductDescriptor> {
 	return map;
 }
 
-getOrCreateProductsMap().set(PRODUCT, DESCRIPTOR);
+/**
+ * Double-load guard, mirrored inline from core's extensions/load-guard.ts
+ * (key names and the DuplicateLoads shape are the shared contract): when this
+ * product is installed twice (umbrella pi/ plus a per-product package), only
+ * the first copy to load registers anything; the rest are recorded for one
+ * advisory notice per process. The winner releases its claim on
+ * session_shutdown, which pi emits before every reload re-runs the factories.
+ */
+interface DuplicateLoads {
+	skipped: Set<string>;
+	notified: boolean;
+}
+
+const DUPLICATES_KEY = Symbol.for("baton.duplicateLoads");
+const CLAIM_KEY = Symbol.for(`baton.extension.${PRODUCT}`);
+
+function isDuplicateLoads(value: unknown): value is DuplicateLoads {
+	return typeof value === "object" && value !== null && "skipped" in value && value.skipped instanceof Set;
+}
+
+function getDuplicateLoads(): DuplicateLoads {
+	const g = globalThis as GlobalChannel;
+	const existing = g[DUPLICATES_KEY];
+	if (isDuplicateLoads(existing)) return existing;
+	const created: DuplicateLoads = { skipped: new Set(), notified: false };
+	g[DUPLICATES_KEY] = created;
+	return created;
+}
+
+function claimProduct(pi: ExtensionAPI): boolean {
+	const g = globalThis as GlobalChannel;
+	if (g[CLAIM_KEY] !== undefined) {
+		getDuplicateLoads().skipped.add(PRODUCT);
+		return false;
+	}
+	g[CLAIM_KEY] = true;
+
+	pi.on("session_start", (_event, ctx) => {
+		const duplicates = getDuplicateLoads();
+		if (duplicates.notified || duplicates.skipped.size === 0 || !ctx.hasUI) return;
+		duplicates.notified = true;
+		ctx.ui.notify(
+			`Skipped duplicate copies of ${[...duplicates.skipped].join(", ")}: the same baton extension is installed more than once (for example the umbrella pi/ package plus a per-product package). Remove one install.`,
+			"info",
+		);
+	});
+
+	pi.on("session_shutdown", () => {
+		delete g[CLAIM_KEY];
+	});
+
+	return true;
+}
 
 // Set as early as possible (module load, before the extension factory below
 // even runs) so the core statusline's session_start sees an active product
@@ -92,6 +144,10 @@ function isActiveProductEntry(entry: SessionEntry): entry is CustomEntry<ActiveP
 }
 
 export default function (pi: ExtensionAPI): void {
+	if (!claimProduct(pi)) return;
+	// Only the winning copy's descriptor (its own agents and prompts) reaches the engine.
+	getOrCreateProductsMap().set(PRODUCT, DESCRIPTOR);
+
 	let enabled = false;
 
 	pi.registerFlag(PRODUCT, {

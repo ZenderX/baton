@@ -1,6 +1,6 @@
 {
   "name": "baton",
-  "description": "Shared core for the conductor and refuter plugins: Task-tools SessionStart hook + /baton:setup, memory linter, git-diff and memory skills.",
+  "description": "Shared core for the conductor and refuter plugins: context7 + sequentialthinking MCP servers, Task-tools SessionStart hook + /baton:setup, memory linter, git-diff and memory skills.",
   "author": {
     "name": "ZenderX"
   }

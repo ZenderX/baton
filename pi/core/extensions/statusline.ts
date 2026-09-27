@@ -66,6 +66,7 @@ import { formatTps, subagentLiveSnapshot, type SubagentLiveSample } from "./suba
 import { registerFooterApplier, registerFooterLine, registerFooterTick, unregisterFooterApplier, unregisterFooterLine, unregisterFooterTick } from "./footer-lines.ts";
 import { getActiveProductName } from "./engine/product-registry.ts";
 import { envSpawnDepth } from "./engine/spawn-depth.ts";
+import { claimExtension } from "./load-guard.ts";
 
 const STATE_KEY = "statusline";
 
@@ -411,6 +412,8 @@ async function selfHeal(ctx: ExtensionContext, model: Model<Api>, liveWindow: nu
 }
 
 export default function (pi: ExtensionAPI) {
+	if (!claimExtension(pi, "core.statusline")) return;
+
 	let enabled = false;
 	// Last observed conductor state; the auto-enable fires only on an off->on edge.
 	let lastConductorState = false;

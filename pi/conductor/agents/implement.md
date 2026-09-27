@@ -2,7 +2,7 @@
 name: implement
 description: Autonomous implementation specialist, the senior programmer on its phase. Owns the technical approach and code placement, then executes thoroughly. Use once a phase objective and acceptance criteria exist.
 # context7 is named because the body calls it; pi's --tools is a strict allowlist
-tools: read, write, edit, grep, find, ls, bash, the-pi-conductor__context7_resolve-library-id, the-pi-conductor__context7_query-docs
+tools: read, write, edit, grep, find, ls, bash, pi-baton__context7_resolve-library-id, pi-baton__context7_query-docs
 thinking: xhigh
 maxTurns: 200
 readStallLimit: 35
