@@ -178,9 +178,13 @@ function formatToolCall(
 
 	switch (toolName) {
 		case "bash": {
-			const command = (args.command as string) || "...";
+			// args is raw model JSON (unvalidated on guard-kill paths); a non-string command must not throw.
+			const command = String(args.command || "...").replace(/\s*\r?\n\s*/g, " ");
+			// ~10 cols for the "→ $ " prefix plus container padding; non-TTY callers get the 120-col fallback.
+			const max = Math.max(60, (process.stdout.columns || 120) - 10);
+			const half = Math.floor((max - 3) / 2);
 			// Head+tail: commands sharing a long prefix stay distinguishable by their tail.
-			const preview = command.length > 60 ? `${command.slice(0, 30)}...${command.slice(-30)}` : command;
+			const preview = command.length > max ? `${command.slice(0, half)}...${command.slice(-half)}` : command;
 			return themeFg("muted", "$ ") + themeFg("toolOutput", preview);
 		}
 		case "read": {
