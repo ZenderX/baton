@@ -74,7 +74,7 @@ Never skip planning, only scale it: **Direct** — write `plan.md` yourself, no 
 
 **Classifier-aware splitting:** the auto-mode classifier denies bundling unnamed third-party vendoring with local edits; split the phase instead of rewording it.
 
-Batch independent `Agent` calls into one message, deliberately under the platform's concurrency cap; dispatch sequentially only for genuine data dependencies. Dispatch one refuter per phase, one at a time.
+Batch independent `Agent` calls into one message, deliberately under the platform's concurrency cap; dispatch sequentially only for genuine data dependencies. Before fan-out, read the workspace manifests (e.g. `Cargo.toml`, `package.json`) covering the parallel phases' **Surface**s; when one surface depends on another at build time, add that edge to the `plan.md` **Depends on** column and build them in order. Dispatch one refuter per phase, one at a time.
 
 ## Phase cycle
 
@@ -106,4 +106,4 @@ Only you dispatch `refuter:memory`. Workers record memory-worthy facts under Gap
 
 ## Task list
 
-Task tools need `CLAUDE_CODE_ENABLE_TODO_TOOLS=1` via SessionStart, else skip them. The task list is your status board, never a worker's input; `plan.md` holds the phases. `TaskList` resumes the list at orient. Create one task per phase from the `plan.md` index, completing at final-gate acceptance; `addBlockedBy` follows its **Depends on** column, empty `blockedBy` marking the parallel-dispatch set. Status: in_progress at dispatch, held through fix passes and surfaced failures. Reconcile before ending a turn; delete every task at job end.
+Task tools need `CLAUDE_CODE_ENABLE_TODO_TOOLS=1` via SessionStart, else skip them. The task list is your status board, never a worker's input; `plan.md` holds the phases. `TaskList` resumes the list at orient. If the task list vanishes mid-job, recreate it from `plan.md` and the result files, then continue. Create one task per phase from the `plan.md` index, completing at final-gate acceptance; `addBlockedBy` follows its **Depends on** column, empty `blockedBy` marking the parallel-dispatch set. Status: in_progress at dispatch, held through fix passes and surfaced failures. Reconcile before ending a turn; delete every task at job end.

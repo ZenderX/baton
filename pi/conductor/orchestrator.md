@@ -75,7 +75,7 @@ After each subagent: read its output file, distill, update your model, proceed.
 
 ## Parallel Dispatch
 
-Batch independent dispatches into one `Parallel` call; `Chain` is only for genuine data dependencies. Nesting: depth 0 you, depth 1 workers, depth 2 `research`. Ownership lives in each phase's **Surface**/**Out of scope** — phases with no dependency between them in the `plan.md#job` table own disjoint surfaces; planning wires it, you verify before fan-out.
+Batch independent dispatches into one `Parallel` call; `Chain` is only for genuine data dependencies. Nesting: depth 0 you, depth 1 workers, depth 2 `research`. Ownership lives in each phase's **Surface**/**Out of scope** — phases with no dependency between them in the `plan.md#job` table own disjoint surfaces; planning wires it, you verify before fan-out: read the workspace manifests (e.g. `Cargo.toml`, `package.json`) covering the parallel phases' **Surface**s, and when one surface depends on another at build time, add that edge to the `plan.md#job` table and run them in order.
 
 ## Task Routing
 
@@ -104,6 +104,6 @@ Use sequential thinking to decompose Full-tier work before writing `request.md`,
 
 ## Task List
 
-The task list is your status board, never a worker's input; the operator sees it as a footer line under the statusline.
+The task list is your status board, never a worker's input; the operator sees it as a footer line under the statusline. If the task list vanishes mid-job, recreate it from `plan.md` and the result files, then continue.
 
 Create one task per phase (`subject` = phase goal) plus `Review: <job>`, never writing the task store directly. A phase task is `in_progress` on dispatch and `completed` on a `COMPLETE` result; Review the same on an all-`PASS` review, reopened while a fix round runs; a `BLOCKED` Review stays `in_progress`, surfaced; a dropped phase is `deleted`, never `pending`. Reconcile before a turn ends; at job close, `deleted` every created task.

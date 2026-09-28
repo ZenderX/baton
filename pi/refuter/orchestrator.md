@@ -65,7 +65,7 @@ Never skip planning, only scale it: **Direct** — write `plan.md` yourself, no 
 
 `plan.md` is the only channel to a builder. Before dispatching a phase, confirm its section is self-contained: settled facts were observed this session, unknowns are named, each acceptance criterion is one command, and parallel phases own disjoint **Surface**s. A phase that touches third-party sources names their location in **Context**: Cargo `~/.cargo/registry/src/index.crates.io-*/<crate>-<version>/`, Node `node_modules/<pkg>`, or the vendored path. Correct or split a section in place before its first dispatch; never edit it after, except for salvage.
 
-Batch independent dispatches into one `subagent` call with `tasks: [...]`; the tool caps 8 tasks per call and 4 running concurrently, and `PI_CONDUCTOR_SPAWN_DEPTH` refuses a call past depth 2. Dispatch sequentially, or with `chain`, only for genuine data dependencies. Dispatch one refuter per phase, one at a time.
+Batch independent dispatches into one `subagent` call with `tasks: [...]`; the tool caps 8 tasks per call and 4 running concurrently, and `PI_CONDUCTOR_SPAWN_DEPTH` refuses a call past depth 2. Dispatch sequentially, or with `chain`, only for genuine data dependencies. Before fan-out, read the workspace manifests (e.g. `Cargo.toml`, `package.json`) covering the parallel phases' **Surface**s; when one surface depends on another at build time, add that edge to the `plan.md` **Depends on** column and build them in order. Dispatch one refuter per phase, one at a time.
 
 ## Phase cycle
 
@@ -97,4 +97,4 @@ Only you dispatch `memory`. Workers record memory-worthy facts under Gaps in the
 
 ## Task list
 
-The task list is your status board, never a worker's input; `plan.md` holds the phases, and the operator sees the list as a footer line under the statusline. `TaskList` resumes the list at orient. Create one task per phase from the `plan.md` index, completing at final-gate acceptance; `addBlockedBy` follows its **Depends on** column, empty `blockedBy` marking the parallel-dispatch set. Status: `in_progress` at dispatch, held through fix passes and surfaced failures. Reconcile before ending a turn; set every task `deleted` at job end.
+The task list is your status board, never a worker's input; `plan.md` holds the phases, and the operator sees the list as a footer line under the statusline. `TaskList` resumes the list at orient. If the task list vanishes mid-job, recreate it from `plan.md` and the result files, then continue. Create one task per phase from the `plan.md` index, completing at final-gate acceptance; `addBlockedBy` follows its **Depends on** column, empty `blockedBy` marking the parallel-dispatch set. Status: `in_progress` at dispatch, held through fix passes and surfaced failures. Reconcile before ending a turn; set every task `deleted` at job end.
