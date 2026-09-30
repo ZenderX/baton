@@ -30,7 +30,7 @@ Every worker is a transaction: it reads one input file in `.claude/refuter/job/`
   ```
 
 - **Leftover folder.** If `.claude/refuter/job/` already exists when a job starts, it is from an aborted job. Do not merge into it or delete it silently: tell the human it exists, quote the goal from its `request.md`, and ask whether to resume or discard. On resume, read `plan.md` and the result files and continue from the first phase without a `COMPLETE` result; a result still opening with `**Status:** in progress` is salvage. On discard, delete the folder and start fresh.
-- **Job end.** After the last phase's final gate and any memory pass, delete the whole job folder.
+- **Job end.** After the last phase's final gate, run the memory triage under *Memory*, then delete the whole job folder.
 
 **Skill delivery.** Workers get no skill preload; they `read` copies you place in `skills/`. Each skill root under *Conductor runtime* holds `<name>/SKILL.md` folders; copy each needed `SKILL.md` to `skills/<name>.md`: `git-diff` at job start for the refuter; after `plan.md` exists, every file a phase's **Skills** list names; `memory-write`, plus `memory-review` for a review pass, before dispatching memory. Available language skills are `rust` (.rs), `typescript` (.ts/.tsx), and `vue3` (.vue).
 
@@ -61,7 +61,7 @@ A worker replies `COMPLETE` or `BLOCKED: <reason>`; treat any other reply, or a 
 
 ## Planning
 
-Never skip planning, only scale it: **Direct** — write `plan.md` yourself, no researcher; **Lightweight** — orient → `Scout` if needed → `Plan` → build/refute; **Full** — sequential thinking → `Scout` → `Plan` → phases. Decompose Full-tier work with sequential thinking, and use it again when a refuter verdict or an audit claim at `risk ≥ 0.35` contradicts your model. The researcher may dispatch its own follow-up scout through `scout.md`.
+Never skip planning, only scale it: **Direct** — write `plan.md` yourself, no researcher; **Lightweight** — orient → `Scout` if needed → `Plan` → build/refute; **Full** — `Scout` → `Plan` → phases. On every tier, decompose the request and choose the tier with sequential thinking before `request.md` or `Scout`, and use it again when a refuter verdict or an audit claim at `risk ≥ 0.35` contradicts your model. The researcher may dispatch its own follow-up scout through `scout.md`.
 
 `plan.md` is the only channel to a builder. Before dispatching a phase, confirm its section is self-contained: settled facts were observed this session, unknowns are named, each acceptance criterion is one command, and parallel phases own disjoint **Surface**s. A phase that touches third-party sources names their location in **Context**: Cargo `~/.cargo/registry/src/index.crates.io-*/<crate>-<version>/`, Node `node_modules/<pkg>`, or the vendored path. Correct or split a section in place before its first dispatch; never edit it after, except for salvage.
 
@@ -83,7 +83,7 @@ Batch independent dispatches into one `subagent` call with `tasks: [...]`; the t
 
 ## Memory
 
-Only you dispatch `memory`. Workers record memory-worthy facts under Gaps in their result files; decide which are durable and not already shown by the code, write each as a section of `memory.md`, and dispatch `Remember memory.md#<request-id>.`. It writes `memory.result.md#<request-id>`; create `memory.result.md` holding only `# Memory results` before the first `Remember`.
+Only you dispatch `memory`. Workers prefix memory-worthy Gaps lines with `[memory]`. Whenever you read a worker output — `scout.result.md` (again after `Plan`), a `<phase-id>.result.md`, a `review.md` or `audit.md` section — append each `[memory]` line not yet captured, plus any other durable fact not already shown by the code, as a `memory.md` section before a later pass overwrites it. Before deleting the job folder, dispatch `Remember memory.md#<request-id>.` per section. Your final report states what was remembered, or "no memory items". `memory` writes `memory.result.md#<request-id>`; create `memory.result.md` holding only `# Memory results` before the first `Remember`.
 
 ```markdown
 # Memory requests

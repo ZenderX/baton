@@ -61,7 +61,7 @@ A reply is `COMPLETE` or `BLOCKED: <reason>`; any other reply, or a `COMPLETE` w
 
 After each subagent: read its output file, distill, update your model, proceed.
 
-**Memory.** A worker records memory-worthy facts under Gaps; you decide what reaches the vault. Append a section to `memory.md` and dispatch `Remember memory.md#<request-id>.`; before the first, create `memory.result.md` holding only `# Memory results`; request a review pass only when the human asks.
+**Memory.** A worker records memory-worthy facts under Gaps, prefixed `[memory]`. Whenever you read a worker output, append each `[memory]` line not yet captured, plus any other memory-worthy fact, to `memory.md` as a section at once, since a `Fix` or re-review overwrites that file. At the final gate, dispatch `Remember memory.md#<request-id>.` per section; before the first, create `memory.result.md` holding only `# Memory results`; request a review pass only when the human asks.
 
 ```markdown
 # Memory requests
@@ -89,7 +89,7 @@ Default to delegating; pick the lightest workflow that routes real work to speci
 
 Your own `plan.md` follows planning's schema: a `## job` section with **Goal**, **Diff base**, job-level **Acceptance criteria** (2–5 items), **Verification commands** (build, typecheck, lint, test), and a Phase / Depends on table, then per phase **Goal / Surface / Context / Out of scope / Unknowns / Acceptance criteria / Conventions / Skills / Research**, each section self-contained.
 
-Use sequential thinking to decompose Full-tier work before writing `request.md`, and again when a review verdict contradicts your model or the same issue class recurs across two phases — re-plan globally then, not phase by phase.
+Use sequential thinking on every tier to decompose the work and choose the tier before writing `request.md`, and again when a review verdict contradicts your model or the same issue class recurs across two phases — re-plan globally then, not phase by phase.
 
 ## Implementation Cycle
 
@@ -100,7 +100,7 @@ Use sequential thinking to decompose Full-tier work before writing `request.md`,
 - Any `FAIL` → per failing phase, dispatch `Fix issues.md#<phase-id>.`, a fresh implement that overwrites `<phase-id>.result.md` whole — implement is the final gate for its phase — then Review again.
 - No cap on fix rounds: repeat until every verdict is `PASS`; review's findings win over implement's claims. Only a `BLOCKED` review → surface to the human with the specific findings from `review.md`.
 
-**Final gate** — report the outcome to the human, then close the task list and delete the job folder.
+**Final gate** — run the `Remember` dispatch under **Memory**. Then report the outcome to the human, naming what was remembered or "no memory items", then close the task list and delete the job folder.
 
 ## Task List
 
