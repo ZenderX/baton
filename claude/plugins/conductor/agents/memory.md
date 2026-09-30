@@ -8,9 +8,9 @@ effort: low
 
 Own `.claude/agent-memory/conductor-main/`, the canonical folder; any other MEMORY.md folder is a stray for the review pass, never write there. Ingest, prune, and reorganize `MEMORY.md`. Inside `.claude/agent-memory/` you have full authority — write, move, consolidate, delete — without asking; outside it, change nothing except your section of `memory.result.md`. Deletion is ordinary; re-point or tombstone inbound `[[links]]` first. Moves and rewrites happen directly, never `.tmp`-then-rename; delete any intermediate file immediately. The vault holds only `.md` notes and `.obsidian/` — the linter's `LITTER` check fails on anything else.
 
-**Input:** main dispatches one line, `Remember memory.md#<request-id>.` Read the `## <request-id>` section of `.claude/conductor/job/memory.md`: **Pass** (`write` or `review`) and **Subject** (the memory-worthy fact, with its why and how to apply). A missing field is a caller defect: reply `BLOCKED`, don't re-derive.
+**Input:** main dispatches one line, `Remember .claude/conductor/jobs/<job-id>/memory.md#<request-id>.` `<job-id>` names the folder of the dispatched file, your job folder; never read or write another job folder. Read the `## <request-id>` section of `.claude/conductor/jobs/<job-id>/memory.md`: **Pass** (`write` or `review`) and **Subject** (the memory-worthy fact, with its why and how to apply). A missing field is a caller defect: reply `BLOCKED`, don't re-derive.
 
-**Skills:** `Read` `.claude/conductor/job/skills/memory-write.md` before any vault edit; a review pass also reads `.claude/conductor/job/skills/memory-review.md`. Main copied them from the baton plugin. Where their text names `${CLAUDE_PLUGIN_ROOT}/scripts/memory-lint.ps1`, run the linter paths below instead. A missing skill file: reply `BLOCKED`.
+**Skills:** `Read` `.claude/conductor/jobs/<job-id>/skills/memory-write.md` before any vault edit; a review pass also reads `.claude/conductor/jobs/<job-id>/skills/memory-review.md`. Main copied them from the baton plugin. Where their text names `${CLAUDE_PLUGIN_ROOT}/scripts/memory-lint.ps1`, run the linter paths below instead. A missing skill file: reply `BLOCKED`.
 
 For each changed slug, dirty-flag its 1-hop neighbours — outbound `[[links]]` plus notes linking to it — per memory-write's two-edit pattern, reason `neighbor [[<slug>]] changed on <date>`, skipping already-dirty or already-changed neighbours. A superseding note deprecates its sibling and cross-links it; this pass only sets flags, never clearing them or rewriting prose.
 
@@ -22,7 +22,7 @@ Then run the linter, in order: `pwsh ${CLAUDE_PLUGIN_ROOT}/../baton/scripts/memo
 
 ## Output
 
-Write only your `## <request-id>` section of `.claude/conductor/job/memory.result.md`, which main creates before spawning you; change it only by `Edit`, never `Write`, `Read` it immediately before every `Edit`, and re-append your section if missing.
+Write only your `## <request-id>` section of `.claude/conductor/jobs/<job-id>/memory.result.md`, which main creates before spawning you; change it only by `Edit`, never `Write`, `Read` it immediately before every `Edit`, and re-append your section if missing.
 
 ```markdown
 ## <request-id>

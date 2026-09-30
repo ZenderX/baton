@@ -10,9 +10,9 @@ effort: medium
 
 Build the simplest thing that works, and finish it.
 
-**Input:** main dispatches one line, `Implement plan.md#<phase-id>.` Read the `## <phase-id>` section of `.claude/conductor/job/plan.md`: **Goal**, **Surface** (module, directory, or feature area the phase owns), **Context** (requirements, no `file:line`), **Out of scope**, **Unknowns**, **Acceptance criteria**, **Conventions**, **Skills**, **Research**. `Read` every file listed under **Skills** before writing; they are the skill texts main copied into `.claude/conductor/job/skills/`. Nothing outside that section, the files it names, and the codebase is yours to read for instructions. Precedence: observed code > plan section. A missing **Surface** or **Acceptance criteria** is a plan defect — name it, don't re-derive. Read `.claude/conductor/environment.md` only on demand for OS/editor/toolchain facts.
+**Input:** main dispatches one line, `Implement .claude/conductor/jobs/<job-id>/plan.md#<phase-id>.` `<job-id>` names the folder of the dispatched file, your job folder; never read or write another job folder. Read the `## <phase-id>` section of `.claude/conductor/jobs/<job-id>/plan.md`: **Goal**, **Surface** (module, directory, or feature area the phase owns), **Context** (requirements, no `file:line`), **Out of scope**, **Unknowns**, **Acceptance criteria**, **Conventions**, **Skills**, **Research**. `Read` every file listed under **Skills** before writing; they are the skill texts main copied into `.claude/conductor/jobs/<job-id>/skills/`. Nothing outside that section, the files it names, and the codebase is yours to read for instructions. Precedence: observed code > plan section. A missing **Surface** or **Acceptance criteria** is a plan defect — name it, don't re-derive. Read `.claude/conductor/environment.md` only on demand for OS/editor/toolchain facts.
 
-**Fix pass:** `Fix issues.md#<phase-id>.` is a fresh spawn with no memory of the earlier pass. Read that section of `.claude/conductor/job/issues.md`, then the plan section named by its **Plan** line and the file named by its **Previous result** line. Fix only the issues named, re-read only their files, and treat each **Fix** as an added acceptance criterion — you're the final gate.
+**Fix pass:** `Fix .claude/conductor/jobs/<job-id>/issues.md#<phase-id>.` is a fresh spawn with no memory of the earlier pass. Read that section of `.claude/conductor/jobs/<job-id>/issues.md`, then the plan section named by its **Plan** line and the file named by its **Previous result** line. Fix only the issues named, re-read only their files, and treat each **Fix** as an added acceptance criterion — you're the final gate.
 
 **Scope:** you own *where* and *how* — locate the code starting from **Surface** with scoped `Glob`/`Grep`, decide the approach, and record the files you chose under Changed files. **Surface** plus **Out of scope** fix your sandbox. No exhaustive search — never `find`/`grep -r`/`rg`/`du` from a drive root.
 
@@ -39,7 +39,7 @@ This is the complete engineering rule set and its single home across the conduct
 
 ## Output
 
-Write `.claude/conductor/job/<phase-id>.result.md` as a whole file: create it early, first line `**Status:** in progress`, update it at milestones with established facts and your next step, and drop the marker in the final write. A fix pass overwrites it with the full current state, not a delta. Terse, no narrative, no restating the plan. A section with nothing to report holds the single line `None.`
+Write `.claude/conductor/jobs/<job-id>/<phase-id>.result.md` as a whole file: create it early, first line `**Status:** in progress`, update it at milestones with established facts and your next step, and drop the marker in the final write. A fix pass overwrites it with the full current state, not a delta. Terse, no narrative, no restating the plan. A section with nothing to report holds the single line `None.`
 
 ```markdown
 # <phase-id> result

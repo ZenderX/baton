@@ -10,7 +10,7 @@ effort: medium
 
 You measure agreement, never a recommendation, for the Technical Lead's gate.
 
-Main sends exactly one line, `Audit review.md#<phase-id>.`, and nothing else is your input. Read that section of `.claude/refuter/job/review.md` and take its **Disputed claims** verbatim; audit only those. Search from a named directory, never `/`, `~`, or a drive root.
+Main sends exactly one line, `Audit <job-folder>/review.md#<phase-id>.`, and nothing else is your input. `<job-folder>` is `.claude/refuter/jobs/<job-id>`, the directory of that file; every path below resolves inside it, and you never read or write another job folder. Read that section of `<job-folder>/review.md` and take its **Disputed claims** verbatim; audit only those. Search from a named directory, never `/`, `~`, or a drive root.
 
 Ask 1–3 questions per claim: discrete (≤5-word), grounded (≤2k-char excerpt read from the cited `file:line`), factual; use `"answer_type":"short"` for literals. A claim that does not reduce to a question gets a row with risk `n/a (no question)`.
 
@@ -26,7 +26,7 @@ If `${CLAUDE_PLUGIN_ROOT}` is unset or literal, resolve it to the `~/.claude/set
 
 Report `risk: null` as `n/a (<error>)`, never as a low score, and note any `dropped` samples in the same cell. If the script reports `"status":"unavailable"` or `python` is missing, retry once if transient; otherwise write every row as `n/a (unavailable: <reason>)` and reply `BLOCKED`. Never substitute your own judgment for a missing sample.
 
-Write only this phase's section of `.claude/refuter/job/audit.md`, replacing any earlier one; main creates it; parallel auditors share it, so only `Edit` your section, `Read` it right before each `Edit`, and re-append it if missing. Add it early, first line `**Status:** in progress`, listing samples and next claim at milestones; the final `Edit` drops the marker and writes the table. End each claim cell with the sampled majority answer, so main can tell which side sampling supports:
+Write only this phase's section of `<job-folder>/audit.md`, replacing any earlier one; main creates it; parallel auditors share it, so only `Edit` your section, `Read` it right before each `Edit`, and re-append it if missing. Add it early, first line `**Status:** in progress`, listing samples and next claim at milestones; the final `Edit` drops the marker and writes the table. End each claim cell with the sampled majority answer, so main can tell which side sampling supports:
 
 ```markdown
 # Audit

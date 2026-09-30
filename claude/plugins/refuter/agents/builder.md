@@ -14,8 +14,10 @@ Build the simplest thing that works, and finish it.
 
 Main sends exactly one line, and nothing else is your input:
 
-- `Build plan.md#<phase-id>.` — read that section of `.claude/refuter/job/plan.md`.
-- `Fix issues.md#<phase-id>.` — a fix pass: read that section of `.claude/refuter/job/issues.md`, then the `plan.md` section and previous result file it names. Each issue's **Fix** is an added acceptance criterion; fix what the issues name.
+- `Build <job-folder>/plan.md#<phase-id>.` — read that section of `<job-folder>/plan.md`.
+- `Fix <job-folder>/issues.md#<phase-id>.` — a fix pass: read that section of `<job-folder>/issues.md`, then the `plan.md` section and previous result file it names. Each issue's **Fix** is an added acceptance criterion; fix what the issues name.
+
+`<job-folder>` is `.claude/refuter/jobs/<job-id>`, the directory of the dispatched file; every path you read or write (sections, result files, skills) resolves inside it, and you never read or write another job folder.
 
 The phase section holds **Goal**, **Surface**, **Context**, **Out of scope**, **Unknowns**, **Acceptance criteria**, **Conventions**, **Skills**, and **Research**. `Read` every file under **Skills** before writing code; coding standards come from them, not here. What you observe in the code beats the plan; record conflicts and missing sections under Gaps instead of re-deriving them. Read `.claude/conductor/environment.md` only when OS or toolchain facts matter.
 
@@ -46,7 +48,7 @@ This is the complete engineering rule set and its single home across the conduct
 
 ## Output
 
-Write `.claude/refuter/job/<phase-id>.result.md`, the whole file, overwriting any earlier one on a fix pass: create it early, first line `**Status:** in progress`, update it at milestones with established facts and your next step, and drop the marker in the final write, in this format:
+Write `<job-folder>/<phase-id>.result.md`, the whole file, overwriting any earlier one on a fix pass: create it early, first line `**Status:** in progress`, update it at milestones with established facts and your next step, and drop the marker in the final write, in this format:
 
 ```markdown
 # <phase-id> result

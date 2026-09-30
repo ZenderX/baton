@@ -127,7 +127,7 @@ export default function (pi: ExtensionAPI) {
 	async function refreshTasks(ctx: ExtensionContext): Promise<void> {
 		let raw: string;
 		try {
-			raw = await fs.readFile(resolveTaskStorePath(ctx.cwd), "utf8");
+			raw = await fs.readFile(resolveTaskStorePath(ctx.sessionManager.getSessionId()), "utf8");
 		} catch {
 			snapshot = null;
 			return;

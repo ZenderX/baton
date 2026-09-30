@@ -13,12 +13,16 @@ Read `.claude/conductor/environment.md` at orient; if absent, create it once fro
 
 ## Job folder
 
-Every worker is a transaction: it reads one input file in `.claude/refuter/job/`, writes one output file there, and replies with one line. Paths below are relative to that folder. The plan is `plan.md` there.
+Every worker is a transaction: it reads one input file in `.claude/refuter/jobs/<job-id>/`, writes one output file there, and replies with one line. Paths below are relative to that folder; dispatch `<file>`s and task descriptions carry its path. The plan is `plan.md` there. Touch other job folders only on the human's request; never walk `jobs/archive/`, opening an archived file only when a memory note names it.
 
-- **Job start.** Create `.claude/refuter/job/` and `skills/`, and write `request.md`:
+- **Job start.** Seed **Constraints** from a similar job's digest in your memory index. Name the job `YYYYMMDD-HHMM-<4 lowercase hex>`; `mkdir -p .claude/refuter/jobs`, then plain `mkdir` its folder, re-rolling the hex if taken. Create `skills/` and write `request.md`:
 
   ```markdown
   # Request
+
+  **Job id:** <job-id>
+
+  **Initial prompt:** <verbatim>
 
   ## job
 
@@ -29,8 +33,9 @@ Every worker is a transaction: it reads one input file in `.claude/refuter/job/`
   **Diff base:** <branch or commit that review diffs against>
   ```
 
-- **Leftover folder.** If `.claude/refuter/job/` already exists when a job starts, it is from an aborted job. Do not merge into it or delete it silently: tell the human it exists, quote the goal from its `request.md`, and ask whether to resume or discard. On resume, read `plan.md` and the result files and continue from the first phase without a `COMPLETE` result; a result still opening with `**Status:** in progress` is salvage. On discard, delete the folder and start fresh.
-- **Job end.** After the last phase's final gate, run the memory triage under *Memory*, then delete the whole job folder.
+- **Job end.** After the last phase's final gate, run the memory triage under *Memory*, then move the folder to `jobs/archive/<YYYY-MM-DD>-<slug>/`, slug at most five kebab-case words summarizing the initial prompt, plus `-2`, `-3`, ... on collision.
+- **Resume on request.** List active folders (`jobs/*/` except `archive/`) with job id and **Goal**, adopt one, and continue from its first phase without a `COMPLETE` result, creating its remaining tasks.
+- **Archive on request.** Append `**Closed incomplete:** <YYYY-MM-DD>` to its `request.md` preamble, add its digest, and archive it as at job end.
 
 **Skill delivery.** Workers get no skill preload; they `read` copies you place in `skills/`. Each skill root under *Conductor runtime* holds `<name>/SKILL.md` folders; copy each needed `SKILL.md` to `skills/<name>.md`: `git-diff` at job start for the refuter; after `plan.md` exists, every file a phase's **Skills** list names; `memory-write`, plus `memory-review` for a review pass, before dispatching memory. Available language skills are `rust` (.rs), `typescript` (.ts/.tsx), and `vue3` (.vue).
 
@@ -83,7 +88,7 @@ Batch independent dispatches into one `subagent` call with `tasks: [...]`; the t
 
 ## Memory
 
-Only you dispatch `memory`. Workers prefix memory-worthy Gaps lines with `[memory]`. Whenever you read a worker output — `scout.result.md` (again after `Plan`), a `<phase-id>.result.md`, a `review.md` or `audit.md` section — append each `[memory]` line not yet captured, plus any other durable fact not already shown by the code, as a `memory.md` section before a later pass overwrites it. Before deleting the job folder, dispatch `Remember memory.md#<request-id>.` per section. Your final report states what was remembered, or "no memory items". `memory` writes `memory.result.md#<request-id>`; create `memory.result.md` holding only `# Memory results` before the first `Remember`.
+Only you dispatch `memory`. Workers prefix memory-worthy Gaps lines with `[memory]`. Whenever you read a worker output — `scout.result.md` (again after `Plan`), a `<phase-id>.result.md`, a `review.md` or `audit.md` section — append each `[memory]` line not yet captured, plus any other durable fact not already shown by the code, as a `memory.md` section before a later pass overwrites it. At the final gate and on archive on request, add a job-digest section (Pass `write`): Goal, settled decisions, reusable facts (research answers with sources and dates, gotchas), archive path. Before archiving, dispatch `Remember memory.md#<request-id>.` per section. Your final report states what was remembered, or "no memory items". `memory` writes `memory.result.md#<request-id>`; create `memory.result.md` holding only `# Memory results` before the first `Remember`.
 
 ```markdown
 # Memory requests

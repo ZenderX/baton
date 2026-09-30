@@ -34,7 +34,7 @@ function readFileOr(filePath: string, fallback: string): string {
  * location, the active product, its live agent roster, and the project's
  * vault contents.
  */
-function buildRuntimeBlock(cwd: string, product: ProductDescriptor): string {
+function buildRuntimeBlock(cwd: string, sessionId: string, product: ProductDescriptor): string {
 	const agents = discoverAgents(cwd, "user", product.agentsDir, PACKAGE_ROOT).agents;
 	const agentList =
 		agents.length > 0
@@ -52,7 +52,7 @@ function buildRuntimeBlock(cwd: string, product: ProductDescriptor): string {
 	const environmentPath = path.join(cwd, ENVIRONMENT_RELATIVE);
 	const environmentState = fs.existsSync(environmentPath) ? `present at ${environmentPath}` : `absent at ${environmentPath}`;
 
-	const taskPlanPath = path.join(cwd, product.taskPlanRel);
+	const jobsPath = path.join(cwd, product.jobsRel);
 
 	return `## Conductor runtime
 
@@ -68,8 +68,8 @@ ${agentList}
 - Memory index (${memoryIndexPath}):
 ${memoryIndex}
 - environment.md: ${environmentState}
-- Task plan: ${taskPlanPath}
-- Task store: ${resolveTaskStorePath(cwd)}
+- Jobs folder (one \`<job-id>/\` per active job): ${jobsPath}
+- Task store: ${resolveTaskStorePath(sessionId)}
 `;
 }
 
@@ -91,7 +91,7 @@ export function registerOrchestrator(pi: ExtensionAPI): void {
 		if (orchestratorPrompt === "") return;
 
 		return {
-			systemPrompt: `${event.systemPrompt}\n\n${orchestratorPrompt}\n\n${buildRuntimeBlock(ctx.cwd, product)}`,
+			systemPrompt: `${event.systemPrompt}\n\n${orchestratorPrompt}\n\n${buildRuntimeBlock(ctx.cwd, ctx.sessionManager.getSessionId(), product)}`,
 		};
 	});
 }

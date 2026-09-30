@@ -4,7 +4,9 @@ node_modules/
 .pi/sessions/
 bash.exe.stackdump
 
-# Transient job folders (docs/job-files.md)
+# Job folders, active and archived (docs/job-files.md); legacy job/ kept
+.claude/conductor/jobs/
+.claude/refuter/jobs/
 .claude/conductor/job/
 .claude/refuter/job/
 

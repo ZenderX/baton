@@ -14,6 +14,10 @@
 # truthiness: `false`, `0` and `""` are present; `null` counts as absent. The
 # env block is read at process start, so the tools only appear on the next
 # session.
+#
+# Task lists are per session: CLAUDE_CODE_TASK_LIST_ID is never written. A
+# value equal to the `conductor-<slug>` pin earlier versions wrote into
+# settings.json is removed; any other value is user-set and left alone.
 
 set -u
 command -v jq >/dev/null 2>&1 || exit 0
@@ -32,43 +36,38 @@ proj=$(win_to_unix "${CLAUDE_PROJECT_DIR:-$PWD}")
 settings="$proj/.claude/settings.json"
 local_settings="$proj/.claude/settings.local.json"
 
-# One jq per file: emits "<enable><id>" as two y/n flags for the two keys.
-env_presence() {
-  jq -r '(.env // {}) as $raw
-         | (if ($raw | type) == "object" then $raw else {} end) as $e
-         | [ "CLAUDE_CODE_ENABLE_TODO_TOOLS", "CLAUDE_CODE_TASK_LIST_ID" ]
-         | map(. as $k
-               | if ($e | has($k)) and ($e[$k] != null) then "y" else "n" end)
-         | join("")' "$1" 2>/dev/null
+slug=$(printf '%s' "$(basename "$proj")" | tr 'A-Z' 'a-z' \
+  | sed 's/[^a-z0-9._-]/-/g; s/-\{2,\}/-/g; s/^-//; s/-$//')
+[ -n "$slug" ] || slug="project"
+old_id="conductor-$slug"
+
+# One jq per file: emits "<enable><stale>" as y/n flags — Task tools key
+# present, and the task-list pin equal to the old hook-written value.
+env_state() {
+  jq -r --arg id "$old_id" \
+     '(.env // {}) as $raw
+      | (if ($raw | type) == "object" then $raw else {} end) as $e
+      | (if ($e | has("CLAUDE_CODE_ENABLE_TODO_TOOLS"))
+            and ($e.CLAUDE_CODE_ENABLE_TODO_TOOLS != null) then "y" else "n" end)
+        + (if $e.CLAUDE_CODE_TASK_LIST_ID == $id then "y" else "n" end)' \
+     "$1" 2>/dev/null
 }
 
 flags="nn"
 if [ -f "$settings" ]; then
-  flags=$(env_presence "$settings")
+  flags=$(env_state "$settings")
   # Unparseable settings.json: never rewrite it.
   [ -n "$flags" ] || exit 0
 fi
+enable=${flags%?}
+stale=${flags#?}
 
 # Unparseable settings.local.json yields empty flags and is simply ignored.
-if [ "$flags" != "yy" ] && [ -f "$local_settings" ]; then
-  local_flags=$(env_presence "$local_settings")
-  case "$local_flags" in
-    [yn][yn])
-      e=n
-      i=n
-      case "${flags%?}${local_flags%?}" in *y*) e=y ;; esac
-      case "${flags#?}${local_flags#?}" in *y*) i=y ;; esac
-      flags="$e$i"
-      ;;
-  esac
+if [ "$enable" = "n" ] && [ -f "$local_settings" ]; then
+  case "$(env_state "$local_settings")" in y?) enable=y ;; esac
 fi
 
-[ "$flags" = "yy" ] && exit 0
-
-slug=$(printf '%s' "$(basename "$proj")" | tr 'A-Z' 'a-z' \
-  | sed 's/[^a-z0-9._-]/-/g; s/-\{2,\}/-/g; s/^-//; s/-$//')
-[ -n "$slug" ] || slug="project"
-id="conductor-$slug"
+[ "$enable" = "y" ] && [ "$stale" = "n" ] && exit 0
 
 if [ ! -f "$settings" ]; then
   mkdir -p "$proj/.claude" 2>/dev/null || exit 0
@@ -76,10 +75,11 @@ if [ ! -f "$settings" ]; then
 fi
 
 tmp=$(mktemp) || exit 0
-if jq --arg id "$id" --arg e "${flags%?}" --arg i "${flags#?}" \
+if jq --arg e "$enable" --arg s "$stale" \
      '.env = ((.env // {}) | if type == "object" then . else {} end)
       | if $e == "n" then .env.CLAUDE_CODE_ENABLE_TODO_TOOLS = "1" else . end
-      | if $i == "n" then .env.CLAUDE_CODE_TASK_LIST_ID = $id else . end' \
+      | if $s == "y" then del(.env.CLAUDE_CODE_TASK_LIST_ID) else . end
+      | if .env == {} then del(.env) else . end' \
      "$settings" > "$tmp" 2>/dev/null \
    && jq -e . "$tmp" >/dev/null 2>&1; then
   mv "$tmp" "$settings"
