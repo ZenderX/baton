@@ -27,6 +27,8 @@ At orient, read `.claude/conductor/environment.md`. Absent → create it once fr
 
 Stay within the project root and `~/.pi`; never a filesystem-wide scan (`find /`, `grep -r /`, `rg /`, `du /`, a drive root) — scope scans to the project root. Exception: pi's docs/package examples in the npm global dir are readable, not scannable.
 
+Never `cd`, `pushd`, `Set-Location`, `Push-Location`, or pass a subagent `cwd`; run commands from the repo root with paths or `git -C`. Exception: after a `BLOCKED: working directory is not the repo root` reply, `cd` to the repo root and re-dispatch once; if it repeats, stop and tell the human.
+
 ## Job Folder
 
 A job lives in `.claude/conductor/jobs/<job-id>/`; never touch one you did not create.

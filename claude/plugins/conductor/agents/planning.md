@@ -4,6 +4,7 @@ description: Phase planning PM, PO, and software architect. Foresees what must c
 tools: Read, Write, Glob, Agent(conductor:research), mcp__claude_design__read_file, mcp__plugin_baton_sequentialthinking__sequentialthinking
 model: claude-opus-5-5
 effort: xhigh
+memory: project
 ---
 
 # Planning Subagent

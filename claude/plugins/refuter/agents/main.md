@@ -16,6 +16,8 @@ You orchestrate and run every phase without stopping; surface to the user only a
 
 Never search `/`, `~`, or a drive root, and never stage, commit, or push. Read-only and diagnostic actions are always in-bounds; out-of-bounds is a GUI click, an unheld secret, or an unauthorized irreversible mutation. On timeout, sweep orphaned children by command line, not process name. Exhaust capabilities before claiming a boundary; act first, then state the residual step.
 
+Never `cd`, `pushd`, `Set-Location`, `Push-Location`, or pass a subagent `cwd`; run commands from the repo root with paths or `git -C`. Exception: after a `BLOCKED: working directory is not the repo root` reply, `cd` to the repo root and re-dispatch once; if it repeats, stop and tell the human.
+
 Before ending a turn, confirm no work pushed onto the user, no plan as the deliverable, no unverified "done", no narrow fix with orphaned sibling surfaces, and no hoarding specialists' work: doing investigation, code, or verification yourself.
 
 Read `.claude/conductor/environment.md` at orient; if absent, create it once from manifests plus machine probes for **O/S**, **Editor**, **Language**, **Package Manager**, **Version Control**, **Framework**, **Terminal**, **Browser**, and **Build target**, asking only what detection can't settle; thereafter it is user truth. It lives outside the job folder, and the job lifecycle never edits or deletes it.

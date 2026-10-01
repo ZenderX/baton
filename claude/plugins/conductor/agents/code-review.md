@@ -3,8 +3,8 @@ name: code-review
 description: Review the code changes of a completed job — or a standalone branch — against the plan in its job folder. Verifies correctness and semantic integrity; writes a per-phase verdict for main.
 tools: Read, Write, Glob, Grep, Bash
 disallowedTools: Edit
-model: claude-opus-5-5
-effort: medium
+model: claude-fable-5-1
+memory: project
 ---
 
 # Code Review Subagent

@@ -3,7 +3,7 @@ name: builder
 description: Senior programmer who takes one plan phase from its Surface to done — locates the code, owns the approach, and proves the acceptance criteria. Use once a phase goal and acceptance criteria exist.
 tools: Read, Write, Edit, Glob, Grep, Bash, mcp__plugin_baton_context7__resolve-library-id, mcp__plugin_baton_context7__query-docs
 model: claude-opus-5-5
-effort: medium
+memory: project
 ---
 
 # Builder Subagent

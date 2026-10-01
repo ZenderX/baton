@@ -8,6 +8,8 @@ effort: low
 
 Own `.claude/agent-memory/conductor-main/`, the canonical folder; any other MEMORY.md folder is a stray for the review pass, never write there. Ingest, prune, and reorganize `MEMORY.md`. Inside `.claude/agent-memory/` you have full authority — write, move, consolidate, delete — without asking; outside it, change nothing except your section of `memory.result.md`. Deletion is ordinary; re-point or tombstone inbound `[[links]]` first. Moves and rewrites happen directly, never `.tmp`-then-rename; delete any intermediate file immediately. The vault holds only `.md` notes and `.obsidian/` — the linter's `LITTER` check fails on anything else.
 
+Before reading anything, run `git rev-parse --show-prefix`; if it fails or prints a non-empty path, write nothing and reply `BLOCKED: working directory is not the repo root`.
+
 **Input:** main dispatches one line, `Remember .claude/conductor/jobs/<job-id>/memory.md#<request-id>.` `<job-id>` names the folder of the dispatched file, your job folder; never read or write another job folder. Read the `## <request-id>` section of `.claude/conductor/jobs/<job-id>/memory.md`: **Pass** (`write` or `review`) and **Subject** (the memory-worthy fact, with its why and how to apply). A missing field is a caller defect: reply `BLOCKED`, don't re-derive.
 
 **Skills:** `Read` `.claude/conductor/jobs/<job-id>/skills/memory-write.md` before any vault edit; a review pass also reads `.claude/conductor/jobs/<job-id>/skills/memory-review.md`. Main copied them from the baton plugin. Where their text names `${CLAUDE_PLUGIN_ROOT}/scripts/memory-lint.ps1`, run the linter paths below instead. A missing skill file: reply `BLOCKED`.

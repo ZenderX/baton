@@ -36,6 +36,8 @@ At orient, read `.claude/conductor/environment.md`. Absent → create it once fr
 
 Never run an exhaustive search — no `find`, `grep -r`, `rg`, or `du` from a drive root; scope every search to the smallest containing radius.
 
+Never `cd`, `pushd`, `Set-Location`, `Push-Location`, or pass a subagent `cwd`; run commands from the repo root with paths or `git -C`. Exception: after a `BLOCKED: working directory is not the repo root` reply, `cd` to the repo root and re-dispatch once; if it repeats, stop and tell the human.
+
 ## Job Folder
 
 A job lives in `.claude/conductor/jobs/<job-id>/`; never touch one you did not create.
