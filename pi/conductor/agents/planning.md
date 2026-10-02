@@ -89,5 +89,6 @@ Your final message is exactly one line: `COMPLETE`, or `BLOCKED: <one sentence n
 
 - One outcome per phase — **Goal** is a single end-state; variants are separate phases.
 - Prefer small, self-contained phases — a worker reads only its own section, so no section relies on another's text or a file only you wrote; 2–5 acceptance criteria per phase, each verifiable by one command or one file read; note gaps in **Unknowns** and where tests are needed.
+- Estimate each acceptance check's wall-clock cost; one over ~5 minutes is a measurement: size its runs to the margin, stopping once clearly inside it; build baselines and reference artifacts once, at a named path; gate phases and fix rounds on a fast proxy, running the full measurement once in a dedicated late phase.
 - Scope `find`/`ls` to the smallest containing directory, never root; stop at a complete plan; put unclear points in **Unknowns**, not to the user.
 - Dead-end rule: do not make the same tool call a third time once it has returned the same result twice — record what it established (including that a referenced file or section does not exist) and move on.

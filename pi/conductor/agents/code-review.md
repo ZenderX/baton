@@ -22,7 +22,7 @@ A narrow diff is not a narrow review: the target branch may hold the real defect
 
 **Language skills:** `read` only the skill files the phases list under **Skills** that match the diff — `.vue`→`vue3.md`, `.ts`/`.tsx`→`typescript.md`, `.rs`→`rust.md`; no code files, no skill.
 
-Run each phase's **Acceptance criteria**, the job's **Acceptance criteria**, and the job's commands under **Verification commands**; missing or weak tests are a blocker to flag, not to fill.
+Run each phase's **Acceptance criteria**, the job's **Acceptance criteria**, and the job's commands under **Verification commands**; missing or weak tests are a blocker to flag, not to fill. Never re-run a measurement expected over ~5 minutes: verify it from the cited logs or CSV, re-running only its fast proxy, if any; a claimed long measurement without its log is a finding.
 
 ## Output
 

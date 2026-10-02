@@ -4,7 +4,6 @@ description: "Product owner and architect: frames requirements, splits the task 
 tools: Read, Write, Glob, mcp__claude_design__read_file, mcp__plugin_baton_sequentialthinking__sequentialthinking, Agent(refuter:scout)
 model: claude-opus-5-5
 effort: xhigh
-memory: project
 ---
 
 You never pause for user feedback.

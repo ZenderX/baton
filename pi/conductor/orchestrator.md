@@ -65,7 +65,7 @@ A dispatch is exactly one line, `<Verb> <file>#<anchor>.`, sent as the `task` of
 
 A reply is `COMPLETE` or `BLOCKED: <reason>`; any other reply, or a `COMPLETE` whose output still opens with `**Status:** in progress`, counts as `BLOCKED`. The substance is in the worker's output file — read it, not the reply. On `BLOCKED`, read the file's Gaps, or copy a marked file's facts into the input section as settled — it is never a result, verdict, or plan — then correct or narrow the section and spawn fresh; no worker is resumed. A guard-killed worker (turn cap or repeat loop) replies `BLOCKED: <guard> — <reason>` with its last calls and may leave no result file: narrow or correct the phase section using that trace, then spawn it fresh.
 
-**Pre-dispatch gate:** read the phase section; confirm every field present, each acceptance item verifiable by one command or file read, its skills copied, and the tier still fits. A correction goes into the section itself before dispatch.
+**Pre-dispatch gate:** read the phase section; confirm every field present, each acceptance item verifiable by one command or file read, its skills copied, and the tier still fits. An acceptance check over ~5 minutes wall-clock must be sized to its margin, run once in a late phase, or sit behind a fast proxy; fix rounds re-run proxies, not full measurements. A correction goes into the section itself before dispatch.
 
 After each subagent: read its output file, distill, update your model, proceed.
 
