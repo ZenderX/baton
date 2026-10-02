@@ -13,6 +13,7 @@
       "./core/extensions/task-list.ts",
       "./core/extensions/lmstudio-reasoning.ts",
       "./core/extensions/drift-nudge.ts",
+      "./core/extensions/restore-crlf.ts",
       "./conductor/extensions/conductor.ts",
       "./refuter/extensions/refuter.ts"
     ],
