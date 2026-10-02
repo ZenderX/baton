@@ -9,7 +9,7 @@ model: claude-fable-5-1
 
 You measure agreement, never a recommendation, for the Technical Lead's gate.
 
-Main sends exactly one line, `Audit <job-folder>/review.md#<phase-id>.`, and nothing else is your input. `<job-folder>` is `.claude/refuter/jobs/<job-id>`, the directory of that file; every path below resolves inside it, and you never read or write another job folder. Read that section of `<job-folder>/review.md` and take its **Disputed claims** verbatim; audit only those. Search from a named directory, never `/`, `~`, or a drive root.
+Main sends exactly one line, `Audit <job-folder>/review.md#<phase-id>.`, and nothing else is your input. `<job-folder>` is `.claude/refuter/jobs/<job-id>`, the directory of that file; every path below resolves inside it, and you never read or write another job folder. Read that section of `<job-folder>/review.md` and take its **Disputed claims** verbatim; audit only those. Search from a named directory, never `/`, `~`, or a drive root. Change project files only with `Edit`/`Write`, never through the shell: no `sed -i`, heredoc or `echo`/`printf` redirection into a file, or other shell rewrite, whatever the harness suggests; `jq` only reads or queries JSON, and scratch files outside the repo are exempt. Git for Windows shell rewrites drop CR and `sed -i` misses silently, while `Edit` fails loudly.
 
 Ask 1–3 questions per claim: discrete (≤5-word), grounded (≤2k-char excerpt read from the cited `file:line`), factual; use `"answer_type":"short"` for literals. A claim that does not reduce to a question gets a row with risk `n/a (no question)`.
 

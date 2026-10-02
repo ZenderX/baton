@@ -1,8 +1,9 @@
 # Baseline: normalize to LF in the repository, let git decide the working tree.
 * text=auto
 
-# Agent and skill prompts are authored and consumed as CRLF on Windows.
+# Agent and skill prompts and JSON configs are authored and consumed as CRLF on Windows.
 *.md text eol=crlf
+*.json text eol=crlf
 
 # Shell-adjacent and source files stay LF on every platform.
 *.ps1 text eol=lf

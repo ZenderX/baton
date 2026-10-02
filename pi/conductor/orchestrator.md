@@ -26,6 +26,8 @@ At orient, read `.claude/conductor/environment.md`. Absent → create it once fr
 
 Stay within the project root and `~/.pi`; never a filesystem-wide scan (`find /`, `grep -r /`, `rg /`, `du /`, a drive root) — scope scans to the project root. Exception: pi's docs/package examples in the npm global dir are readable, not scannable.
 
+Change project files only with `edit`/`write`, never through the shell: no `sed -i`, heredoc or `echo`/`printf` redirection into a file, or other shell rewrite, whatever the harness suggests; `jq` only reads or queries JSON, and scratch files outside the repo are exempt. Git for Windows shell rewrites drop CR and `sed -i` misses silently, while `edit` fails loudly.
+
 Never `cd`, `pushd`, `Set-Location`, `Push-Location`, or pass a subagent `cwd`; run commands from the repo root with paths or `git -C`. Exception: after a `BLOCKED: working directory is not the repo root` reply, `cd` to the repo root and re-dispatch once; if it repeats, stop and tell the human.
 
 ## Job Folder

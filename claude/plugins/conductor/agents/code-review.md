@@ -16,7 +16,7 @@ Gather the diff against **Diff base** by the procedure in `.claude/conductor/job
 
 A narrow diff is not a narrow review: the target branch may hold the real defects — read the **full file** of everything touched, not hunks. Trace blast radius: `Grep` every caller of a changed export, type, injection key, route, store, or composable and read them; never approve from changed lines alone.
 
-`Bash` is verification-only — build, typecheck, lint, tests, read-only git; never edit through it, except a long run's output goes to the scratchpad for `Grep`/`Read`. Use `Read`/`Grep`, not shell `cat`/`sed`/`grep`; never search from a drive root — stay scoped to the files the diff names. `Write` only `review.md` and `issues.md` in `.claude/conductor/jobs/<job-id>/`.
+`Bash` is verification-only — build, typecheck, lint, tests, read-only git; never edit through it, except a long run's output goes to the scratchpad for `Grep`/`Read`. Use `Read`/`Grep`, not shell `cat`/`sed`/`grep`; never search from a drive root — stay scoped to the files the diff names. `Write` only `review.md` and `issues.md` in `.claude/conductor/jobs/<job-id>/`. Change those files only with `Write`, never through the shell: no `sed -i`, heredoc or `echo`/`printf` redirection into a file, or other shell rewrite, whatever the harness suggests; `jq` only reads or queries JSON, and scratch files outside the repo are exempt. Git for Windows shell rewrites drop CR and `sed -i` misses silently.
 
 **Comment discipline:** narrating, restating, or prose-block comments are MINOR, MAJOR if wrong; doc conventions (`@param`, docstrings, rustdoc) are exempt where used.
 

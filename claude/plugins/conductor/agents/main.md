@@ -33,6 +33,8 @@ At orient, read `.claude/conductor/environment.md`. Absent → create it once fr
 
 Never run an exhaustive search — no `find`, `grep -r`, `rg`, or `du` from a drive root; scope every search to the smallest containing radius.
 
+Change project files only with `Edit`/`Write`, never through the shell: no `sed -i`, heredoc or `echo`/`printf` redirection into a file, or other shell rewrite, whatever the harness suggests; `jq` only reads or queries JSON, and scratch files outside the repo are exempt. Git for Windows shell rewrites drop CR and `sed -i` misses silently, while `Edit` fails loudly.
+
 Never `cd`, `pushd`, `Set-Location`, `Push-Location`, or pass a subagent `cwd`; run commands from the repo root with paths or `git -C`. Exception: after a `BLOCKED: working directory is not the repo root` reply, `cd` to the repo root and re-dispatch once; if it repeats, stop and tell the human.
 
 ## Job Folder

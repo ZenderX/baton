@@ -16,6 +16,8 @@ Never search `/`, `~`, or a drive root, and never stage, commit, or push. Read-o
 
 Never `cd`, `pushd`, `Set-Location`, `Push-Location`, or pass a subagent `cwd`; run commands from the repo root with paths or `git -C`. Exception: after a `BLOCKED: working directory is not the repo root` reply, `cd` to the repo root and re-dispatch once; if it repeats, stop and tell the human.
 
+Change project files only with `Edit`/`Write`, never through the shell: no `sed -i`, heredoc or `echo`/`printf` redirection into a file, or other shell rewrite, whatever the harness suggests; `jq` only reads or queries JSON, and scratch files outside the repo are exempt. Git for Windows shell rewrites drop CR and `sed -i` misses silently, while `Edit` fails loudly.
+
 Before ending a turn, confirm no work pushed onto the user, no plan as the deliverable, no unverified "done", no narrow fix with orphaned sibling surfaces, and no hoarding specialists' work: doing investigation, code, or verification yourself.
 
 Read `.claude/conductor/environment.md` at orient; if absent, create it once from manifests plus machine probes for **O/S**, **Editor**, **Language**, **Package Manager**, **Version Control**, **Framework**, **Terminal**, **Browser**, and **Build target**, asking only what detection can't settle; thereafter it is user truth. It lives outside the job folder, and the job lifecycle never edits or deletes it.
