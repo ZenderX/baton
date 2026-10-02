@@ -40,12 +40,7 @@ Overwrite `.claude/conductor/jobs/<job-id>/review.md` whole: one section per pha
 
 **Disputed claims:**
 - <claim from the result file that the reviewer could not confirm, or None.>
-
-**Gaps:**
-- <`[memory]` memory-worthy fact discovered during review, or None.>
 ```
-
-The orchestrator alone decides what reaches memory; a memory-worthy fact goes under the section's **Gaps**, prefixed `[memory]`.
 
 When any phase fails, also write `.claude/conductor/jobs/<job-id>/issues.md`, only in the final write with the verdicts, one section per failing phase. A fix pass reads it cold, with no memory of this review, so each section repeats everything the fixer needs. Each **Problem** opens with its severity, `[CRITICAL]`, `[MAJOR]`, or `[MINOR]`; a diff-wide issue goes to the phase whose **Surface** owns the file.
 

@@ -35,10 +35,11 @@ if ($PSVersionTable.PSVersion.Major -lt 7 -or $PSVersionTable.PSEdition -ne 'Cor
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-# $PSScriptRoot already IS scripts/, so one Split-Path lands at repo root
-# (agent-memory: scripts-project-root-resolution).
+# $PSScriptRoot already IS scripts/, so one Split-Path lands at repo root.
 $PluginsRoot = Join-Path (Split-Path -Parent $PSScriptRoot) 'claude' 'plugins'
 $ManagedDirs = @('agents', 'rules', 'skills')
+# Retired from claude/plugins/ but once synced to ~/.claude/agents/, so still ours to remove.
+$RetiredAgents = @('memory.md')
 $removedCount = 0
 $preservedCount = 0
 
@@ -58,7 +59,7 @@ function Get-CanonNames {
         return @(Get-ChildItem -Path $PluginsRoot -Directory | ForEach-Object {
             $agentsPath = Join-Path $_.FullName 'agents'
             if (Test-Path $agentsPath) { Get-ChildItem -Path $agentsPath -File -Filter '*.md' | ForEach-Object { $_.Name } }
-        })
+        }) + $RetiredAgents
     }
     if ($SubDir -eq 'rules') {
         # No longer files in-repo, but a stale deployed copy of either name
@@ -124,8 +125,7 @@ try {
         $canonNames = Get-CanonNames -SubDir $dir
         $isSkills = $dir -eq 'skills'
 
-        # Outer @() must wrap the whole if/else (agent-memory:
-        # pwsh-strictmode-pipeline-null-count) or a single-result branch
+        # Outer @() must wrap the whole if/else or a single-result branch
         # collapses to a scalar and .Count throws under strict mode.
         $children = @(if ($isSkills) {
             Get-ChildItem -Path $destSubDir -Directory -ErrorAction SilentlyContinue

@@ -53,8 +53,7 @@ try {
     }
 
     # Strict mode throws on reading an absent property, so probe the member list first.
-    # The @() wrap matters on a property-less object, where bare .Name throws too
-    # (agent-memory: pwsh-strictmode-pipeline-null-count).
+    # The @() wrap matters on a property-less object, where bare .Name throws too.
     $hasAgent = @($settings.PSObject.Properties | ForEach-Object { $_.Name }) -contains 'agent'
     $current = if ($hasAgent) { $settings.agent } else { $null }
 

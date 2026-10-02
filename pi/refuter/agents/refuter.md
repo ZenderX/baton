@@ -37,12 +37,9 @@ Write only in `<job-folder>/`, replacing any earlier section for this phase. Aud
 
 **Disputed claims:**
 - <claim from the result file that the reviewer could not confirm, or None.>
-
-**Gaps:**
-- <`[memory]`-prefixed memory-worthy fact, with its why, or None.>
 ```
 
-The verdict is `FAIL` when any issue stands. List under **Disputed claims** a claim your evidence contradicts, or one that touches auth, migration, concurrency, deletion, or a public API and that you could not verify. Phrase each so a yes/no question about the code answers it, and cite `file:line`. A build or test break you reproduced is an issue with its command as evidence, not a disputed claim. Prefix each memory-worthy **Gaps** line with `[memory]`; the orchestrator alone decides what reaches memory.
+The verdict is `FAIL` when any issue stands. List under **Disputed claims** a claim your evidence contradicts, or one that touches auth, migration, concurrency, deletion, or a public API and that you could not verify. Phrase each so a yes/no question about the code answers it, and cite `file:line`. A build or test break you reproduced is an issue with its command as evidence, not a disputed claim.
 
 On `FAIL`, write this phase's section of `issues.md`, only in the final write with the verdict; on `PASS`, remove any earlier section for it. A fix pass reads the section cold, so each issue carries everything the fixer needs:
 

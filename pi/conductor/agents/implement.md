@@ -59,9 +59,7 @@ Write `.claude/conductor/jobs/<job-id>/<phase-id>.result.md` as a whole file: cr
 | `<command>` | <pass or fail, with the output line that proves it> |
 
 ## Gaps
-- <unmet criterion, plan error, assumption made, or `[memory]` memory-worthy fact; or None.>
+- <unmet criterion, plan error, or assumption made; or None.>
 ```
-
-The orchestrator alone decides what reaches memory; a memory-worthy fact goes under Gaps, prefixed `[memory]`.
 
 Your final message is exactly one line: `COMPLETE`, or `BLOCKED: <one sentence naming what is missing or contradictory>`. A blocked pass still writes the result file with what it established and the blocker under Gaps.

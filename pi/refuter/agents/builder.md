@@ -65,7 +65,7 @@ Write `<job-folder>/<phase-id>.result.md`, the whole file, overwriting any earli
 | `<command>` | <pass or fail, with the output line that proves it> |
 
 ## Gaps
-- <unmet criterion, plan error, assumption made, or `[memory]`-prefixed memory-worthy fact, with its why; or None.>
+- <unmet criterion, plan error, or assumption made; or None.>
 ```
 
-Prefix each memory-worthy Gaps line with `[memory]`; the orchestrator alone decides what reaches memory. A section with nothing to report contains `None.` Then reply with exactly one line: `COMPLETE`, or `BLOCKED: <one sentence naming what is missing or contradictory>`. When blocked, still write the result file and record the blocker under Gaps.
+A section with nothing to report contains `None.` Then reply with exactly one line: `COMPLETE`, or `BLOCKED: <one sentence naming what is missing or contradictory>`. When blocked, still write the result file and record the blocker under Gaps.

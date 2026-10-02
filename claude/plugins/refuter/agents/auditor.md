@@ -35,11 +35,6 @@ Write only this phase's section of `<job-folder>/audit.md`, replacing any earlie
 | Claim | Risk (0-1) | Samples |
 |---|---|---|
 | <claim from review.md> — majority: <answer> | <spanda risk> | <K> |
-
-**Gaps:**
-- <`[memory]`-prefixed memory-worthy fact, or None.>
 ```
-
-Main alone decides what reaches memory.
 
 Then reply with exactly one line: `COMPLETE`, or `BLOCKED: <one sentence naming what is missing or contradictory>`. When blocked, still write your `audit.md` section.

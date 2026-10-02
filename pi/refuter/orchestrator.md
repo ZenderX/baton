@@ -17,7 +17,7 @@ Read `.claude/conductor/environment.md` at orient; if absent, create it once fro
 
 Every worker is a transaction: it reads one input file in `.claude/refuter/jobs/<job-id>/`, writes one output file there, and replies with one line. Paths below are relative to that folder; dispatch `<file>`s and task descriptions carry its path. The plan is `plan.md` there. Touch other job folders only on the human's request; never walk `jobs/archive/`, opening an archived file only when a memory note names it.
 
-- **Job start.** Seed **Constraints** from a similar job's digest in your memory index. Name the job `YYYYMMDD-HHMM-<4 lowercase hex>`; `mkdir -p .claude/refuter/jobs`, then plain `mkdir` its folder, re-rolling the hex if taken. Create `skills/` and write `request.md`:
+- **Job start.** Seed **Constraints** from relevant notes in your memory index, `MEMORY.md` under *Conductor runtime*. Name the job `YYYYMMDD-HHMM-<4 lowercase hex>`; `mkdir -p .claude/refuter/jobs`, then plain `mkdir` its folder, re-rolling the hex if taken. Create `skills/` and write `request.md`:
 
   ```markdown
   # Request
@@ -35,13 +35,13 @@ Every worker is a transaction: it reads one input file in `.claude/refuter/jobs/
   **Diff base:** <branch or commit that review diffs against>
   ```
 
-- **Job end.** After the last phase's final gate, run the memory triage under *Memory*, then move the folder to `jobs/archive/<YYYY-MM-DD>-<slug>/`, slug at most five kebab-case words summarizing the initial prompt, plus `-2`, `-3`, ... on collision.
+- **Job end.** After the last phase's final gate, save memory per *Memory*, then move the folder to `jobs/archive/<YYYY-MM-DD>-<slug>/`, slug at most five kebab-case words summarizing the initial prompt, plus `-2`, `-3`, ... on collision.
 - **Resume on request.** List active folders (`jobs/*/` except `archive/`) with job id and **Goal**, adopt one, and continue from its first phase without a `COMPLETE` result, creating its remaining tasks.
-- **Archive on request.** Append `**Closed incomplete:** <YYYY-MM-DD>` to its `request.md` preamble, add its digest, and archive it as at job end.
+- **Archive on request.** Append `**Closed incomplete:** <YYYY-MM-DD>` to its `request.md` preamble and archive it as at job end.
 
-**Skill delivery.** Workers get no skill preload; they `read` copies you place in `skills/`. Each skill root under *Conductor runtime* holds `<name>/SKILL.md` folders; copy each needed `SKILL.md` to `skills/<name>.md`: `git-diff` at job start for the refuter; after `plan.md` exists, every file a phase's **Skills** list names; `memory-write`, plus `memory-review` for a review pass, before dispatching memory. Available language skills are `rust` (.rs), `typescript` (.ts/.tsx), and `vue3` (.vue).
+**Skill delivery.** Workers get no skill preload; they `read` copies you place in `skills/`. Each skill root under *Conductor runtime* holds `<name>/SKILL.md` folders; copy each needed `SKILL.md` to `skills/<name>.md`: `git-diff` at job start for the refuter; after `plan.md` exists, every file a phase's **Skills** list names. Available language skills are `rust` (.rs), `typescript` (.ts/.tsx), and `vue3` (.vue).
 
-**Script delivery.** Workers cannot see the package roots, so copy the scripts they run into `scripts/`, verifying each source exists: before `Audit`, `spanda-audit.py` from `<Product package root>/../../claude/plugins/refuter/scripts/`, else `<Product package root>/scripts/`; before `Remember`, `memory-lint.ps1` from `<Package root>/../../claude/plugins/baton/scripts/`, else `<Package root>/scripts/baton/`.
+**Script delivery.** Workers cannot see the package roots, so copy the scripts they run into `scripts/`, verifying each source exists: before `Audit`, `spanda-audit.py` from `<Product package root>/../../claude/plugins/refuter/scripts/`, else `<Product package root>/scripts/`.
 
 **Dispatch** goes through the `subagent` tool as `{ agent, task }`, where `task` is exactly one line, `<Verb> <file>#<anchor>.`, and nothing else:
 
@@ -53,9 +53,8 @@ Every worker is a transaction: it reads one input file in `.claude/refuter/jobs/
 | `Fix` | `builder` | `Fix issues.md#<phase-id>.` |
 | `Refute` | `refuter` | `Refute plan.md#<phase-id>.` |
 | `Audit` | `auditor` | `Audit review.md#<phase-id>.` |
-| `Remember` | `memory` | `Remember memory.md#<request-id>.` |
 
-A worker replies `COMPLETE` or `BLOCKED: <reason>`; treat any other reply, or a `COMPLETE` whose output still opens with `**Status:** in progress`, as `BLOCKED`. A blocked worker still writes its output file; read its Gaps before deciding. A guard-killed worker (turn cap or repeat loop) replies `BLOCKED: <guard> — <reason>` with its last calls and may leave no output file: narrow or correct the phase section using that trace, then spawn it fresh. Unless steps 3–4 say otherwise, copy a marked file's facts into the input section as settled and spawn fresh; it is never a result or verdict. For `Scout`, first write `scout.md`:
+A worker replies `COMPLETE` or `BLOCKED: <reason>`; treat any other reply, or a `COMPLETE` whose output still opens with `**Status:** in progress`, as `BLOCKED`. A blocked worker still writes its output file; read any Gaps before deciding. A guard-killed worker (turn cap or repeat loop) replies `BLOCKED: <guard> — <reason>` with its last calls and may leave no output file: narrow or correct the phase section using that trace, then spawn it fresh. Unless steps 3–4 say otherwise, copy a marked file's facts into the input section as settled and spawn fresh; it is never a result or verdict. For `Scout`, first write `scout.md`:
 
 ```markdown
 # Scout
@@ -90,17 +89,7 @@ Batch independent dispatches into one `subagent` call with `tasks: [...]`; the t
 
 ## Memory
 
-Only you dispatch `memory`. Workers prefix memory-worthy Gaps lines with `[memory]`. Whenever you read a worker output — `scout.result.md` (again after `Plan`), a `<phase-id>.result.md`, a `review.md` or `audit.md` section — append each `[memory]` line not yet captured, plus any other durable fact not already shown by the code, as a `memory.md` section before a later pass overwrites it. At the final gate and on archive on request, add a job-digest section (Pass `write`): Goal, settled decisions, reusable facts (research answers with sources and dates, gotchas), archive path. Before archiving, dispatch `Remember memory.md#<request-id>.` per section. Your final report states what was remembered, or "no memory items". `memory` writes `memory.result.md#<request-id>`; create `memory.result.md` holding only `# Memory results` before the first `Remember`.
-
-```markdown
-# Memory requests
-
-## <request-id>
-
-**Pass:** <write | review>
-
-**Subject:** <the memory-worthy fact, with its why and how to apply>
-```
+After reading the job's result files, save durable, non-obvious facts (decisions, gotchas, user preferences) that code and git history don't show, one plain Markdown note per fact, linking related notes with body `[[wikilinks]]`. Keep `MEMORY.md` to one line per note, `[[note-name]]` plus a short description, under 200 lines. When a fact changes, edit or delete its note and repoint links; git keeps history. Your final report states what was remembered, or "no memory items".
 
 ## Task list
 

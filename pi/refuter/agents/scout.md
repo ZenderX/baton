@@ -32,5 +32,5 @@ thinking: medium
   - <question not answered, or None.>
   ```
 
-  Gaps also names what you left unmapped and any memory-worthy fact, prefixed `[memory]`.
+  Gaps also names what you left unmapped.
 - Then reply with exactly one line: `COMPLETE`, or `BLOCKED: <one sentence naming what is missing or contradictory>`. When blocked, still write the result file and record the blocker under Gaps.

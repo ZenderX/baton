@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Refuter product shim (scout/researcher/builder/refuter/auditor/memory agents working through the job-file protocol, orchestrator persona, --refuter flag and /refuter command) on top of the baton core engine",
+  "description": "Refuter product shim (scout/researcher/builder/refuter/auditor agents working through the job-file protocol, orchestrator persona, --refuter flag and /refuter command) on top of the baton core engine",
   "license": "MIT",
   "author": "ZenderX",
   "keywords": [
