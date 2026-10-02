@@ -35,7 +35,8 @@
  *  10. Per-child drift config: the engine hands each child PI_CONDUCTOR_DRIFT,
  *      with no-progress on only for `driftProgress: true` agents (the real
  *      implement and builder, not code-review) and the Surface prefixes of
- *      the `plan.md#<phase-id>` section the task names.
+ *      the `plan.md#<phase-id>` section the task names, read only from its
+ *      own `<jobsRel>/<job-id>/` folder (never archive/ or a malformed id).
  *  11. drift-nudge extension: against a stubbed pi, the failed-run replay as
  *      tool_result events yields steer-only `[drift]` sends and no other pi
  *      or ctx call; no config, or depth 0, yields zero sends.
@@ -309,9 +310,12 @@ async function main(): Promise<void> {
 			path.join(agentsDir, "drifty.md"),
 			"---\r\nname: drifty\r\ndescription: progress-tracked worker\r\ndriftProgress: true\r\n---\r\nWork.\r\n",
 		);
-		// The harness product's taskPlanRel is "plan.md", resolved against the child's cwd (scratch).
+		// The harness product's jobsRel resolves against the child's cwd (scratch); the dispatch path names the job.
+		const jobsRel = path.join(".claude", "harness", "jobs");
+		const jobRel = ".claude/harness/jobs/20260101-0900-a3f9";
+		fs.mkdirSync(path.join(scratch, jobRel), { recursive: true });
 		fs.writeFileSync(
-			path.join(scratch, "plan.md"),
+			path.join(scratch, jobRel, "plan.md"),
 			[
 				"# Plan",
 				"## p9-other",
@@ -339,7 +343,7 @@ async function main(): Promise<void> {
 					agentsDir,
 					orchestratorPromptPath: path.join(scratch, "orchestrator.md"),
 					vaultDir: scratch,
-					taskPlanRel: "plan.md",
+					jobsRel,
 				},
 			],
 		]);
@@ -457,26 +461,38 @@ async function main(): Promise<void> {
 		{
 			const echo = async (agent: string, note: string): Promise<unknown> =>
 				JSON.parse(textOf(await run({ agent, task: task({ calls: [], then: "complete", echoEnv: DRIFT_ENV, note }) })));
-			assert.deepEqual(await echo("drifty", "Implement plan.md#p9-x."), {
+			assert.deepEqual(await echo("drifty", `Implement ${jobRel}/plan.md#p9-x.`), {
 				agent: "drifty",
 				noProgress: true,
 				cwd: scratch,
 				surface: ["crates/app/", "tools/"],
 			});
-			assert.deepEqual(await echo("drifty", "Fix issues.md#p9-x."), {
+			assert.deepEqual(await echo("drifty", `Fix ${jobRel}/issues.md#p9-x.`), {
 				agent: "drifty",
 				noProgress: true,
 				cwd: scratch,
 				surface: ["crates/app/", "tools/"],
 			});
+			// Only the dispatched job's own folder counts: never an archived job, a malformed job-id, or a plan outside the jobs folder.
+			const planText = fs.readFileSync(path.join(scratch, jobRel, "plan.md"));
+			for (const rel of [".claude/harness/jobs/archive/2026-09-30-x", ".claude/harness/jobs/current", "."]) {
+				fs.mkdirSync(path.join(scratch, rel), { recursive: true });
+				fs.writeFileSync(path.join(scratch, rel, "plan.md"), planText);
+				assert.deepEqual(
+					await echo("drifty", `Implement ${rel}/plan.md#p9-x.`),
+					{ agent: "drifty", noProgress: true, cwd: scratch, surface: [] },
+					`${rel} is not a job folder`,
+				);
+			}
+			assert.deepEqual(await echo("drifty", "Implement plan.md#p9-x."), { agent: "drifty", noProgress: true, cwd: scratch, surface: [] });
 			// A relative cwd resolves once, against ctx.cwd, for both the spawn and the config (plan.md read from there too).
 			const sub = path.join(scratch, "sub");
-			fs.mkdirSync(sub);
-			fs.copyFileSync(path.join(scratch, "plan.md"), path.join(sub, "plan.md"));
+			fs.mkdirSync(path.join(sub, jobRel), { recursive: true });
+			fs.writeFileSync(path.join(sub, jobRel, "plan.md"), planText);
 			const relative = await run({
 				agent: "drifty",
 				cwd: "sub",
-				task: task({ calls: [], then: "complete", echoEnv: DRIFT_ENV, note: "Implement plan.md#p9-x." }),
+				task: task({ calls: [], then: "complete", echoEnv: DRIFT_ENV, note: `Implement ${jobRel}/plan.md#p9-x.` }),
 			});
 			assert.deepEqual(JSON.parse(textOf(relative)), {
 				agent: "drifty",
@@ -484,7 +500,7 @@ async function main(): Promise<void> {
 				cwd: sub,
 				surface: ["crates/app/", "tools/"],
 			});
-			assert.deepEqual(await echo("free", "Review plan.md#p9-missing."),{ agent: "free", noProgress: false, cwd: scratch, surface: [] });
+			assert.deepEqual(await echo("free", `Review ${jobRel}/plan.md#p9-missing.`),{ agent: "free", noProgress: false, cwd: scratch, surface: [] });
 			assert.deepEqual(await echo("drifty", "no plan section"), { agent: "drifty", noProgress: true, cwd: scratch, surface: [] });
 
 			const piRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");

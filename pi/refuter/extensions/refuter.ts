@@ -1,6 +1,6 @@
 /**
  * Product shim — the pattern every product package (pi/refuter, pi/conductor)
- * repeats with its own PRODUCT/vaultDir/taskPlanRel below.
+ * repeats with its own PRODUCT/vaultDir/jobsRel below.
  *
  * Registers this package's ProductDescriptor on the shared
  * `Symbol.for("baton.products")` registry, and owns this product's
@@ -32,7 +32,7 @@ interface ProductDescriptor {
 	agentsDir: string;
 	orchestratorPromptPath: string;
 	vaultDir: string;
-	taskPlanRel: string;
+	jobsRel: string;
 }
 
 /** `extensions/` -> this package's own root. */
@@ -44,7 +44,7 @@ const DESCRIPTOR: ProductDescriptor = {
 	agentsDir: path.join(PACKAGE_ROOT, "agents"),
 	orchestratorPromptPath: path.join(PACKAGE_ROOT, "orchestrator.md"),
 	vaultDir: "refuter-main",
-	taskPlanRel: path.join(".claude", "refuter", "job", "plan.md"),
+	jobsRel: path.join(".claude", "refuter", "jobs"),
 };
 
 const PRODUCTS_KEY = Symbol.for("baton.products");

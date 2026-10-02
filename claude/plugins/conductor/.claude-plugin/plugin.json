@@ -1,7 +1,7 @@
 {
   "name": "conductor",
   "version": "1.0.1",
-  "description": "Conductor orchestrator + 5 subagents (planning, research, implement, code-review, memory). MCP servers (context7, sequentialthinking) come from the baton dependency. Subagents work through the job-file protocol in .claude/conductor/job/; the orchestrator is the only agent that talks to you and the only one that dispatches memory, which keeps the project's .claude/agent-memory/conductor-main/ Obsidian vault. Run /baton:setup to enable the Task tools (CLAUDE_CODE_ENABLE_TODO_TOOLS) in the project's .claude/settings.json.",
+  "description": "Conductor orchestrator + 5 subagents (planning, research, implement, code-review, memory). MCP servers (context7, sequentialthinking) come from the baton dependency. Subagents work through the job-file protocol in .claude/conductor/jobs/<job-id>/; the orchestrator is the only agent that talks to you and the only one that dispatches memory, which keeps the project's .claude/agent-memory/conductor-main/ Obsidian vault. Run /baton:setup to enable the Task tools (CLAUDE_CODE_ENABLE_TODO_TOOLS) in the project's .claude/settings.json.",
   "author": {
     "name": "ZenderX"
   },

@@ -2,13 +2,12 @@
  * Task Tools - Persisted TaskCreate/TaskGet/TaskUpdate/TaskList
  *
  * Registers four tools named and shaped like Claude Code's own task-list
- * tools, backed by one JSON file per project, so both products' orchestrator
+ * tools, backed by one JSON file per pi session, so both products' orchestrator
  * prompts describe the same status board on either harness. Only the root
  * session registers them (see index.ts): workers read the job folder, not the
  * list, so the root process is the store's only writer.
  */
 
-import { createHash } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { StringEnum } from "@earendil-works/pi-ai";
@@ -38,13 +37,15 @@ interface TaskStore {
 
 /**
  * Lives under the user's pi agent dir (an analogue of Claude Code's per-list
- * task directory), keyed by project path and shared by both products, so no
- * consumer repo gets a stray file and the list survives across sessions.
+ * task directory), keyed by the pi session id and shared by both products, so
+ * no consumer repo gets a stray file, parallel sessions in one project never
+ * share a list, and resuming a session returns its own list. Resolve per call
+ * from the current ctx: /new, /fork and /resume change the id in-process.
  */
-export function resolveTaskStorePath(cwd: string): string {
-	const abs = path.resolve(cwd);
-	const hash = createHash("sha1").update(abs).digest("hex").slice(0, 8);
-	return path.join(getAgentDir(), "conductor", "tasks", `${path.basename(abs)}-${hash}.json`);
+export function resolveTaskStorePath(sessionId: string): string {
+	// The id comes from the session file header; refuse anything that could escape the directory.
+	if (!/^[A-Za-z0-9_-]+$/.test(sessionId)) throw new Error(`Invalid pi session id for the task store: ${sessionId}`);
+	return path.join(getAgentDir(), "conductor", "tasks", `${sessionId}.json`);
 }
 
 function isTaskStore(value: unknown): value is TaskStore {
@@ -191,11 +192,11 @@ export function registerTaskTools(pi: ExtensionAPI): void {
 	pi.registerTool({
 		name: "TaskCreate",
 		label: "TaskCreate",
-		description: "Create a task on the project task list. New tasks start as pending.",
-		promptSnippet: "TaskCreate: add a task (subject, description, activeForm) to the project task list",
+		description: "Create a task on the session task list. New tasks start as pending.",
+		promptSnippet: "TaskCreate: add a task (subject, description, activeForm) to the session task list",
 		parameters: TaskCreateParams,
 		async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
-			const storePath = resolveTaskStorePath(ctx.cwd);
+			const storePath = resolveTaskStorePath(ctx.sessionManager.getSessionId());
 			return withFileMutationQueue(storePath, async () => {
 				const store = readStore(storePath);
 				const now = new Date().toISOString();
@@ -224,11 +225,11 @@ export function registerTaskTools(pi: ExtensionAPI): void {
 	pi.registerTool({
 		name: "TaskGet",
 		label: "TaskGet",
-		description: "Retrieve a task by id from the project task list.",
+		description: "Retrieve a task by id from the session task list.",
 		promptSnippet: "TaskGet: retrieve a task's full details by id",
 		parameters: TaskGetParams,
 		async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
-			const store = readStore(resolveTaskStorePath(ctx.cwd));
+			const store = readStore(resolveTaskStorePath(ctx.sessionManager.getSessionId()));
 			const task = requireTask(store, params.taskId);
 			return {
 				content: [{ type: "text", text: formatTaskGet(store, task) }],
@@ -241,12 +242,12 @@ export function registerTaskTools(pi: ExtensionAPI): void {
 		name: "TaskUpdate",
 		label: "TaskUpdate",
 		description:
-			"Update a task's status, fields, metadata, or block relationships on the project task list. " +
+			"Update a task's status, fields, metadata, or block relationships on the session task list. " +
 			'Set status to "deleted" to remove the task.',
 		promptSnippet: "TaskUpdate: change a task's status, fields, metadata, or blocking relationships",
 		parameters: TaskUpdateParams,
 		async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
-			const storePath = resolveTaskStorePath(ctx.cwd);
+			const storePath = resolveTaskStorePath(ctx.sessionManager.getSessionId());
 			return withFileMutationQueue(storePath, async () => {
 				const store = readStore(storePath);
 				const task = requireTask(store, params.taskId);
@@ -257,7 +258,9 @@ export function registerTaskTools(pi: ExtensionAPI): void {
 						other.blocks = other.blocks.filter((id) => id !== task.id);
 						other.blockedBy = other.blockedBy.filter((id) => id !== task.id);
 					}
-					writeStore(storePath, store);
+					// Main deletes every task at job end; dropping the emptied file keeps per-session stores from piling up.
+					if (store.tasks.length === 0) fs.rmSync(storePath, { force: true });
+					else writeStore(storePath, store);
 					return {
 						content: [{ type: "text", text: `Deleted task #${task.id}: ${task.subject}` }],
 						details: { id: task.id, deleted: true },
@@ -293,11 +296,11 @@ export function registerTaskTools(pi: ExtensionAPI): void {
 	pi.registerTool({
 		name: "TaskList",
 		label: "TaskList",
-		description: "List every task on the project task list.",
-		promptSnippet: "TaskList: list all tasks on the project task list",
+		description: "List every task on the session task list.",
+		promptSnippet: "TaskList: list all tasks on the session task list",
 		parameters: TaskListParams,
 		async execute(_toolCallId, _params, _signal, _onUpdate, ctx) {
-			const store = readStore(resolveTaskStorePath(ctx.cwd));
+			const store = readStore(resolveTaskStorePath(ctx.sessionManager.getSessionId()));
 			return {
 				content: [{ type: "text", text: formatTaskList(store) }],
 				details: { count: store.tasks.length },

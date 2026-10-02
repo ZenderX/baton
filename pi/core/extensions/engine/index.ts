@@ -567,13 +567,13 @@ async function runSingleAgent(
 			const invocation = getPiInvocation(args);
 			// Absolute so the drift config and the spawn agree: drift.ts resolves relative paths against this cwd.
 			const childCwd = path.resolve(defaultCwd, cwd ?? ".");
-			const taskPlanRel = getProduct(productName)?.taskPlanRel;
+			const jobsRel = getProduct(productName)?.jobsRel;
 			const drift = childDriftConfig(
 				agent.name,
 				agent.driftProgress,
 				task,
 				childCwd,
-				taskPlanRel === undefined ? undefined : path.join(childCwd, taskPlanRel),
+				jobsRel === undefined ? undefined : path.join(childCwd, jobsRel),
 			);
 			const proc = spawn(invocation.command, invocation.args, {
 				cwd: childCwd,

@@ -18,7 +18,7 @@ export interface ProductDescriptor {
 	agentsDir: string;
 	orchestratorPromptPath: string;
 	vaultDir: string;
-	taskPlanRel: string;
+	jobsRel: string;
 }
 
 /** Symbol.for resolves to the same symbol in every module graph of the process. */

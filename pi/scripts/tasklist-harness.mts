@@ -29,9 +29,10 @@
  *      becomes active; turn_start auto-enables the task rows.
  *  10. Tool registration: the engine registers TaskCreate/TaskGet/TaskUpdate/
  *      TaskList at depth 0 and none of them at depth 1.
- *  11. Tool behaviour: create persists to the per-project store, an unknown
- *      addBlockedBy id rejects the update without persisting, and `deleted`
- *      removes the task and every relation to it.
+ *  11. Tool behaviour: create persists to the per-session store, an unknown
+ *      addBlockedBy id rejects the update without persisting, `deleted`
+ *      removes the task and every relation to it, and the last delete removes
+ *      the store file.
  *  12. Narrow width: at 16 cells every task row fits the width with its
  *      subject truncated; at 7 cells the task rows hide (powerline only, or
  *      [""] with the statusline off), and they return at 8.
@@ -39,6 +40,10 @@
  *      reading, TaskCreate and TaskUpdate persist; no `.tmp-` file appears.
  *  14. Parallel reads: TaskList and TaskGet called on setImmediate while a
  *      TaskUpdate is in flight never reject (no partial store is visible).
+ *  15. Per-session store: two session ids in one project see disjoint lists;
+ *      session_start reason `new` switches the footer to an empty list and
+ *      leaves the old one intact; reason `resume` back to the first id shows
+ *      its tasks again; emptying a list removes only that session's file.
  *
  * Run with: node --experimental-strip-types pi/scripts/tasklist-harness.mts
  * (This file is intentionally NOT listed in package.json pi.extensions.)
@@ -68,6 +73,8 @@ function setActiveProduct(name: string | undefined): void {
 }
 
 const PROJECT_CWD = "/home/u/proj";
+const SESSION_ID = "0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b";
+const OTHER_SESSION_ID = "0199a1b2-c3d4-7e5f-8a9b-ffffffffffff";
 const TASK_TOOL_NAMES = ["TaskCreate", "TaskGet", "TaskUpdate", "TaskList"];
 
 // A deliberately minimal structural subset of pi's footer component and the
@@ -98,6 +105,8 @@ interface Env {
 	commands: Map<string, CommandHandler>;
 	appended: AppendedEntry[];
 	ctx: ExtensionContext;
+	/** The id ctx.sessionManager.getSessionId() returns; switch it, then fire session_start, to model /new or /resume. */
+	session: { id: string };
 }
 
 interface MakeEnvOptions {
@@ -159,6 +168,7 @@ function makeEnv(options: MakeEnvOptions = {}): Env {
 	const commands = new Map<string, CommandHandler>();
 	const appended: AppendedEntry[] = [];
 	const notified: string[] = [];
+	const session = { id: SESSION_ID };
 	let footerFactory: ((t: unknown, th: unknown, fd: unknown) => FooterComponent) | undefined;
 
 	const state: { model: unknown; contextUsage: unknown; branch: unknown[] } = { model: undefined, contextUsage: undefined, branch: [] };
@@ -198,7 +208,11 @@ function makeEnv(options: MakeEnvOptions = {}): Env {
 			return true;
 		},
 		ui,
-		sessionManager: { getEntries: (): unknown[] => entries, getBranch: (): unknown[] => state.branch },
+		sessionManager: {
+			getEntries: (): unknown[] => entries,
+			getBranch: (): unknown[] => state.branch,
+			getSessionId: (): string => session.id,
+		},
 		modelRegistry: {
 			getApiKeyAndHeaders: async (): Promise<unknown> => ({ ok: true, apiKey: "local-secret", headers: {} }),
 			refresh: async (): Promise<unknown> => undefined,
@@ -246,7 +260,12 @@ function makeEnv(options: MakeEnvOptions = {}): Env {
 		component = undefined;
 	}
 
-	return { pi, fire, render, dispose, state, notified, ctx, commands, appended };
+	return { pi, fire, render, dispose, state, notified, ctx, commands, appended, session };
+}
+
+/** The slice of ExtensionContext the task tools read: the store is keyed by the session id, not the cwd. */
+function toolCtx(sessionId: string): ExtensionContext {
+	return { cwd: PROJECT_CWD, sessionManager: { getSessionId: (): string => sessionId } } as unknown as ExtensionContext;
 }
 
 /** Load the engine against a fake pi that captures registered tools; releases its load-guard claim before returning. */
@@ -301,7 +320,7 @@ async function main(): Promise<void> {
 	process.env.PI_CODING_AGENT_DIR = agentDir;
 	delete process.env.PI_CONDUCTOR_SPAWN_DEPTH;
 	setActiveProduct(undefined);
-	const taskStorePath = resolveTaskStorePath(PROJECT_CWD);
+	const taskStorePath = resolveTaskStorePath(SESSION_ID);
 	assert.ok(taskStorePath.startsWith(agentDir), `the store must resolve under the temp agent dir, got: ${taskStorePath}`);
 	fs.mkdirSync(path.dirname(taskStorePath), { recursive: true });
 
@@ -548,7 +567,7 @@ async function main(): Promise<void> {
 			const call = async (name: string, params: unknown): Promise<string> => {
 				const tool = tools.get(name);
 				assert.ok(tool !== undefined, `${name} must be registered`);
-				const result = await tool.execute("call", params, undefined, undefined, { cwd: PROJECT_CWD } as ExtensionContext);
+				const result = await tool.execute("call", params, undefined, undefined, toolCtx(SESSION_ID));
 				return result.content[0]?.text ?? "";
 			};
 
@@ -557,7 +576,7 @@ async function main(): Promise<void> {
 			await call("TaskUpdate", { taskId: "#2", addBlockedBy: ["1"] });
 			await call("TaskUpdate", { taskId: "1", status: "in_progress" });
 			let stored = readStoredTasks(taskStorePath);
-			assert.deepEqual(stored.map(({ id, status }) => [id, status]), [[1, "in_progress"], [2, "pending"]], "create and update persist to the per-project store");
+			assert.deepEqual(stored.map(({ id, status }) => [id, status]), [[1, "in_progress"], [2, "pending"]], "create and update persist to the per-session store");
 			assert.deepEqual(stored[1].blockedBy, [1], "addBlockedBy persists the relation");
 			assert.equal(await call("TaskList", {}), "#1 [in_progress] p1\n#2 [pending] Review: job (blocked by #1)");
 
@@ -571,6 +590,7 @@ async function main(): Promise<void> {
 			await assert.rejects(call("TaskGet", { taskId: "1" }), /Task #1 not found/);
 			await call("TaskUpdate", { taskId: "2", status: "deleted" });
 			assert.equal(await call("TaskList", {}), "No tasks.");
+			assert.ok(!fs.existsSync(taskStorePath), "deleting the last task removes the session's store file");
 			console.log("  [11] task tools persist, reject unknown ids, and delete");
 		}
 
@@ -612,7 +632,7 @@ async function main(): Promise<void> {
 			const call = async (name: string, params: unknown): Promise<string> => {
 				const tool = tools.get(name);
 				assert.ok(tool !== undefined, `${name} must be registered`);
-				const result = await tool.execute("call", params, undefined, undefined, { cwd: PROJECT_CWD } as ExtensionContext);
+				const result = await tool.execute("call", params, undefined, undefined, toolCtx(SESSION_ID));
 				return result.content[0]?.text ?? "";
 			};
 			assert.equal(await call("TaskCreate", { subject: "first", description: "first" }), "Created task #1: first");
@@ -638,7 +658,7 @@ async function main(): Promise<void> {
 			const call = async (name: string, params: unknown): Promise<string> => {
 				const tool = tools.get(name);
 				assert.ok(tool !== undefined, `${name} must be registered`);
-				const result = await tool.execute("call", params, undefined, undefined, { cwd: PROJECT_CWD } as ExtensionContext);
+				const result = await tool.execute("call", params, undefined, undefined, toolCtx(SESSION_ID));
 				return result.content[0]?.text ?? "";
 			};
 			// A larger store widens the window an async truncate-then-write would leave open.
@@ -660,6 +680,51 @@ async function main(): Promise<void> {
 			}
 			assert.ok(reads > 0, "at least one read must overlap an in-flight update");
 			console.log(`  [14] ${reads} parallel TaskList/TaskGet reads during in-flight updates, none rejected`);
+		}
+
+		// --- 15. Per-session store: parallel sessions are disjoint, /new starts empty, /resume restores ---
+		{
+			fs.rmSync(taskStorePath, { force: true });
+			const newSessionId = "0199a1b2-c3d4-7e5f-8a9b-000000000000";
+			const otherStorePath = resolveTaskStorePath(OTHER_SESSION_ID);
+			assert.notEqual(otherStorePath, taskStorePath, "two session ids in one project must resolve to different stores");
+			const tools = new Map(loadEngineTools().map((tool) => [tool.name, tool]));
+			const call = async (ctx: ExtensionContext, name: string, params: unknown): Promise<string> => {
+				const tool = tools.get(name);
+				assert.ok(tool !== undefined, `${name} must be registered`);
+				const result = await tool.execute("call", params, undefined, undefined, ctx);
+				return result.content[0]?.text ?? "";
+			};
+
+			await call(toolCtx(SESSION_ID), "TaskCreate", { subject: "mine", description: "session A" });
+			await call(toolCtx(OTHER_SESSION_ID), "TaskCreate", { subject: "theirs", description: "session B" });
+			assert.equal(await call(toolCtx(SESSION_ID), "TaskList", {}), "#1 [pending] mine", "session A must not see session B's task");
+			assert.equal(await call(toolCtx(OTHER_SESSION_ID), "TaskList", {}), "#1 [pending] theirs", "session B must not see session A's task");
+			console.log("  [15] two sessions in one project see disjoint lists");
+
+			const env = await startEnv();
+			await until(() => env.render()[1] === "· #1 mine");
+
+			env.session.id = newSessionId;
+			env.fire("session_start", { type: "session_start", reason: "new" });
+			await until(() => env.render().length === 1);
+			assert.equal(await call(env.ctx, "TaskList", {}), "No tasks.", "a /new session starts with an empty list");
+			assert.deepEqual(readStoredTasks(taskStorePath).map(({ subject }) => subject), ["mine"], "/new leaves the previous session's list intact");
+			console.log("  [15] session_start reason new: empty list, old list intact");
+
+			env.session.id = SESSION_ID;
+			env.fire("session_start", { type: "session_start", reason: "resume" });
+			await until(() => env.render()[1] === "· #1 mine");
+			assert.equal(await call(env.ctx, "TaskList", {}), "#1 [pending] mine", "resuming a session returns its own list");
+			console.log("  [15] session_start reason resume: earlier tasks restored");
+			env.dispose();
+
+			await call(toolCtx(SESSION_ID), "TaskUpdate", { taskId: "1", status: "deleted" });
+			assert.ok(!fs.existsSync(taskStorePath), "an emptied list removes its store file");
+			assert.ok(fs.existsSync(otherStorePath), "emptying one session's list leaves another session's file");
+			await call(toolCtx(OTHER_SESSION_ID), "TaskUpdate", { taskId: "1", status: "deleted" });
+			assert.ok(!fs.existsSync(otherStorePath), "the other session's emptied list removes its own file");
+			console.log("  [15] an emptied list removes only its own session's file");
 		}
 	} finally {
 		if (originalAgentDirEnv === undefined) delete process.env.PI_CODING_AGENT_DIR;

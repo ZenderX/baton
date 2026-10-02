@@ -6,6 +6,7 @@
  */
 
 import * as fs from "node:fs";
+import * as path from "node:path";
 import type { DriftConfig } from "./drift.ts";
 
 export const DRIFT_ENV = "PI_CONDUCTOR_DRIFT";
@@ -55,18 +56,29 @@ export function planSurface(planPath: string, phaseId: string): string[] {
 	return [];
 }
 
-/** The config a spawned child gets: no-progress only for opted-in agents, Surface prefixes when the task names a plan or issues section. */
+const JOB_ID = /^\d{8}-\d{4}-[0-9a-f]{4}$/;
+
+/** The plan.md of the job folder the dispatched file sits in, or undefined unless that folder is `<jobsDir>/<job-id>` (never `archive/`). */
+function dispatchedPlanPath(dispatchedDir: string, cwd: string, jobsDir: string): string | undefined {
+	const jobDir = path.resolve(cwd, dispatchedDir);
+	if (path.dirname(jobDir) !== path.resolve(cwd, jobsDir)) return undefined;
+	if (!JOB_ID.test(path.basename(jobDir))) return undefined;
+	return path.join(jobDir, "plan.md");
+}
+
+/** The config a spawned child gets: no-progress only for opted-in agents, Surface prefixes when the task names a plan or issues section of a job folder under `jobsDir`. */
 export function childDriftConfig(
 	agent: string,
 	driftProgress: boolean,
 	task: string,
 	cwd: string,
-	planPath: string | undefined,
+	jobsDir: string | undefined,
 ): ChildDriftConfig {
-	// No `.` in the id: dispatch lines end with one ("Implement plan.md#p1-x.").
-	// A fix pass ("Fix issues.md#p1-x.") shares its phase's Surface in the sibling plan.md.
-	const phase = /\bplan\.md#([\w-]+)/.exec(task) ?? /\bissues\.md#([\w-]+)/.exec(task);
-	const surface = phase === null || planPath === undefined ? [] : planSurface(planPath, phase[1]);
+	// No `.` in the id: dispatch lines end with one ("Implement .claude/conductor/jobs/<job-id>/plan.md#p1-x.").
+	// A fix pass ("Fix .../issues.md#p1-x.") shares its phase's Surface in the sibling plan.md.
+	const phase = /([^\s"'`]*)\b(?:plan|issues)\.md#([\w-]+)/.exec(task);
+	const planPath = phase === null || jobsDir === undefined ? undefined : dispatchedPlanPath(phase[1], cwd, jobsDir);
+	const surface = phase === null || planPath === undefined ? [] : planSurface(planPath, phase[2]);
 	return { agent, noProgress: driftProgress, cwd, surface };
 }
 
