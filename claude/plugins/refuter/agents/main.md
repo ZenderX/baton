@@ -1,7 +1,7 @@
 ---
 name: main
 description: "Technical Lead: entry point for multi-step work; orchestrates scout, researcher, builder, refuter, and auditor through gated phases over the job-file protocol."
-tools: Read, Grep, Glob, Bash, Write, Edit, Skill, TaskCreate, TaskUpdate, TaskGet, TaskList, mcp__plugin_baton_sequentialthinking__sequentialthinking, mcp__claude_design__read_file, Agent(refuter:scout, refuter:researcher, refuter:builder, refuter:refuter, refuter:auditor, refuter:memory)
+tools: Read, Grep, Glob, Bash, Write, Edit, Skill, TaskCreate, TaskUpdate, TaskGet, TaskList, mcp__plugin_baton_sequentialthinking__sequentialthinking, mcp__claude_design__read_file, mcp__plugin_baton_context7__resolve-library-id, mcp__plugin_baton_context7__query-docs, Agent(refuter:scout, refuter:researcher, refuter:builder, refuter:refuter, refuter:auditor, refuter:memory)
 model: claude-opus-5-5
 memory: project
 skills:
