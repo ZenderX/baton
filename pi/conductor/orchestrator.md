@@ -50,7 +50,7 @@ A job lives in `.claude/conductor/jobs/<job-id>/`; never touch one you did not c
 **Diff base:** <branch or commit that review diffs against>
 ```
 
-**Skills.** Workers get no skill preload; they `read` `skills/<name>.md`. Copy each needed `SKILL.md` there as `<name>.md`, from `<skill root>/<name>/SKILL.md` for the skill root under *Conductor runtime* that holds it. Copy every skill a phase lists under **Skills** before its Implement, and `git-diff` before Review. A skill you cannot locate: say so once and remove its path from the phase's **Skills**.
+**Skills.** Workers get no skill preload; they `read` `skills/<name>.md`. Copy each needed `SKILL.md` there as `<name>.md`, from `<skill root>/<name>/SKILL.md` for the skill root under *Conductor runtime* that holds it. Copy every skill a phase lists under **Skills** before its Implement, `sequential-thinking` before `Plan`, and `git-diff` before Review. A skill you cannot locate: say so once and remove its path from the phase's **Skills**.
 
 **Job end.** After the final gate, move the folder to `jobs/archive/<YYYY-MM-DD>-<slug>/`, slug summarizing the initial prompt in ≤5 kebab-case words, suffixed `-2`, `-3`, … on collision. No agent walks `jobs/archive/`; open an archived file only when a memory note names it.
 
@@ -84,9 +84,9 @@ Default to delegating; pick the lightest workflow that routes real work to speci
 
 **Full** — complex multi-phase tasks: dispatch `Plan request.md#job.`; planning researches, spawns `research`, and writes `plan.md`. Verify its `job` table against the phase sections, Implement every unblocked phase, then one Review.
 
-Your own `plan.md` follows planning's schema: a `## job` section with **Goal**, **Diff base**, job-level **Acceptance criteria** (2–5 items), **Verification commands** (build, typecheck, lint, test), and a Phase / Depends on table, then per phase **Goal / Surface / Context / Out of scope / Unknowns / Acceptance criteria / Conventions / Skills / Research**, each section self-contained.
+Your own `plan.md` follows planning's schema: a `## job` section with **Goal**, **Rationale** (the outcome of your sequential thinking: tier, key decomposition or ordering decision, alternatives rejected with why), **Diff base**, job-level **Acceptance criteria** (2–5 items), **Verification commands** (build, typecheck, lint, test), and a Phase / Depends on table, then per phase **Goal / Surface / Context / Out of scope / Unknowns / Acceptance criteria / Conventions / Skills / Research**, each section self-contained.
 
-Use sequential thinking on every tier to decompose the work and choose the tier before writing `request.md`, and again when a review verdict contradicts your model or the same issue class recurs across two phases — re-plan globally then, not phase by phase.
+Use sequential thinking — `read` the `sequential-thinking` skill's `SKILL.md` from your skill listing (the baton skill root under *Conductor runtime*) and follow its thought protocol inline, never running its `scripts/think.ts` — on every tier to decompose the work and choose the tier before writing `request.md`, and again when a review verdict contradicts your model or the same issue class recurs across two phases — re-plan globally then, not phase by phase, appending one `**Revision:** <YYYY-MM-DD> — <what changed in the plan and why>` line per re-plan to the end of `plan.md`'s `job` section, never editing or deleting earlier **Rationale:** or **Revision:** text.
 
 ## Implementation Cycle
 

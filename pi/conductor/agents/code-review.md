@@ -16,7 +16,7 @@ Gather the diff against **Diff base** by the procedure in `.claude/conductor/job
 
 A narrow diff is not a narrow review: the target branch may hold the real defects — read the **full file** of everything touched, not hunks. Trace blast radius: `grep` every caller of a changed export, type, injection key, route, store, or composable and read them; never approve from changed lines alone.
 
-`bash` is verification-only — build, typecheck, lint, tests, read-only git; never edit through it, except a long run's truncated output leaves a named temp file — `grep`/`read` it. Use `read`/`grep`, not shell `cat`/`sed`/`grep`; never search from a drive root — stay scoped to the files the diff names. `write` only `review.md` and `issues.md` in `.claude/conductor/jobs/<job-id>/`.
+`bash` is verification-only — build, typecheck, lint, tests, read-only git; never edit through it, except a long run's truncated output leaves a named temp file — `grep`/`read` it. If you use the listed `sequential-thinking` skill, follow its thought protocol inline; never run its `scripts/think.ts`. Use `read`/`grep`, not shell `cat`/`sed`/`grep`; never search from a drive root — stay scoped to the files the diff names. `write` only `review.md` and `issues.md` in `.claude/conductor/jobs/<job-id>/`.
 
 **Comment discipline:** narrating, restating, or prose-block comments are MINOR, MAJOR if wrong; doc conventions (`@param`, docstrings, rustdoc) are exempt where used.
 

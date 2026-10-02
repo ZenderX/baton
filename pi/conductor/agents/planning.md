@@ -1,7 +1,7 @@
 ---
 name: planning
 description: Phase planning PM, PO, and software architect. Foresees what must change and in what order from the request and directory structure alone, never from code; spawns research; writes plan.md. Use before any code is written.
-tools: read, write, find, ls, subagent, pi-baton__sequentialthinking_sequentialthinking
+tools: read, write, find, ls, subagent
 spawn: [research]
 thinking: xhigh
 ---
@@ -20,7 +20,7 @@ Check the request's premises against the directory structure with `find`/`ls` as
 
 ## Planning Workflow
 
-- **Understand & order** — map the affected surfaces from the directory structure; find what must exist before what. Decompose the request into phases and order their dependencies with sequential thinking (`sequentialthinking`) before writing `plan.md`.
+- **Understand & order** — map the affected surfaces from the directory structure; find what must exist before what. Decompose the request into phases and order their dependencies with sequential thinking — `read` `.claude/conductor/jobs/<job-id>/skills/sequential-thinking.md` and follow its thought protocol inline, never running its `scripts/think.ts` — before writing `plan.md`, and record its outcome in the `job` section's **Rationale**.
 - **Research** — choosing a library or version is architecture, calling it is implementation. Write `.claude/conductor/jobs/<job-id>/research.md` with one section per question and, before the first spawn, `research.result.md` holding only `# Research results`; spawn one `research` per question via `subagent` (`{ agent: "research", task: "Research .claude/conductor/jobs/<job-id>/research.md#<question-id>." }`; independent questions in one `{ tasks: [...] }` call), and wait before drafting. Then read each `## <question-id>` section of `research.result.md`; one opening with `**Status:** in progress` is `BLOCKED`: copy its facts into a new question section and spawn fresh. A follow-up is a new question section and a fresh spawn; no research agent is resumed.
 
 ```markdown
@@ -45,6 +45,8 @@ Check the request's premises against the directory structure with `find`/`ls` as
 ## job
 
 **Goal:** <the job goal>
+
+**Rationale:** <tier chosen, the key decomposition or ordering decision, and the alternatives rejected with why>
 
 **Diff base:** <branch or commit>
 

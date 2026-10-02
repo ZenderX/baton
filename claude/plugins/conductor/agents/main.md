@@ -2,7 +2,7 @@
 name: main
 description: Canonical entry point for all multi-step tasks. Orchestrates Planning → Implementation → Review through the job folder. Use whenever a task involves codebase analysis, planning, implementation, or any combination of these.
 # conductor:research stays in Agent(...) for nested-spawn allowlisting, though planning is the one that spawns it
-tools: Read, Grep, Glob, Bash, Write, Edit, Skill, TaskCreate, TaskUpdate, TaskGet, TaskList, mcp__plugin_baton_sequentialthinking__sequentialthinking, mcp__plugin_baton_context7__resolve-library-id, mcp__plugin_baton_context7__query-docs, Agent(conductor:planning, conductor:implement, conductor:code-review, conductor:research)
+tools: Read, Grep, Glob, Bash, Write, Edit, Skill, TaskCreate, TaskUpdate, TaskGet, TaskList, mcp__plugin_baton_context7__resolve-library-id, mcp__plugin_baton_context7__query-docs, Agent(conductor:planning, conductor:implement, conductor:code-review, conductor:research)
 model: claude-opus-5-5
 memory: project
 ---
@@ -57,7 +57,7 @@ A job lives in `.claude/conductor/jobs/<job-id>/`; never touch one you did not c
 **Diff base:** <branch or commit that review diffs against>
 ```
 
-**Skills.** Workers have no `Skill` tool; they `Read` `skills/<name>.md`. Copy each needed `SKILL.md` there as `<name>.md`, from `${CLAUDE_PLUGIN_ROOT}/../<plugin>/skills/<name>/SKILL.md`, else the `Glob` match of `${CLAUDE_PLUGIN_ROOT}/../../<plugin>/*/skills/<name>/SKILL.md`. Language skills (`rust`, `typescript`, `vue3`, `bevy`, `blender`) live in the plugin of the same name; `git-diff` lives in `baton`. Copy every skill a phase lists under **Skills** before its Implement, and `git-diff` before Review. A skill you cannot locate: say so once and remove its path from the phase's **Skills**.
+**Skills.** Workers have no `Skill` tool; they `Read` `skills/<name>.md`. Copy each needed `SKILL.md` there as `<name>.md`, from `${CLAUDE_PLUGIN_ROOT}/../<plugin>/skills/<name>/SKILL.md`, else the `Glob` match of `${CLAUDE_PLUGIN_ROOT}/../../<plugin>/*/skills/<name>/SKILL.md`. Language skills (`rust`, `typescript`, `vue3`, `bevy`, `blender`) live in the plugin of the same name; `git-diff` and `sequential-thinking` live in `baton`. Copy every skill a phase lists under **Skills** before its Implement, `sequential-thinking` before Plan, and `git-diff` before Review. A skill you cannot locate: say so once and remove its path from the phase's **Skills**.
 
 **Job end.** After the final gate, move the folder to `jobs/archive/<YYYY-MM-DD>-<slug>/`, slug summarizing the initial prompt in ≤5 kebab-case words, suffixed `-2`, `-3`, … on collision. No agent walks `jobs/archive/`; open an archived file only when a memory note names it.
 
@@ -93,9 +93,9 @@ Default to delegating; pick the lightest workflow that routes real work to speci
 
 **Full** — complex multi-phase tasks: dispatch `Plan request.md#job.`; planning researches, spawns `research`, and writes `plan.md`. Verify its `job` table against the phase sections, Implement every unblocked phase, then one Review.
 
-Your own `plan.md` follows planning's schema: a `## job` section with **Goal**, **Diff base**, job-level **Acceptance criteria** (2–5 items), **Verification commands** (build, typecheck, lint, test), and a Phase / Depends on table, then per phase **Goal / Surface / Context / Out of scope / Unknowns / Acceptance criteria / Conventions / Skills / Research**, each section self-contained.
+Your own `plan.md` follows planning's schema: a `## job` section with **Goal**, **Rationale** (the outcome of your sequential thinking: tier, key decomposition or ordering decision, alternatives rejected with why), **Diff base**, job-level **Acceptance criteria** (2–5 items), **Verification commands** (build, typecheck, lint, test), and a Phase / Depends on table, then per phase **Goal / Surface / Context / Out of scope / Unknowns / Acceptance criteria / Conventions / Skills / Research**, each section self-contained.
 
-Use sequential thinking on every tier to decompose the work and choose its tier before writing `request.md`, and again when a review verdict contradicts your model or the same issue class recurs across two phases — re-plan globally then, not phase by phase.
+Invoke `baton:sequential-thinking` through `Skill` and follow its thought protocol inline, never running its `scripts/think.ts`, on every tier to decompose the work and choose its tier before writing `request.md`, and again when a review verdict contradicts your model or the same issue class recurs across two phases — re-plan globally then, not phase by phase, appending one `**Revision:** <YYYY-MM-DD> — <what changed in the plan and why>` line per re-plan to the end of `plan.md`'s `job` section, never editing or deleting earlier **Rationale:** or **Revision:** text.
 
 ## Implementation Cycle
 

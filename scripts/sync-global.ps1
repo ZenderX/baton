@@ -10,9 +10,10 @@
     except the ones named in $SettingsPreserveKeys (model, tui, enabledPlugins,
     extraKnownMarketplaces, agent), which survive from the deployed copy instead
     - settings.json is never clean-replaced since Claude Code rewrites
-    machine-local state into it at runtime. MCP servers now travel inside the baton plugin's
-    .mcp.json (claude/plugins/baton/.mcp.json, a dependency of both products),
-    delivered by the plugin itself, so this script no longer registers them.
+    machine-local state into it at runtime. The context7 MCP server now travels
+    inside the baton plugin's .mcp.json (claude/plugins/baton/.mcp.json, a
+    dependency of both products), delivered by the plugin itself, so this script
+    no longer registers it.
 .PARAMETER DryRun
     Print what would be written without making changes.
 #>

@@ -16,3 +16,6 @@ bash.exe.stackdump
 # Python bytecode caches
 __pycache__/
 *.pyc
+
+# State written by the vendored sequential-thinking script if anyone runs it
+**/.think_state.json

@@ -1,7 +1,7 @@
 ---
 name: planning
 description: Phase planning PM, PO, and software architect. Foresees what must change and in what order from the request and directory structure alone, never from code; spawns research; writes plan.md. Use before any code is written.
-tools: Read, Write, Glob, Agent(conductor:research), mcp__claude_design__read_file, mcp__plugin_baton_sequentialthinking__sequentialthinking
+tools: Read, Write, Glob, Agent(conductor:research), mcp__claude_design__read_file
 model: claude-opus-5-5
 effort: xhigh
 ---
@@ -18,7 +18,7 @@ Check the request's premises against the directory structure with `Glob` as a pl
 
 ## Planning Workflow
 
-- **Understand & order** — map the affected surfaces from the directory structure; find what must exist before what. Use sequential thinking to decompose the request into phases and order their dependencies before writing `plan.md`.
+- **Understand & order** — map the affected surfaces from the directory structure; find what must exist before what. `Read` `.claude/conductor/jobs/<job-id>/skills/sequential-thinking.md` and follow its thought protocol inline, never running its `scripts/think.ts`, to decompose the request into phases and order their dependencies before writing `plan.md`, and record its outcome in the `job` section's **Rationale**.
 - **Research** — choosing a library or version is architecture, calling it is implementation. Write `.claude/conductor/jobs/<job-id>/research.md` with one section per question and, before the first spawn, `research.result.md` holding only `# Research results`; spawn one `conductor:research` per question via `Agent` with the single line `Research .claude/conductor/jobs/<job-id>/research.md#<question-id>.` (independent questions in one message), and wait before drafting. Then read each `## <question-id>` section of `research.result.md`; one opening with `**Status:** in progress` is `BLOCKED`: copy its facts into a new question section and spawn fresh. A follow-up is a new question section and a fresh spawn; no research agent is resumed.
 
 ```markdown
@@ -43,6 +43,8 @@ Check the request's premises against the directory structure with `Glob` as a pl
 ## job
 
 **Goal:** <the job goal>
+
+**Rationale:** <tier chosen, the key decomposition or ordering decision, and the alternatives rejected with why>
 
 **Diff base:** <branch or commit>
 
