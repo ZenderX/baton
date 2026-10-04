@@ -1,17 +1,27 @@
 #!/bin/bash
-# Claude Code statusline — design "2a: Gauges, tightened":
-#   ▌dir branch !?$ │ Fable 5 ██▌░░░ 40% 397k/1M · cache █ 91% (47m) 2 miss │ 5h ████░░ 70% 3h03m · wk █░░░░░ 20% · Fable ██░░░░ 31% 4d2h
-# Two separator weights: │ divides the three groups (where you are / what you're
-# talking to and how full it is / what you have left); · separates budget items.
-# Bars are six cells read in half-cells (▌) = 8.3% resolution. Every bar is
-# followed by its percentage in the bar's own colour; the dim trailing value is
-# the thing that counts down (tokens against the window, time left in period).
-# Colour derived: green under 60%, amber past 60%, red past 85% (pct bold red;
-# time-critical countdowns bold red too). Inverted for the cache hit ratio —
-# high is good there, so green >=85%, amber >=60%, red below 60%.
+# Claude Code statusline — design "6a: Thin bars, cache in the grid"
+# ~98 columns per line:
+#   ctx ━╸──────────────   9% 89k/1M  · cache expires in 59m    97% │ Opus 5.5  ▌dir branch +!
+#   5h  ━━━╸────────────  22% 2h44m   · wk    ━━━━━━━━━━━━━╸──  84% · Fable ━━━━━━━━━━╸─────  66% 3d22h
+# Line 1 is everything tied to this session (context window, prompt cache,
+# model, repo, branch) and clears with a new conversation; line 2 is the plan
+# budgets (5h · wk · Fable), which carry across conversations, omitted when
+# empty. Both lines share a fixed grid: column 1 (33 cols: label 3, bar 16,
+# pct 4, tail 7), " · ", column 2 (27 cols: label 5, 16-col area, pct 4), so
+# the bars align, the cache % sits above the wk %, and line 1's │ sits above
+# line 2's second ·. A missing cell is filled with spaces to keep the grid.
+# Two separator weights: │ divides groups; · separates items.
+# Bars are 16 cells of thin glyphs read in half-cells (━ full, ╸ half,
+# ─ empty track) = 3.1% resolution. Every bar is followed by its percentage in
+# the bar's own colour, then the trailing value (tokens against the window,
+# time left in period; wk has none). Colour derived: green under 60%, amber
+# past 60%, bold red past 85%. Column-1 tails are neutral, bold red past 85%;
+# the Fable countdown is always dim. The cache is not a spent budget: no bar,
+# TTL dim (amber bold at <=5 min or expired), hit rate neutral (amber <70%).
 # Reactive: settings.json statusLine.refreshInterval=60 re-runs this every
 # minute even when idle. Reads Claude Code's JSON payload on stdin. Plan usage
-# from the OAuth usage endpoint (same source as /usage), cached 60s in ~/.claude/.
+# from the OAuth usage endpoint (same source as /usage), cached 60s in
+# ~/.claude/.
 # Local servers: ANTHROPIC_BASE_URL on a private host switches the gauge
 # denominator to the window the server reports (GET /v1/models, 60s cache) and
 # derives the cache group from the transcript when the payload has no
@@ -80,24 +90,25 @@ if [ -n "$repo_root" ]; then dir_name=${repo_root##*/}
 elif [ "$cwd" = "$HOME" ]; then dir_name="~"
 else dir_name=${cwd##*/}; fi
 
-# --- 2a palette (truecolor) ---
+# --- 6a palette (truecolor) ---
 R='\033[0m'
 C_BAR='\033[38;2;46;107;170m'       # #2E6BAA  ▌ accent bar
 C_DIR='\033[38;2;159;199;238m'      # #9FC7EE  dir name
 C_BRANCH='\033[1;38;2;179;146;224m' # #B392E0 bold  branch
 C_FLAGS='\033[38;2;226;166;60m'     # #E2A63C  git flags
-C_MODEL='\033[38;2;167;173;184m'    # #A7ADB8  model name / brightened values
-C_LABEL='\033[38;2;117;123;135m'    # #757B87  budget labels
-C_EMPTY='\033[38;2;52;58;67m'       # #343A43  empty gauge cells
-C_DIMV='\033[38;2;90;96;107m'       # #5A606B  dim trailing values
-C_GREEN='\033[38;2;99;190;139m'     # #63BE8B  gauge fill, calm
-C_AMBER='\033[38;2;226;166;60m'     # #E2A63C  gauge fill, past 60%
-C_RED='\033[38;2;224;86;63m'        # #E0563F  gauge fill, past 85%
-C_REDB='\033[1;38;2;224;86;63m'     # bold red pct
-C_TIME='\033[38;2;123;163;204m'     # #7BA3CC  reset countdowns — severity-independent
-                                    # (low time-left is GOOD; never inherits bar red)
+C_MODEL='\033[1;38;2;230;233;238m'  # #E6E9EE bold  model name, brightest text on the line
+C_BRIGHTV='\033[38;2;167;173;184m'  # #A7ADB8  neutral values (column-1 tails, cache hit rate)
+C_LABEL='\033[38;2;117;123;135m'    # #757B87  labels
+C_EMPTY='\033[38;2;58;65;75m'       # #3A414B  empty bar track
+C_DIMV='\033[38;2;90;96;107m'       # #5A606B  dim values (cache TTL, Fable countdown)
+C_GREEN='\033[38;2;99;190;139m'     # #63BE8B  bar fill, calm
+C_AMBER='\033[38;2;226;166;60m'     # #E2A63C  bar fill, past 60%; low cache hit rate
+C_AMBERB='\033[1;38;2;226;166;60m'  # bold amber cache TTL, <=5 min or expired
+C_REDB='\033[1;38;2;224;86;63m'     # #E0563F bold  bar fill / pct / tail, past 85%
 SEP_G=$(printf '%b │ %b' '\033[38;2;74;80;88m' "$R")   # #4A5058 group separator
 SEP_I=$(printf '%b · %b' '\033[38;2;63;68;77m' "$R")   # #3F444D item separator
+# Stands in for a separator before a missing cell, keeping the grid.
+SEP_BLANK='   '
 
 fmt_num() { # 600000 -> 600k, 1000000 -> 1M, 1500000 -> 1.5M, 9600 -> 9.6k
   if [ "$1" -ge 1000000 ]; then
@@ -109,34 +120,57 @@ fmt_num() { # 600000 -> 600k, 1000000 -> 1M, 1500000 -> 1.5M, 9600 -> 9.6k
   else printf '%s' "$1"; fi
 }
 
-# gauge LABEL PCT TRAILING KIND
-#   LABEL: budget label ("" = none, label rendered by caller e.g. model name)
-#   PCT: spent percent (bar + percentage in bar colour, bold at red)
-#   TRAILING: dim countdown/token figure ("" = none)
-#   KIND: "time" (bold red at red severity) | "tokens" (brightens, never red)
-# Bar: 6 cells in half-cell steps -> halves = round(pct * 12 / 100)
+# Grid widths in display cells: column 1 (ctx / 5h), column 2 (cache / wk).
+COL1_W=33
+COL2_W=27
+
+# Pads are computed from ASCII widths only: under Git Bash's C locale ${#s}
+# counts bytes, so never measure a string holding ━╸─│·▌—.
+pad() { # N -> N spaces (none when N <= 0; printf would left-justify a negative)
+  [ "$1" -gt 0 ] && printf '%*s' "$1" ""
+  return 0
+}
+
+# gauge LABEL PCT TRAILING LABEL_W TAIL_W [TRAIL_C]
+#   LABEL: gauge label, padded to LABEL_W, then a space
+#   PCT: spent percent (bar + percentage right-aligned in 4, in bar colour)
+#   TRAILING: countdown/token figure ("" = none), padded to TAIL_W
+#   TRAIL_C: trailing value colour; default neutral, bold red past 85%
+# Bar: 16 cells in half-cell steps -> halves = round(pct * 32 / 100)
 gauge() {
-  local label=$1 p=$2 trail=$3 kind=$4
-  local halves fulls half empties fill_c pct_c trail_c fills="" empt="" i
-  halves=$(( (p * 12 + 50) / 100 ))
-  [ "$halves" -gt 12 ] && halves=12
+  local label=$1 p=$2 trail=$3 label_w=$4 tail_w=$5 trail_c=$6
+  local halves fulls half empties fill_c fills="" empt="" i
+  halves=$(( (p * 32 + 50) / 100 ))
+  [ "$halves" -gt 32 ] && halves=32
   [ "$halves" -lt 0 ] && halves=0
-  fulls=$(( halves / 2 )); half=$(( halves % 2 )); empties=$(( 6 - fulls - half ))
-  if   [ "$p" -ge 85 ]; then fill_c=$C_RED;   pct_c=$C_REDB
-  elif [ "$p" -ge 60 ]; then fill_c=$C_AMBER; pct_c=$C_AMBER
-  else                       fill_c=$C_GREEN; pct_c=$C_GREEN; fi
-  # trailing value colour: countdowns are always the complementary blue
-  # (low time-left is good — decoupled from bar severity); token figures
-  # stay dim and brighten with severity
-  if   [ "$kind" = "time" ]; then trail_c=$C_TIME
-  elif [ "$p" -ge 60 ]; then trail_c=$C_MODEL
-  else                       trail_c=$C_DIMV; fi
-  i=0; while [ "$i" -lt "$fulls" ];   do fills+="█"; i=$((i+1)); done
-  [ "$half" -eq 1 ] && fills+="▌"
-  i=0; while [ "$i" -lt "$empties" ]; do empt+="░"; i=$((i+1)); done
-  [ -n "$label" ] && printf '%b%s%b ' "$C_LABEL" "$label" "$R"
-  printf '%b%s%b%b%s%b%b%s%%%b' "$fill_c" "$fills" "$R" "$C_EMPTY" "$empt" "$R" "$pct_c" "$p" "$R"
-  [ -n "$trail" ] && printf ' %b%s%b' "$trail_c" "$trail" "$R"
+  fulls=$(( halves / 2 )); half=$(( halves % 2 )); empties=$(( 16 - fulls - half ))
+  if   [ "$p" -ge 85 ]; then fill_c=$C_REDB; trail_c=${trail_c:-$C_REDB}
+  elif [ "$p" -ge 60 ]; then fill_c=$C_AMBER
+  else                       fill_c=$C_GREEN; fi
+  trail_c=${trail_c:-$C_BRIGHTV}
+  i=0; while [ "$i" -lt "$fulls" ];   do fills+="━"; i=$((i+1)); done
+  [ "$half" -eq 1 ] && fills+="╸"
+  i=0; while [ "$i" -lt "$empties" ]; do empt+="─"; i=$((i+1)); done
+  printf '%b%s%b' "$C_LABEL" "$label" "$R"; pad $(( label_w - ${#label} ))
+  printf ' %b%s%b%b%s%b ' "$fill_c" "$fills" "$R" "$C_EMPTY" "$empt" "$R"
+  pad $(( 3 - ${#p} )); printf '%b%s%%%b' "$fill_c" "$p" "$R"
+  if [ -n "$trail" ] || [ "$tail_w" -gt 0 ]; then
+    printf ' %b%s%b' "$trail_c" "$trail" "$R"; pad $(( tail_w - ${#trail} ))
+  fi
+}
+
+# cache_cell TTL_TEXT TTL_C HIT -> column-2 cell "cache <ttl> <hit>"
+#   TTL_TEXT padded to the 16-col area ("" = blank area)
+#   HIT: hit-rate percent right-aligned in 4, "-" = expired dash, "" = blank
+cache_cell() {
+  local ttl=$1 ttl_c=$2 hit=$3 hit_c=$C_BRIGHTV
+  printf '%bcache%b %b%s%b' "$C_LABEL" "$R" "$ttl_c" "$ttl" "$R"; pad $(( 17 - ${#ttl} ))
+  case "$hit" in
+    "") pad 4 ;;
+    -)  printf '   %b—%b' "$C_BRIGHTV" "$R" ;;
+    *)  [ "$hit" -lt 70 ] && hit_c=$C_AMBER
+        pad $(( 3 - ${#hit} )); printf '%b%s%%%b' "$hit_c" "$hit" "$R" ;;
+  esac
 }
 
 countdown_epoch() { # epoch seconds -> "2h13m" / "4d2h" / "now" / ""
@@ -165,10 +199,10 @@ countdown() { # ISO timestamp -> "2h13m" / "4d2h" / ""
   countdown_epoch "$target"
 }
 
-# --- Group 1: where you are — ▌dir branch flags ---
+# --- Location: where you are — ▌dir branch flags ---
 g1=$(printf '%b▌%b%b%s%b' "$C_BAR" "$R" "$C_DIR" "$dir_name" "$R")
 if [ -n "$branch" ]; then
-  g1+=$(printf ' %bon%b %b %s%b' "$C_LABEL" "$R" "$C_BRANCH" "$branch" "$R")
+  g1+=$(printf ' %b%s%b' "$C_BRANCH" "$branch" "$R")
   [ -n "$git_flags" ] && g1+=$(printf ' %b%s%b' "$C_FLAGS" "$git_flags" "$R")
 fi
 
@@ -225,10 +259,9 @@ if [ -n "$_base" ] && command -v curl >/dev/null 2>&1 && command -v jq >/dev/nul
   fi
 fi
 
-# --- Group 2: what you're talking to and how full it is — Model + ctx gauge ---
+# --- ctx gauge: how full the context window is ---
 # Denominator precedence: live server value (private host) > payload
 # context_window block (authoritative — matches /context) > model-family map.
-g2=""
 used=$(printf '%s' "$input" | grep -o '"total_input_tokens":[0-9]*' | head -n1 | cut -d: -f2)
 limit=$(printf '%s' "$input" | grep -o '"context_window_size":[0-9]*' | head -n1 | cut -d: -f2)
 pct=$(printf '%s' "$input" | grep -o '"used_percentage":[0-9.]*' | head -n1 | cut -d: -f2 | cut -d. -f1)
@@ -264,16 +297,15 @@ if [ -z "$limit" ] || [ "${limit:-0}" -eq 0 ]; then
   esac
 fi
 
+ctx_trail=""
+if [ -n "$used" ] && [ "$used" -gt 0 ] 2>/dev/null; then
+  [ -z "$pct" ] && pct=$(( used * 100 / limit ))
+  ctx_trail="$(fmt_num "$used")/$(fmt_num "$limit")"
+fi
+
 # On a local server show the model it actually serves; fall back to the tier
 # label Claude Code reports when the probe found nothing.
 display_model="${served_model:-$model}"
-if [ -n "$display_model" ]; then
-  g2=$(printf '%b[%s]%b' "$C_MODEL" "$display_model" "$R")
-  if [ -n "$used" ] && [ "$used" -gt 0 ] 2>/dev/null; then
-    [ -z "$pct" ] && pct=$(( used * 100 / limit ))
-    g2+=" $(gauge "" "$pct" "$(fmt_num "$used")/$(fmt_num "$limit")" tokens)"
-  fi
-fi
 
 # Prompt-cache health: main-conversation cache summary, added to the payload
 # after the first API response (v2.1.251+). When the block is absent (older
@@ -292,25 +324,19 @@ if command -v jq >/dev/null 2>&1; then
 
   if [ "$pc_present" = "true" ]; then
     if [ "$pc_observed" = "true" ]; then
-      w_glyph="░"; [ "$pc_warm" = "true" ] && w_glyph="█"
-      hh_str=""
-      if [ "${pc_hit:--1}" != "-1" ]; then
-        hh=$(awk -v h="$pc_hit" 'BEGIN{printf "%d", h*100+0.5}')
-        # inverted from the spend gauges above: a high hit ratio is good here
-        if   [ "$hh" -ge 85 ]; then hh_c=$C_GREEN
-        elif [ "$hh" -ge 60 ]; then hh_c=$C_AMBER
-        else                        hh_c=$C_REDB; fi
-        hh_str=$(printf '%b%s%%%b' "$hh_c" "$hh" "$R")
-      fi
-      if [ "$pc_warm" = "true" ] && [ "${pc_expires:--1}" != "-1" ]; then
-        left_str=$(printf '%b(%s)%b' "$C_TIME" "$(countdown_epoch "$pc_expires")" "$R")
+      hh=""
+      [ "${pc_hit:--1}" != "-1" ] && hh=$(awk -v h="$pc_hit" 'BEGIN{printf "%d", h*100+0.5}')
+      ttl_s=""
+      [ "${pc_expires:--1}" != "-1" ] && ttl_s=$(( pc_expires - $(date +%s) ))
+      # 6a renders neither pc_misses nor a warm/cold glyph: no room in the cell.
+      if [ "$pc_warm" != "true" ] || { [ -n "$ttl_s" ] && [ "$ttl_s" -le 0 ]; }; then
+        cache_seg=$(cache_cell "expired" "$C_AMBERB" "-")
+      elif [ -z "$ttl_s" ]; then
+        cache_seg=$(cache_cell "" "" "$hh")
       else
-        left_str=$(printf '%b(cold)%b' "$C_DIMV" "$R")
+        ttl_c=$C_DIMV; [ "$ttl_s" -le 300 ] && ttl_c=$C_AMBERB
+        cache_seg=$(cache_cell "expires in $(countdown_epoch "$pc_expires")" "$ttl_c" "$hh")
       fi
-      cache_seg=$(printf '%bcache%b %s' "$C_LABEL" "$R" "$w_glyph")
-      [ -n "$hh_str" ] && cache_seg+=" $hh_str"
-      cache_seg+=" $left_str"
-      [ "${pc_misses:-0}" -gt 0 ] 2>/dev/null && cache_seg+=$(printf ' %b%s miss%b' "$C_AMBER" "$pc_misses" "$R")
     fi
   else
     # Transcript-derived group: the last assistant usage's hit rate
@@ -333,26 +359,13 @@ if command -v jq >/dev/null 2>&1; then
         | if $last == null then empty
           else [ ((($last.cr * 100 / ($last.ti + $last.cr + $last.cw)) + 0.5) | floor), $miss ] | @tsv
           end' "$transcript" 2>/dev/null | tr -d '\r')
-      if [ -n "$tc_hit" ]; then
-        # inverted from the spend gauges above: a high hit ratio is good here
-        if   [ "$tc_hit" -ge 85 ]; then hh_c=$C_GREEN
-        elif [ "$tc_hit" -ge 60 ]; then hh_c=$C_AMBER
-        else                            hh_c=$C_REDB; fi
-        cache_seg=$(printf '%b%s%%%b' "$hh_c" "$tc_hit" "$R")
-        [ "${tc_miss:-0}" -gt 0 ] 2>/dev/null && cache_seg+="${SEP_I}$(printf '%b%s miss%b' "$C_AMBER" "$tc_miss" "$R")"
-      fi
+      # No TTL from a local server: blank area. tc_miss is not rendered in 6a.
+      [ -n "$tc_hit" ] && cache_seg=$(cache_cell "" "" "$tc_hit")
     fi
   fi
 fi
 
-if [ -n "$g2" ] && [ -n "$cache_seg" ]; then
-  g2+="${SEP_I}${cache_seg}"
-elif [ -z "$g2" ] && [ -n "$cache_seg" ]; then
-  g2="$cache_seg"
-fi
-
-# --- Group 3: what you have left — 5h · wk · Fable ---
-seg_5h=""; seg_wk=""; seg_fable=""
+# --- Line 2: what you have left — 5h · wk · Fable ---
 cache="$HOME/.claude/.statusline-usage.json"
 creds="$HOME/.claude/.credentials.json"
 
@@ -391,30 +404,41 @@ if [ -f "$cache" ] && command -v jq >/dev/null 2>&1; then
       (lim("weekly_scoped").percent // -1),
       (lim("weekly_scoped").resets_at // "-") ] | @tsv' "$cache" 2>/dev/null | tr '\t' ' ' | tr -d '\r')
 
-  # countdowns in parentheses, single space after the percentage
-  if [ "${s_pct:--1}" != "-1" ]; then
-    v=$(countdown "${s_reset:--}")
-    [ -n "$v" ] && v="($v)"
-    seg_5h=$(gauge "5h" "$s_pct" "$v" time)
-  fi
-  if [ "${w_pct:--1}" != "-1" ]; then
-    seg_wk=$(gauge "wk" "$w_pct" "" time)
-  fi
-  if [ "${f_pct:--1}" != "-1" ]; then
-    v=$(countdown "${f_reset:--}")
-    [ -n "$v" ] && v="($v)"
-    seg_fable=$(gauge "Fable" "$f_pct" "$v" time)
-  fi
+  s_trail=$(countdown "${s_reset:--}")
+  f_trail=$(countdown "${f_reset:--}")
 fi
 
-# --- Assemble: g1 │ g2 │ 5h · wk · Fable (skip empty groups/items) ---
-out="$g1"
-[ -n "$g2" ] && out+="${SEP_G}${g2}"
-g3=""
-for s in "$seg_5h" "$seg_wk" "$seg_fable"; do
-  [ -z "$s" ] && continue
-  [ -n "$g3" ] && g3+="$SEP_I"
-  g3+="$s"
-done
-[ -n "$g3" ] && out+="${SEP_G}${g3}"
+# --- Assemble on the grid ---
+# A missing cell with something after it on its line becomes spaces (and so
+# does the separator before it); trailing missing cells are dropped.
+# Line 2: 5h · wk · Fable
+has_s=0; [ "${s_pct:--1}" != "-1" ] && has_s=1
+has_w=0; [ "${w_pct:--1}" != "-1" ] && has_w=1
+has_f=0; [ "${f_pct:--1}" != "-1" ] && has_f=1
+line2=""
+if [ $(( has_s + has_w + has_f )) -gt 0 ]; then
+  if [ "$has_s" = 1 ]; then
+    s_tw=0; [ $(( has_w + has_f )) -gt 0 ] && s_tw=7
+    line2=$(gauge "5h" "$s_pct" "$s_trail" 3 "$s_tw")
+  else
+    line2=$(pad "$COL1_W")
+  fi
+  if [ "$has_w" = 1 ]; then
+    line2+="${SEP_I}$(gauge "wk" "$w_pct" "" 5 0)"
+  elif [ "$has_f" = 1 ]; then
+    line2+="${SEP_BLANK}$(pad "$COL2_W")"
+  fi
+  [ "$has_f" = 1 ] && line2+="${SEP_I}$(gauge "Fable" "$f_pct" "$f_trail" 5 0 "$C_DIMV")"
+fi
+
+# Line 1: ctx · cache │ model  ▌dir branch flags
+if [ -n "$ctx_trail" ]; then out=$(gauge "ctx" "$pct" "$ctx_trail" 3 7)
+else out=$(pad "$COL1_W"); fi
+if [ -n "$cache_seg" ]; then out+="${SEP_I}${cache_seg}"
+else out+="${SEP_BLANK}$(pad "$COL2_W")"; fi
+out+="$SEP_G"
+[ -n "$display_model" ] && out+="$(printf '%b%s%b  ' "$C_MODEL" "$display_model" "$R")"
+out+="$g1"
+# Claude Code renders each stdout line as its own statusline row.
+[ -n "$line2" ] && out+=$'\n'"${line2}"
 printf '%s' "$out"
