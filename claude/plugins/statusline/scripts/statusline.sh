@@ -3,25 +3,24 @@
 # 3 lines; grid lines at most 102 columns (line 3
 # with a 6-char Fable countdown such as 90d16h; line 1 is unpadded):
 #   ▌dir branch +! · Opus 5.5
-#   ctx   ━╸──────────────   9% 89k/1M  · cache expires in 59m    97% · in    89k   · out   1.2k
+#   ctx   ━╸──────────────   9% 89k/1M  · cache expires in 59m    97% · out   1.2k
 #   5h    ━━━╸────────────  22% 2h44m   · wk    ━━━━━━━━━━━━━╸──  84% · Fable ━━━━━━━━━━╸─────  66% 3d22h
-# On usage credit, line 3 is cost · in · out and in · out leave line 2:
+# On usage credit, line 3 is cost · out and out leaves line 2:
 #   ctx   ━╸──────────────   9% 89k/1M  · cache expires in 59m    97%
-#   cost  ━───────────────   6% $3.14   · in    89k   · out   1.2k
+#   cost  ━───────────────   6% $3.14   · out   1.2k
 # Line 1 is identity (repo, branch, git flags, model), unpadded. Line 2 is
-# this conversation (context window, prompt cache, last response's tokens) and
-# clears with a new one; line 3 is the plan budgets (5h · wk · Fable), which
-# carry across conversations. A grid line with no data is omitted. Lines 2–3
-# share a fixed grid: column 1 (35 cols: label 5, bar 16, pct 4, tail 7),
-# " · ", column 2 (27 cols: label 5, 16-col area, pct 4), so every bar starts
-# at column 7 and the cache % ends above the wk %; then " · in" (label 5,
-# count 5) and " · out" (label 5, count). A missing cell is filled with spaces
-# to keep the grid; trailing missing cells are dropped.
-# in/out are context_window.total_input_tokens / total_output_tokens: the most
-# recent API response's counts (input includes cache reads and writes, so in
-# equals the ctx used figure), not session totals. A cell whose field is
-# absent or null is dropped; both are dropped while current_usage is null and
-# both totals are 0 (no API response yet).
+# this conversation (context window, prompt cache, last response's output
+# tokens) and clears with a new one; line 3 is the plan budgets (5h · wk ·
+# Fable), which carry across conversations. A grid line with no data is
+# omitted. Lines 2–3 share a fixed grid: column 1 (35 cols: label 5, bar 16,
+# pct 4, tail 7), " · ", column 2 (27 cols: label 5, 16-col area, pct 4), so
+# every bar starts at column 7 and the cache % ends above the wk %; then
+# " · out" (label 5, count). A missing cell is filled with spaces to keep the
+# grid; trailing missing cells are dropped.
+# out is context_window.total_output_tokens: the most recent API response's
+# output, not a session total. It is dropped when the field is absent or null,
+# and while current_usage is null and total_input_tokens and
+# total_output_tokens are both 0 (no API response yet).
 # Usage credit: the cached usage response has extra_usage.is_enabled == true
 # and either a plan window is at or above 100% (endpoint limits[].percent,
 # legacy five_hour/seven_day utilization, or stdin rate_limits.five_hour /
@@ -32,7 +31,7 @@
 # unverified) against a $50 scale (STATUSLINE_CREDIT_SCALE_USD, a positive
 # number; anything else falls back to 50). Its pct is truncated and shown up
 # to 999%; its tail is $ with 2 decimals ($3.14), whole dollars past 7 cols
-# ($1235). No cost field drops the cost cell; in/out keep their own rules.
+# ($1235). No cost field drops the cost cell; out keeps its own rule.
 # Bars are 16 cells of thin glyphs read in half-cells (━ full, ╸ half,
 # ─ empty track) = 3.1% resolution. Percents may be non-integer; gauge()
 # truncates toward zero (22.5 -> 22), so 99.9 never reads as a full bar.
@@ -42,7 +41,7 @@
 # that fits its 7 cols, else used alone (150k of 200k): never truncated, and
 # the grid holds for every window. Colour derived: green under 60%, amber
 # past 60%, bold red past 85%. Column-1 tails are neutral, bold red past 85%;
-# the Fable countdown is always dim; in/out counts are neutral. The cache is
+# the Fable countdown is always dim; the out count is neutral. The cache is
 # not a spent budget: no bar, TTL dim (amber bold at <=5 min or expired), hit
 # rate neutral (amber <70%).
 # Reactive: settings.json statusLine.refreshInterval=60 re-runs this every
@@ -205,27 +204,11 @@ cache_cell() {
   esac
 }
 
-# tok_cell LABEL TOKENS TAIL_W -> "in    45.2k": label padded to 5, then the
-# token count padded to TAIL_W; the cell is 6 + TAIL_W cols wide.
-tok_cell() {
-  local v; v=$(fmt_num "$2")
-  printf '%b%s%b' "$C_LABEL" "$1" "$R"; pad $(( 5 - ${#1} ))
-  printf ' %b%s%b' "$C_BRIGHTV" "$v" "$R"; pad $(( $3 - ${#v} ))
-}
-
-# tok_cells SHOWN -> the " · in · out" cells from tok_in/tok_out (has_i/has_o);
-# SHOWN=1 when a visible cell precedes them, as a separator only follows one.
-tok_cells() {
-  if [ "$has_i" = 1 ]; then
-    if [ "$1" = 1 ]; then printf '%s' "$SEP_I"; else printf '%s' "$SEP_BLANK"; fi
-    tok_cell "in" "$tok_in" $(( has_o * 5 ))
-  elif [ "$has_o" = 1 ]; then
-    printf '%s' "$SEP_BLANK"; pad 11
-  fi
-  if [ "$has_o" = 1 ]; then
-    if [ $(( $1 + has_i )) -gt 0 ]; then printf '%s' "$SEP_I"; else printf '%s' "$SEP_BLANK"; fi
-    tok_cell "out" "$tok_out" 0
-  fi
+# out_cell SHOWN -> " · out   1.2k" from tok_out (label padded to 5, then the
+# count); SHOWN=1 when a visible cell precedes it, as a separator only follows one.
+out_cell() {
+  if [ "$1" = 1 ]; then printf '%s' "$SEP_I"; else printf '%s' "$SEP_BLANK"; fi
+  printf '%bout%b   %b%s%b' "$C_LABEL" "$R" "$C_BRIGHTV" "$(fmt_num "$tok_out")" "$R"
 }
 
 countdown_epoch() { # epoch seconds -> "2h13m" / "4d2h" / "now" / ""
@@ -486,9 +469,9 @@ fi
 # --- Assemble on the grid ---
 # A missing cell with something after it on its line becomes spaces (and so
 # does the separator before it); trailing missing cells are dropped.
-# Line 2: ctx · cache · in · out
-# in/out are the most recent API response's counts, not session totals; an
-# absent or null field yields "" and drops its cell.
+# Line 2: ctx · cache · out
+# out is the most recent API response's count, not a session total; an absent
+# or null field yields "" and drops its cell. tok_in only feeds the zero test.
 tok_in=$(printf '%s' "$input" | grep -o '"total_input_tokens":[0-9]*' | head -n1 | cut -d: -f2)
 tok_out=$(printf '%s' "$input" | grep -o '"total_output_tokens":[0-9]*' | head -n1 | cut -d: -f2)
 # Zero totals with a null current_usage mean no API response yet.
@@ -497,10 +480,9 @@ case "$input" in *'"current_usage":null'*)
 esac
 has_c=0; [ -n "$ctx_trail" ] && has_c=1
 has_k=0; [ -n "$cache_seg" ] && has_k=1
-has_i=0; [ -n "$tok_in" ] && has_i=1
 has_o=0; [ -n "$tok_out" ] && has_o=1
-# On usage credit the token cells move to line 3.
-t2=$(( has_i + has_o )); [ "$credit" = true ] && t2=0
+# On usage credit the out cell moves to line 3.
+t2=$has_o; [ "$credit" = true ] && t2=0
 line2=""
 if [ $(( has_c + has_k + t2 )) -gt 0 ]; then
   if [ "$has_c" = 1 ]; then
@@ -515,7 +497,7 @@ if [ $(( has_c + has_k + t2 )) -gt 0 ]; then
   elif [ "$t2" -gt 0 ]; then
     line2+="${SEP_BLANK}$(pad "$COL2_W")"
   fi
-  [ "$t2" -gt 0 ] && line2+=$(tok_cells $(( has_c + has_k > 0 )))
+  [ "$t2" -gt 0 ] && line2+=$(out_cell $(( has_c + has_k > 0 )))
 fi
 
 # Line 3: 5h · wk · Fable
@@ -524,7 +506,7 @@ has_w=0; [ "${w_pct:--1}" != "-1" ] && has_w=1
 has_f=0; [ "${f_pct:--1}" != "-1" ] && has_f=1
 line3=""
 if [ "$credit" = true ]; then
-  # Line 3 on usage credit: cost · in · out. The cost is Claude Code's own
+  # Line 3 on usage credit: cost · out. The cost is Claude Code's own
   # session total (subagents included) against a fixed dollar scale.
   CREDIT_SCALE_USD=50
   scale=$CREDIT_SCALE_USD
@@ -541,15 +523,14 @@ if [ "$credit" = true ]; then
     t = sprintf("$%.2f", c); if (length(t) > 7) t = sprintf("$%.0f", c)
     print p, t }')
   has_d=0; [ -n "$cost_pct" ] && has_d=1
-  t3=$(( has_i + has_o ))
-  if [ $(( has_d + t3 )) -gt 0 ]; then
+  if [ $(( has_d + has_o )) -gt 0 ]; then
     if [ "$has_d" = 1 ]; then
-      d_tw=0; [ "$t3" -gt 0 ] && d_tw=7
+      d_tw=0; [ "$has_o" = 1 ] && d_tw=7
       line3=$(gauge "cost" "$cost_pct" "$cost_trail" 5 "$d_tw")
     else
       line3=$(pad "$COL1_W")
     fi
-    [ "$t3" -gt 0 ] && line3+=$(tok_cells "$has_d")
+    [ "$has_o" = 1 ] && line3+=$(out_cell "$has_d")
   fi
 elif [ $(( has_s + has_w + has_f )) -gt 0 ]; then
   if [ "$has_s" = 1 ]; then
