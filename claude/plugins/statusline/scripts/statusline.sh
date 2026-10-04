@@ -1,34 +1,61 @@
 #!/bin/bash
 # Claude Code statusline — design "8a: Identity line, then the 6a grid"
-# 3 lines, at most 101 columns:
+# 3 lines; grid lines at most 102 columns (line 3
+# with a 6-char Fable countdown such as 90d16h; line 1 is unpadded):
 #   ▌dir branch +! · Opus 5.5
-#   ctx   ━╸──────────────   9% 89k/1M  · cache expires in 59m    97%
+#   ctx   ━╸──────────────   9% 89k/1M  · cache expires in 59m    97% · in    89k   · out   1.2k
 #   5h    ━━━╸────────────  22% 2h44m   · wk    ━━━━━━━━━━━━━╸──  84% · Fable ━━━━━━━━━━╸─────  66% 3d22h
+# On usage credit, line 3 is cost · in · out and in · out leave line 2:
+#   ctx   ━╸──────────────   9% 89k/1M  · cache expires in 59m    97%
+#   cost  ━───────────────   6% $3.14   · in    89k   · out   1.2k
 # Line 1 is identity (repo, branch, git flags, model), unpadded. Line 2 is
-# this conversation (context window, prompt cache) and clears with a new one;
-# line 3 is the plan budgets (5h · wk · Fable), which carry across
-# conversations. A grid line with no data is omitted. Lines 2–3 share a fixed
-# grid: column 1 (35 cols: label 5, bar 16, pct 4, tail 7), " · ", column 2
-# (27 cols: label 5, 16-col area, pct 4), so every bar starts at column 7 and
-# the cache % ends above the wk %. A missing cell is filled with spaces to
-# keep the grid; trailing missing cells are dropped.
+# this conversation (context window, prompt cache, last response's tokens) and
+# clears with a new one; line 3 is the plan budgets (5h · wk · Fable), which
+# carry across conversations. A grid line with no data is omitted. Lines 2–3
+# share a fixed grid: column 1 (35 cols: label 5, bar 16, pct 4, tail 7),
+# " · ", column 2 (27 cols: label 5, 16-col area, pct 4), so every bar starts
+# at column 7 and the cache % ends above the wk %; then " · in" (label 5,
+# count 5) and " · out" (label 5, count). A missing cell is filled with spaces
+# to keep the grid; trailing missing cells are dropped.
+# in/out are context_window.total_input_tokens / total_output_tokens: the most
+# recent API response's counts (input includes cache reads and writes, so in
+# equals the ctx used figure), not session totals. A cell whose field is
+# absent or null is dropped; both are dropped while current_usage is null and
+# both totals are 0 (no API response yet).
+# Usage credit: the cached usage response has extra_usage.is_enabled == true
+# and either a plan window is at or above 100% (endpoint limits[].percent,
+# legacy five_hour/seven_day utilization, or stdin rate_limits.five_hour /
+# seven_day used_percentage, each truncated) or no plan window exists in
+# either source. No usage response, no extra_usage or is_enabled false/null
+# means plan mode. The cost gauge is cost.total_cost_usd (Claude Code's own
+# list-price session total; foreground subagents included, background ones
+# unverified) against a $50 scale (STATUSLINE_CREDIT_SCALE_USD, a positive
+# number; anything else falls back to 50). Its pct is truncated and shown up
+# to 999%; its tail is $ with 2 decimals ($3.14), whole dollars past 7 cols
+# ($1235). No cost field drops the cost cell; in/out keep their own rules.
 # Bars are 16 cells of thin glyphs read in half-cells (━ full, ╸ half,
-# ─ empty track) = 3.1% resolution. Every bar is followed by its percentage in
-# the bar's own colour, then the trailing value (tokens against the window,
-# time left in period; wk has none). The ctx tail is used/window (89k/1M) when
+# ─ empty track) = 3.1% resolution. Percents may be non-integer; gauge()
+# truncates toward zero (22.5 -> 22), so 99.9 never reads as a full bar.
+# Every bar is followed by its percentage in the bar's own colour, then the
+# trailing value (tokens against the window, time left in period, dollars
+# spent; wk has none). The ctx tail is used/window (89k/1M) when
 # that fits its 7 cols, else used alone (150k of 200k): never truncated, and
 # the grid holds for every window. Colour derived: green under 60%, amber
 # past 60%, bold red past 85%. Column-1 tails are neutral, bold red past 85%;
-# the Fable countdown is always dim. The cache is not a spent budget: no bar,
-# TTL dim (amber bold at <=5 min or expired), hit rate neutral (amber <70%).
+# the Fable countdown is always dim; in/out counts are neutral. The cache is
+# not a spent budget: no bar, TTL dim (amber bold at <=5 min or expired), hit
+# rate neutral (amber <70%).
 # Reactive: settings.json statusLine.refreshInterval=60 re-runs this every
 # minute even when idle. Reads Claude Code's JSON payload on stdin. Plan usage
 # from the OAuth usage endpoint (same source as /usage), cached 60s in
-# ~/.claude/.
+# ~/.claude/.statusline-usage.json; a cache younger than 60s is read without a
+# fetch, and only a response with limits, extra_usage or the legacy windows
+# replaces it.
 # Local servers: ANTHROPIC_BASE_URL on a private host switches the gauge
 # denominator to the window the server reports (GET /v1/models, 60s cache) and
 # derives the cache group from the transcript when the payload has no
-# prompt_cache block. Real data only — nothing estimated, no countdowns.
+# prompt_cache block. CLAUDE_CONTEXT_WINDOW overrides the model-family window
+# fallback. Real data only — nothing estimated, no countdowns.
 
 input=$(cat)
 
@@ -143,6 +170,8 @@ pad() { # N -> N spaces (none when N <= 0; printf would left-justify a negative)
 gauge() {
   local label=$1 p=$2 trail=$3 label_w=$4 tail_w=$5 trail_c=$6
   local halves fulls half empties fill_c fills="" empt="" i
+  # Endpoint percents can be non-integer (22.5); truncating keeps 99.9 off a full bar.
+  p=${p%%.*}; p=${p:-0}
   halves=$(( (p * 32 + 50) / 100 ))
   [ "$halves" -gt 32 ] && halves=32
   [ "$halves" -lt 0 ] && halves=0
@@ -174,6 +203,29 @@ cache_cell() {
     *)  [ "$hit" -lt 70 ] && hit_c=$C_AMBER
         pad $(( 3 - ${#hit} )); printf '%b%s%%%b' "$hit_c" "$hit" "$R" ;;
   esac
+}
+
+# tok_cell LABEL TOKENS TAIL_W -> "in    45.2k": label padded to 5, then the
+# token count padded to TAIL_W; the cell is 6 + TAIL_W cols wide.
+tok_cell() {
+  local v; v=$(fmt_num "$2")
+  printf '%b%s%b' "$C_LABEL" "$1" "$R"; pad $(( 5 - ${#1} ))
+  printf ' %b%s%b' "$C_BRIGHTV" "$v" "$R"; pad $(( $3 - ${#v} ))
+}
+
+# tok_cells SHOWN -> the " · in · out" cells from tok_in/tok_out (has_i/has_o);
+# SHOWN=1 when a visible cell precedes them, as a separator only follows one.
+tok_cells() {
+  if [ "$has_i" = 1 ]; then
+    if [ "$1" = 1 ]; then printf '%s' "$SEP_I"; else printf '%s' "$SEP_BLANK"; fi
+    tok_cell "in" "$tok_in" $(( has_o * 5 ))
+  elif [ "$has_o" = 1 ]; then
+    printf '%s' "$SEP_BLANK"; pad 11
+  fi
+  if [ "$has_o" = 1 ]; then
+    if [ $(( $1 + has_i )) -gt 0 ]; then printf '%s' "$SEP_I"; else printf '%s' "$SEP_BLANK"; fi
+    tok_cell "out" "$tok_out" 0
+  fi
 }
 
 countdown_epoch() { # epoch seconds -> "2h13m" / "4d2h" / "now" / ""
@@ -267,7 +319,8 @@ fi
 # context_window block (authoritative — matches /context) > model-family map.
 used=$(printf '%s' "$input" | grep -o '"total_input_tokens":[0-9]*' | head -n1 | cut -d: -f2)
 limit=$(printf '%s' "$input" | grep -o '"context_window_size":[0-9]*' | head -n1 | cut -d: -f2)
-pct=$(printf '%s' "$input" | grep -o '"used_percentage":[0-9.]*' | head -n1 | cut -d: -f2 | cut -d. -f1)
+# By path, as rate_limits.* share the key; without jq, pct falls back to used/limit.
+pct=$(printf '%s' "$input" | jq -r '.context_window.used_percentage | numbers | floor' 2>/dev/null | tr -d '\r')
 
 # The live value wins for local servers; the payload's percentage was computed
 # against the payload's own size, so recompute it against the live limit.
@@ -380,7 +433,8 @@ if [ -f "$cache" ]; then
   cache_age=$(( $(date +%s) - $(mtime "$cache") ))
 fi
 
-if [ "$cache_age" -gt 60 ]; then
+# Without jq the cache can be neither validated nor read, so skip the fetch.
+if [ "$cache_age" -gt 60 ] && command -v jq >/dev/null 2>&1; then
   # Token source is platform-dependent: Git Bash/Linux keep a credentials file,
   # macOS stores the identical JSON in the login Keychain. File wins when present.
   tok=""
@@ -395,12 +449,15 @@ if [ "$cache_age" -gt 60 ]; then
       -H "Authorization: Bearer $tok" \
       -H "anthropic-beta: oauth-2025-04-20" \
       -H "Content-Type: application/json" 2>/dev/null)
-    if printf '%s' "$fresh" | grep -q '"limits"'; then
+    # Credit-only accounts carry extra_usage and no limits; error bodies carry neither.
+    if printf '%s' "$fresh" | jq -e 'type == "object" and ((.limits | type) == "array"
+         or ([.extra_usage, .five_hour, .seven_day] | any(type == "object")))' >/dev/null 2>&1; then
       printf '%s' "$fresh" > "$cache"
     fi
   fi
 fi
 
+credit=false
 if [ -f "$cache" ] && command -v jq >/dev/null 2>&1; then
   read -r s_pct s_reset w_pct f_pct f_reset < <(jq -r '
     def lim(k): (.limits[]? | select(.kind == k)) // {};
@@ -412,27 +469,89 @@ if [ -f "$cache" ] && command -v jq >/dev/null 2>&1; then
 
   s_trail=$(countdown "${s_reset:--}")
   f_trail=$(countdown "${f_reset:--}")
+
+  # On usage credit: extra usage is enabled and a plan window is spent (credit
+  # is drawn only past a plan limit), or the account has no plan windows at all.
+  credit=$(printf '%s' "$input" | jq -r --slurpfile u "$cache" '
+    ((($u[0] | objects) // {})) as $r
+    | ((.rate_limits | objects) // {}) as $s
+    | [ $r.limits[]? | objects | .percent | numbers ] as $lp
+    | [ $r.five_hour, $r.seven_day | objects ] as $lw
+    | [ $s.five_hour, $s.seven_day | objects ] as $sw
+    | ($lp + [ $lw[] | .utilization | numbers ] + [ $sw[] | .used_percentage | numbers ]) as $p
+    | ((($r.extra_usage | objects | .is_enabled) // false) == true)
+      and (any($p[]; floor >= 100) or ($lp + $lw + $sw | length) == 0)' 2>/dev/null | tr -d '\r')
 fi
 
 # --- Assemble on the grid ---
 # A missing cell with something after it on its line becomes spaces (and so
 # does the separator before it); trailing missing cells are dropped.
-# Line 2: ctx · cache
+# Line 2: ctx · cache · in · out
+# in/out are the most recent API response's counts, not session totals; an
+# absent or null field yields "" and drops its cell.
+tok_in=$(printf '%s' "$input" | grep -o '"total_input_tokens":[0-9]*' | head -n1 | cut -d: -f2)
+tok_out=$(printf '%s' "$input" | grep -o '"total_output_tokens":[0-9]*' | head -n1 | cut -d: -f2)
+# Zero totals with a null current_usage mean no API response yet.
+case "$input" in *'"current_usage":null'*)
+  [ "${tok_in:-0}" -eq 0 ] && [ "${tok_out:-0}" -eq 0 ] && { tok_in=""; tok_out=""; } ;;
+esac
+has_c=0; [ -n "$ctx_trail" ] && has_c=1
+has_k=0; [ -n "$cache_seg" ] && has_k=1
+has_i=0; [ -n "$tok_in" ] && has_i=1
+has_o=0; [ -n "$tok_out" ] && has_o=1
+# On usage credit the token cells move to line 3.
+t2=$(( has_i + has_o )); [ "$credit" = true ] && t2=0
 line2=""
-if [ -n "$ctx_trail" ]; then
-  c_tw=0; [ -n "$cache_seg" ] && c_tw=7
-  line2=$(gauge "ctx" "$pct" "$ctx_trail" 5 "$c_tw")
-elif [ -n "$cache_seg" ]; then
-  line2="$(pad "$COL1_W")${SEP_BLANK}"
+if [ $(( has_c + has_k + t2 )) -gt 0 ]; then
+  if [ "$has_c" = 1 ]; then
+    c_tw=0; [ $(( has_k + t2 )) -gt 0 ] && c_tw=7
+    line2=$(gauge "ctx" "$pct" "$ctx_trail" 5 "$c_tw")
+  else
+    line2=$(pad "$COL1_W")
+  fi
+  if [ "$has_k" = 1 ]; then
+    if [ "$has_c" = 1 ]; then line2+="$SEP_I"; else line2+="$SEP_BLANK"; fi
+    line2+="$cache_seg"
+  elif [ "$t2" -gt 0 ]; then
+    line2+="${SEP_BLANK}$(pad "$COL2_W")"
+  fi
+  [ "$t2" -gt 0 ] && line2+=$(tok_cells $(( has_c + has_k > 0 )))
 fi
-[ -n "$cache_seg" ] && { [ -n "$ctx_trail" ] && line2+="$SEP_I"; line2+="$cache_seg"; }
 
 # Line 3: 5h · wk · Fable
 has_s=0; [ "${s_pct:--1}" != "-1" ] && has_s=1
 has_w=0; [ "${w_pct:--1}" != "-1" ] && has_w=1
 has_f=0; [ "${f_pct:--1}" != "-1" ] && has_f=1
 line3=""
-if [ $(( has_s + has_w + has_f )) -gt 0 ]; then
+if [ "$credit" = true ]; then
+  # Line 3 on usage credit: cost · in · out. The cost is Claude Code's own
+  # session total (subagents included) against a fixed dollar scale.
+  CREDIT_SCALE_USD=50
+  scale=$CREDIT_SCALE_USD
+  if [[ ${STATUSLINE_CREDIT_SCALE_USD:-} =~ ^([0-9]+\.?[0-9]*|\.[0-9]+)$ ]] \
+     && awk -v s="$STATUSLINE_CREDIT_SCALE_USD" 'BEGIN{exit !(s + 0 > 0)}'; then
+    scale=$STATUSLINE_CREDIT_SCALE_USD
+  fi
+  cost=$(printf '%s' "$input" | grep -o '"total_cost_usd":[0-9][0-9.eE+-]*' | head -n1 | cut -d: -f2)
+  cost_pct=""; cost_trail=""
+  # The pct slot is 4 cols, so the shown percentage caps at 999%; the tail
+  # drops its cents rather than overflow its 7 cols.
+  [ -n "$cost" ] && read -r cost_pct cost_trail < <(awk -v c="$cost" -v s="$scale" 'BEGIN{
+    p = int(c * 100 / s); if (p > 999) p = 999
+    t = sprintf("$%.2f", c); if (length(t) > 7) t = sprintf("$%.0f", c)
+    print p, t }')
+  has_d=0; [ -n "$cost_pct" ] && has_d=1
+  t3=$(( has_i + has_o ))
+  if [ $(( has_d + t3 )) -gt 0 ]; then
+    if [ "$has_d" = 1 ]; then
+      d_tw=0; [ "$t3" -gt 0 ] && d_tw=7
+      line3=$(gauge "cost" "$cost_pct" "$cost_trail" 5 "$d_tw")
+    else
+      line3=$(pad "$COL1_W")
+    fi
+    [ "$t3" -gt 0 ] && line3+=$(tok_cells "$has_d")
+  fi
+elif [ $(( has_s + has_w + has_f )) -gt 0 ]; then
   if [ "$has_s" = 1 ]; then
     s_tw=0; [ $(( has_w + has_f )) -gt 0 ] && s_tw=7
     line3=$(gauge "5h" "$s_pct" "$s_trail" 5 "$s_tw")

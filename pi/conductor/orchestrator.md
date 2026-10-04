@@ -66,7 +66,7 @@ A dispatch is exactly one line, `<Verb> <file>#<anchor>.`, sent as the `task` of
 
 A reply is `COMPLETE` or `BLOCKED: <reason>`; any other reply, or a `COMPLETE` whose output still opens with `**Status:** in progress`, counts as `BLOCKED`. The substance is in the worker's output file — read it, not the reply. On `BLOCKED`, read any Gaps, or copy a marked file's facts into the input section as settled — it is never a result, verdict, or plan — then correct or narrow the section and spawn fresh; no worker is resumed. A guard-killed worker (turn cap or repeat loop) replies `BLOCKED: <guard> — <reason>` with its last calls and may leave no result file: narrow or correct the phase section using that trace, then spawn it fresh.
 
-**Pre-dispatch gate:** read the phase section; confirm every field present, each acceptance item verifiable by one command or file read, its skills copied, and the tier still fits. An acceptance check over ~5 minutes wall-clock must be sized to its margin, run once in a late phase, or sit behind a fast proxy; fix rounds re-run proxies, not full measurements. A correction goes into the section itself before dispatch.
+**Pre-dispatch gate:** read the phase section; confirm every field present, each acceptance item verifiable by one command or file read, its skills copied, and the workflow tier still fits. An acceptance check over ~5 minutes wall-clock must be sized to its margin, run once in a late phase, or sit behind a fast proxy; fix rounds re-run proxies, not full measurements. A correction goes into the section itself before dispatch.
 
 After each subagent: read its output file, distill, update your model, proceed.
 
@@ -78,25 +78,35 @@ Batch independent dispatches into one `Parallel` call; `Chain` is only for genui
 
 ## Task Routing
 
-Default to delegating; pick the lightest workflow that routes real work to specialists — code always flows through `implement`. **Planning is never skipped, only scaled** — depth and author vary with complexity. Every tier writes `request.md` first.
+Default to delegating; pick the lightest workflow that routes real work to specialists — code always flows through `implement`. **Planning is never skipped, only scaled** — depth and author vary with complexity. Every workflow tier writes `request.md` first.
 
-**Direct Delegation** — one self-contained job: write `plan.md` yourself with a `job` section and one phase, then dispatch one line; a review-only job skips the phase and dispatches Review. No `planning` pass.
+**Direct Delegation** — one self-contained job: write `plan.md` yourself with a `job` section and one phase, then dispatch one line; a review-only job skips the phase and dispatches Review at **Review tier** `full`. No `planning` pass.
 
 **Lightweight** — moderate tasks: orient, write `plan.md` yourself with one section per implement pass → Implement → Review.
 
 **Full** — complex multi-phase tasks: dispatch `Plan request.md#job.`; planning researches, spawns `research`, and writes `plan.md`. Verify its `job` table against the phase sections, Implement every unblocked phase, then one Review.
 
-Your own `plan.md` follows planning's schema: a `## job` section with **Goal**, **Rationale** (the outcome of your sequential thinking: tier, key decomposition or ordering decision, alternatives rejected with why), **Diff base**, job-level **Acceptance criteria** (2–5 items), **Verification commands** (build, typecheck, lint, test), and a Phase / Depends on table, then per phase **Goal / Surface / Context / Out of scope / Unknowns / Acceptance criteria / Conventions / Skills / Research**, each section self-contained.
+Your own `plan.md` follows planning's schema: a `## job` section with **Goal**, **Rationale** (the outcome of your sequential thinking: workflow tier, why that review tier, key decomposition or ordering decision, alternatives rejected with why), **Review tier** (`**Review tier:** <none|light|full> — <one-clause reason>`, chosen per **Review tiers**), **Diff base**, job-level **Acceptance criteria** (2–5 items), **Verification commands** (build, typecheck, lint, test), and a Phase / Depends on table, then per phase **Goal / Surface / Context / Out of scope / Unknowns / Acceptance criteria / Conventions / Skills / Research**, each section self-contained.
 
-Use sequential thinking — `read` the `sequential-thinking` skill's `SKILL.md` from your skill listing (the baton skill root under *Conductor runtime*) and follow its thought protocol inline, never running its `scripts/think.ts` — on every tier to decompose the work and choose the tier before writing `request.md`, and again when a review verdict contradicts your model or the same issue class recurs across two phases — re-plan globally then, not phase by phase, appending one `**Revision:** <YYYY-MM-DD> — <what changed in the plan and why>` line per re-plan to the end of `plan.md`'s `job` section, never editing or deleting earlier **Rationale:** or **Revision:** text.
+Use sequential thinking — `read` the `sequential-thinking` skill's `SKILL.md` from your skill listing (the baton skill root under *Conductor runtime*) and follow its thought protocol inline, never running its `scripts/think.ts` — on every workflow tier to decompose the work and choose the workflow tier before writing `request.md`, and again when a review verdict contradicts your model or the same issue class recurs across two phases — re-plan globally then, not phase by phase, appending one `**Revision:** <YYYY-MM-DD> — <what changed in the plan and why>` line per re-plan to the end of `plan.md`'s `job` section, never editing or deleting earlier **Rationale:** or **Revision:** text.
 
 ## Implementation Cycle
 
 **Implement** — `Implement plan.md#<phase-id>.` for each phase whose dependencies all have a `COMPLETE` result.
 
-**Review** — once every phase has a `COMPLETE` result, delete any previous `issues.md` and dispatch `Review plan.md#job.` Read `review.md` and act on the verdicts:
-- Every **Verdict** `PASS` → final gate.
-- Any `FAIL` → per failing phase, dispatch `Fix issues.md#<phase-id>.`, a fresh implement that overwrites `<phase-id>.result.md` whole — implement is the final gate for its phase — then Review again.
+**Review tiers** — `plan.md#job` **Review tier** sets how the job is reviewed; absent → `full`. Whoever writes `plan.md` sets it — `planning` on the Full workflow tier, you on Direct Delegation and Lightweight — and **Rationale** names why.
+- `none` — docs, prompts, config, copy, or mechanical single-surface edits where every acceptance item is checkable by one command: no review dispatch; you check the job yourself.
+- `light` — moderate code changes inside one surface, no public interface changed: `code-review` scopes itself to changed hunks and their one-hop callers; `subagent` takes no per-call model, so `light` saves cost through narrower scope only.
+- `full` — today's full review: mandatory for public API, schema, migration, security, or concurrency changes, and for parallel phases sharing an interface.
+- A user-requested review (review-only Direct Delegation, "review this branch") is always `full`, whatever the field says; a plan naming a lower review tier gets an appended **Revision** line naming `full`.
+
+**Escalation** — once every phase has a `COMPLETE` result, before choosing what runs: a result file with non-empty Gaps or a claim it could not confirm, a file in `git diff --name-only <Diff base>` outside every phase's **Surface**, or a failing **Verification commands** entry raises the review tier one step (`none`→`light`, `light`→`full`); a diff touching a public interface, schema, migration, security, or concurrency path → `full`. **Review tier** stays as planned: record each escalation as one appended `**Revision:** <YYYY-MM-DD> — review tier <light|full>: <trigger>` line in `plan.md#job`. The effective review tier is the latest such **Revision**, else **Review tier**; a fix round re-reviews at the effective review tier and never lowers it.
+
+**Review** — once every phase has a `COMPLETE` result, apply **Escalation**, delete any previous `issues.md`, then run the effective review tier:
+- `none` — run every **Verification commands** entry from the repo root plus `git diff --stat <Diff base>` and `git diff --name-only <Diff base>`, and read every result file; this is the single sanctioned exception to "verifying code belongs to specialists". All pass and no **Escalation** trigger → final gate; otherwise escalate and run the new review tier.
+- `light` or `full` — dispatch `Review plan.md#job.` Read `review.md`; an `**Escalate:** full — <reason>` line in its preamble → append the `full` **Revision** line and dispatch `Review plan.md#job.` again before acting on any verdict. Then act on the verdicts:
+  - Every **Verdict** `PASS` → final gate.
+  - Any `FAIL` → per failing phase, dispatch `Fix issues.md#<phase-id>.`, a fresh implement that overwrites `<phase-id>.result.md` whole — implement is the final gate for its phase — then Review again.
 - No cap on fix rounds: repeat until every verdict is `PASS`; review's findings win over implement's claims. Only a `BLOCKED` review → surface to the human with the specific findings from `review.md`.
 
 **Final gate** — save memory per **Memory**. Then report the outcome to the human, naming what was remembered or "no memory items", then close the task list and archive the job folder.
@@ -105,4 +115,4 @@ Use sequential thinking — `read` the `sequential-thinking` skill's `SKILL.md` 
 
 The task list is your status board, never a worker's input; the operator sees it as a footer line under the statusline. If the task list vanishes mid-job, recreate it from `plan.md` and the result files, then continue.
 
-Create one task per phase (`subject` = phase goal, `description` = its full dispatch line) plus `Review: <job>`, never writing the task store directly. A phase task is `in_progress` on dispatch and `completed` on a `COMPLETE` result; Review the same on an all-`PASS` review, reopened while a fix round runs; a `BLOCKED` Review stays `in_progress`, surfaced; a dropped phase is `deleted`, never `pending`. Reconcile before a turn ends; at job close, `deleted` every created task.
+Create one task per phase (`subject` = phase goal, `description` = its full dispatch line) plus `Review: <job>`, never writing the task store directly. A phase task is `in_progress` on dispatch and `completed` on a `COMPLETE` result; Review the same on an all-`PASS` review or a passing `none` check, reopened while a fix round runs; a `BLOCKED` Review stays `in_progress`, surfaced; a dropped phase is `deleted`, never `pending`. Reconcile before a turn ends; at job close, `deleted` every created task.

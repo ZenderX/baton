@@ -44,7 +44,9 @@ Check the request's premises against the directory structure with `Glob` as a pl
 
 **Goal:** <the job goal>
 
-**Rationale:** <tier chosen, the key decomposition or ordering decision, and the alternatives rejected with why>
+**Rationale:** <workflow tier chosen, why that review tier, the key decomposition or ordering decision, and the alternatives rejected with why>
+
+**Review tier:** <none | light | full> — <one-clause reason>
 
 **Diff base:** <branch or commit>
 
@@ -81,7 +83,7 @@ Check the request's premises against the directory structure with `Glob` as a pl
 **Research:** <dated facts from research, each with its source, or None.>
 ```
 
-The `job` section's **Acceptance criteria** hold for the whole job and its **Verification commands** are the build, typecheck, lint, and test commands code-review runs; both are present even when the plan has no phase. List under **Skills** one path per skill named in **Conventions**; main copies those files in before dispatch. Never list changed files — code-review gathers the diff.
+The `job` section's **Acceptance criteria** hold for the whole job and its **Verification commands** are the build, typecheck, lint, and test commands code-review runs; both are present even when the plan has no phase. **Review tier** sets how the job is reviewed: `none` — docs, prompts, config, copy, or mechanical single-surface edits where every acceptance item is checkable by one command; `light` — moderate code changes inside one surface, no public interface changed; `full` — public API, schema, migration, security, or concurrency changes, or parallel phases sharing an interface. Pick the lowest review tier whose fit covers every phase; any phase meeting a `full` trigger makes the job `full`. List under **Skills** one path per skill named in **Conventions**; main copies those files in before dispatch. Never list changed files — code-review gathers the diff.
 
 Your final message is exactly one line: `COMPLETE`, or `BLOCKED: <one sentence naming what is missing or contradictory>`. The `BLOCKED` reply alone carries the blocker; `plan.md` is left as far as it got.
 
