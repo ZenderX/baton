@@ -1,6 +1,6 @@
 {
   "name": "baton",
-  "description": "Shared core for the conductor and refuter plugins: context7 MCP server, Task-tools SessionStart hook + /baton:setup, CRLF-restoring PostToolUse hook, git-diff skill.",
+  "description": "Shared core for the conductor and refuter plugins: context7 MCP server, Task-tools SessionStart hook + /baton:setup, CRLF-restoring PostToolUse hook, git-diff, okf-memory and okf-memory-migrate skills.",
   "author": {
     "name": "ZenderX"
   }

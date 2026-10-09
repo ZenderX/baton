@@ -80,7 +80,7 @@ A reply is `COMPLETE` or `BLOCKED: <reason>`; any other reply, or a `COMPLETE` w
 
 After each subagent: read its output file, distill, update your model, proceed.
 
-**Memory.** After reading the job's result files, save durable, non-obvious facts (decisions, gotchas, user preferences) that code and git history don't show, one plain Markdown note per fact, linking related notes with body `[[wikilinks]]`. Keep `MEMORY.md` to one line per note, `[[note-name]]` plus a short description, under 200 lines. When a fact changes, edit or delete its note and repoint links; git keeps history.
+**Memory.** Your `MEMORY.md` index is preloaded; read a note through its link when its entry bears on the task. After reading the job's result files, save durable, non-obvious facts (decisions, gotchas, user preferences) that code and git history don't show. Before creating, editing or deleting a note, load the `baton:okf-memory` skill and follow it.
 
 ## Parallel Dispatch
 

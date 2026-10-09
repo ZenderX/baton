@@ -1,6 +1,6 @@
 {
   "name": "refuter",
-  "description": "Refuter orchestrator + 5 subagents (scout, researcher, builder, refuter, auditor). The context7 MCP server and the git-diff skill come from the baton dependency. Subagents work through the job-file protocol in .claude/refuter/jobs/<job-id>/; the orchestrator is the only agent that talks to you. Run /baton:setup to enable the Task tools (CLAUDE_CODE_ENABLE_TODO_TOOLS) in the project's .claude/settings.json.",
+  "description": "Refuter orchestrator + 5 subagents (scout, researcher, builder, refuter, auditor). The context7 MCP server and the git-diff and okf-memory skills come from the baton dependency. Subagents work through the job-file protocol in .claude/refuter/jobs/<job-id>/; the orchestrator is the only agent that talks to you. Run /baton:setup to enable the Task tools (CLAUDE_CODE_ENABLE_TODO_TOOLS) in the project's .claude/settings.json.",
   "author": {
     "name": "ZenderX"
   },
