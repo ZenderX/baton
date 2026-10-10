@@ -1,5 +1,6 @@
 # baton
 
+[![CI](https://img.shields.io/github/actions/workflow/status/ZenderX/baton/ci.yml?branch=main&label=CI)](https://github.com/ZenderX/baton/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Claude Code plugin](https://img.shields.io/badge/Claude_Code-plugin-D97757)](#install--launch-claude-code)
 [![pi package](https://img.shields.io/badge/pi-package-5A67D8)](#install--launch-pi)

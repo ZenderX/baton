@@ -1,0 +1,97 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: pi/package-lock.json
+
+      - name: Manifests parse as JSON
+        run: |
+          node -e '
+            const fs = require("fs");
+            for (const file of process.argv.slice(1)) {
+              try {
+                JSON.parse(fs.readFileSync(file, "utf8"));
+              } catch (error) {
+                console.log(`::error file=${file}::${error.message}`);
+                process.exitCode = 1;
+              }
+            }
+          ' claude/.claude-plugin/marketplace.json claude/plugins/*/.claude-plugin/plugin.json pi/package.json pi/*/package.json
+
+      - name: Plugin manifests have a name
+        run: |
+          node -e '
+            const fs = require("fs");
+            for (const file of process.argv.slice(1)) {
+              const { name } = JSON.parse(fs.readFileSync(file, "utf8"));
+              if (typeof name !== "string" || name === "") {
+                console.log(`::error file=${file}::missing name`);
+                process.exitCode = 1;
+              }
+            }
+          ' claude/plugins/*/.claude-plugin/plugin.json
+
+      - name: Marketplace entries carry no version
+        run: |
+          node -e '
+            const fs = require("fs");
+            const file = "claude/.claude-plugin/marketplace.json";
+            const versioned = JSON.parse(fs.readFileSync(file, "utf8")).plugins.filter((plugin) => "version" in plugin);
+            for (const plugin of versioned) console.log(`::error file=${file}::entry ${plugin.name} has a version; it belongs in its plugin.json`);
+            if (versioned.length > 0) process.exitCode = 1;
+          '
+
+      # The release command stamps every manifest at once and writes CHANGELOG.md; before the first release versions still differ.
+      - name: Manifest versions are present and identical
+        if: hashFiles('CHANGELOG.md') != ''
+        run: |
+          node -e '
+            const fs = require("fs");
+            const versions = new Map();
+            for (const file of process.argv.slice(1)) {
+              const { version } = JSON.parse(fs.readFileSync(file, "utf8"));
+              if (typeof version !== "string" || version === "") {
+                console.log(`::error file=${file}::missing version`);
+                process.exitCode = 1;
+              }
+              versions.set(file, version);
+            }
+            const distinct = new Set(versions.values());
+            if (distinct.size > 1) {
+              for (const [file, version] of versions) console.log(`${version}\t${file}`);
+              console.log(`::error::manifest versions differ: ${[...distinct].join(", ")}`);
+              process.exitCode = 1;
+            }
+          ' claude/plugins/*/.claude-plugin/plugin.json pi/package.json pi/*/package.json
+
+      - name: Install pi dev dependencies
+        run: npm ci --prefix pi
+
+      - name: Typecheck
+        run: pi/node_modules/.bin/tsc -p pi/tsconfig.json --noEmit
+
+      - name: Harnesses
+        run: |
+          for harness in double-load product-shim restore-crlf statusline tasklist worker-guard; do
+            echo "::group::$harness"
+            node --experimental-strip-types "pi/scripts/$harness-harness.mts"
+            echo "::endgroup::"
+          done

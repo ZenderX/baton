@@ -1,0 +1,60 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*.*.*']
+  # GitHub sends no push event when more than 3 tags are pushed at once; dispatch the latest one by hand then.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing version tag to release, e.g. v1.2.3
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Create the GitHub Release from CHANGELOG.md
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::$TAG is not a vX.Y.Z tag"
+            exit 1
+          fi
+          if ! git rev-parse --verify --quiet "refs/tags/$TAG^{commit}" > /dev/null; then
+            echo "::error::tag $TAG does not exist"
+            exit 1
+          fi
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            echo "Release $TAG already exists; skipping."
+            exit 0
+          fi
+          changelog="$RUNNER_TEMP/CHANGELOG.md"
+          notes="$RUNNER_TEMP/notes.md"
+          if ! git show "refs/tags/$TAG:CHANGELOG.md" > "$changelog" 2> /dev/null; then
+            echo "$TAG has no CHANGELOG.md; skipping."
+            exit 0
+          fi
+          # Body of the "## $TAG — date" section, up to the next "## " heading; exits 1 when the section is absent.
+          if ! awk -v tag="$TAG" '
+            { sub(/\r$/, "") }
+            /^## / { if (found) exit; found = ($2 == tag); next }
+            found
+            END { exit !found }
+          ' "$changelog" > "$notes"; then
+            echo "CHANGELOG.md at $TAG has no $TAG section; skipping."
+            exit 0
+          fi
+          gh release create "$TAG" --title "$TAG" --notes-file "$notes" --verify-tag
