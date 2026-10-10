@@ -5,8 +5,8 @@
  * reads no clock. Separate from the exact-repeat guard in index.ts.
  *
  * Motivation: an implement worker made 79 calls without touching its Surface
- * (mostly `tools/tmp_*` scripts), then 18 near-identical empty
- * `grep TargetSymbol` searches over different paths.
+ * (mostly `tools/tmp_*` scripts), then 18 repeated empty searches for the
+ * same symbol over different paths.
  */
 
 import * as os from "node:os";

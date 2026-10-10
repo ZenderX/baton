@@ -16,3 +16,9 @@ bash.exe.stackdump
 # Python bytecode caches
 __pycache__/
 *.pyc
+
+# Per-user agent memory and machine-local state
+.claude/agent-memory/
+.claude/conductor/environment.md
+.claude/settings.local.json
+
