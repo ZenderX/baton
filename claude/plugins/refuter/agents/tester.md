@@ -2,7 +2,7 @@
 name: tester
 description: "Adversarial reviewer: tries to break one finished phase and writes one verdict for the gate."
 tools: Read, Write, Edit, Glob, Grep, Bash
-model: claude-fable-5-1
+model: claude-opus-5-5
 ---
 
 # Tester Subagent
