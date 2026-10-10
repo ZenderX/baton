@@ -20,9 +20,9 @@ Glob only these paths; never search the whole repo or drive.
 - `~/.claude/agent-memory/promotion-queue/` and job-side `.claude/{conductor,refuter}/jobs/*/memory.md`: report only.
 
 Classify each folder:
-- **Target:** `conductor-main/`, `refuter-main/`. Create `conductor-main/` when only older conductor folders exist.
-- **Stray of `conductor-main/`:** `conductor/`, `conductor-core-*/`, `conductor-<role>/` (`implement`, `planning`, `research`, `code-review`, `memory`), `*-subagent/` (`planning`, `implement`, `research`, `code-review`, `memory`), and nested strays.
-- **Stray of `refuter-main/`:** any other `refuter-<role>/`.
+- **Target:** `baton-conductor/`, `baton-refuter/`. Create `baton-conductor/` when only older conductor folders exist, `baton-refuter/` when only older refuter folders exist.
+- **Stray of `baton-conductor/`:** `conductor-main/`, `conductor/`, `conductor-core-*/`, `conductor-<role>/` (`implement`, `planning`, `research`, `code-review`, `memory`), `*-subagent/` (`planning`, `implement`, `research`, `code-review`, `memory`), and nested strays.
+- **Stray of `baton-refuter/`:** `refuter-main/` and any other `refuter-<role>/`.
 - **Local:** `.claude/agent-memory-local/<x>/` is private; convert it in place as its own target, never merge it into a tracked folder.
 - **Other:** another agent's memory; report it and leave it, unless the user named it, then convert it in place as its own target.
 
@@ -114,7 +114,7 @@ Per `okf-memory`: its frontmatter, one `## <Type>` group per type in use, one en
 Run from the repo root once per converted folder, setting `M`; never `cd`. Each check prints nothing on success.
 
 ```sh
-M=.claude/agent-memory/conductor-main
+M=.claude/agent-memory/baton-conductor
 for f in $M/*.md; do head -1 "$f" | grep -q '^---' && sed -n '2,/^---/p' "$f" | tr -d '\r' | grep -Eq '^type: *(feedback|project|reference|user|index)$' || echo "TYPE $f"; done
 for f in $M/*.md; do LC_ALL=C.UTF-8 sed 's/`[^`]*`//g' "$f" | grep -qE '\[\[|\]\(/' && echo "LINK $f"; done
 grep -oh '](\./[^)]*)' $M/*.md | sed 's/^](\.\///; s/)$//; s/#.*//' | sort -u | while read -r p; do [ -f "$M/$p" ] || echo "BROKEN $p"; done

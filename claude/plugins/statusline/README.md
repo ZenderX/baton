@@ -3,7 +3,7 @@
 Claude Code statusline implementing design **8a — "Identity line, then the 6a grid"**: 3 lines — an identity line, then two lines on one shared column grid, at most 102 columns (line three with a 6-char `Fable` countdown such as `90d16h`; line one is unpadded and as long as its names).
 
 ```
-▌the-conductor main +!? · Opus 5.5
+▌baton main +!? · Opus 5.5
 ctx   ━╸──────────────   9% 89k/1M  · cache expires in 59m    97% · out   1.2k
 5h    ━━━╸────────────  22% 2h44m   · wk    ━━━━━━━━━━━━━╸──  84% · Fable ━━━━━━━━━━╸─────  66% 3d22h
 ```
@@ -11,7 +11,7 @@ ctx   ━╸──────────────   9% 89k/1M  · cache exp
 On usage credit (see [Usage credit](#usage-credit)) line three becomes the session cost and the `out` cell moves to it:
 
 ```
-▌the-conductor main +!? · Opus 5.5
+▌baton main +!? · Opus 5.5
 ctx   ━╸──────────────   9% 89k/1M  · cache expires in 59m    97%
 cost  ━───────────────   6% $3.14   · out   1.2k
 ```

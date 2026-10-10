@@ -1,29 +1,29 @@
 {
-  "name": "the-conductor",
+  "name": "baton",
   "owner": {
     "name": "ZenderX"
   },
-  "description": "Marketplace for the conductor/subagent orchestration pattern and its domain skills (Bevy, Rust, TypeScript, Vue3, Blender).",
+  "description": "Baton marketplace: the conductor and refuter orchestrators with their worker packs, and domain skills (Bevy, Rust, TypeScript, Vue3, Blender).",
   "plugins": [
     {
       "name": "conductor",
       "source": "./plugins/conductor",
-      "description": "Conductor orchestrator + 4 subagents (planning, research, implement, code-review). The context7 MCP server and the git-diff and okf-memory skills come from the baton dependency. Subagents work through the job-file protocol in .claude/conductor/jobs/<job-id>/; the orchestrator is the only agent that talks to you and keeps the project's .claude/agent-memory/conductor-main/ Obsidian vault. Run /baton:setup to enable the Task tools (CLAUDE_CODE_ENABLE_TODO_TOOLS) in the project's .claude/settings.json."
+      "description": "Conductor worker pack: 4 subagents (planning, research, implement, code-review) for the baton:conductor orchestrator. The orchestrator, the context7 MCP server and the git-diff and okf-memory skills come from the baton dependency. Subagents work through the job-file protocol in .claude/conductor/jobs/<job-id>/; the orchestrator is the only agent that talks to you and keeps the project's .claude/agent-memory/baton-conductor/ Obsidian vault. Run /baton:setup to enable the Task tools (CLAUDE_CODE_ENABLE_TODO_TOOLS) in the project's .claude/settings.json."
     },
     {
       "name": "refuter",
       "source": "./plugins/refuter",
-      "description": "Refuter orchestrator + 5 subagents (scout, researcher, builder, refuter, auditor). The context7 MCP server and the git-diff and okf-memory skills come from the baton dependency. Subagents work through the job-file protocol in .claude/refuter/jobs/<job-id>/; the orchestrator is the only agent that talks to you. Run /baton:setup to enable the Task tools (CLAUDE_CODE_ENABLE_TODO_TOOLS) in the project's .claude/settings.json."
+      "description": "Refuter worker pack: 5 subagents (scout, architect, developer, tester, expert) for the baton:refuter orchestrator. The orchestrator, the context7 MCP server and the git-diff and okf-memory skills come from the baton dependency. Subagents work through the job-file protocol in .claude/refuter/jobs/<job-id>/; the orchestrator is the only agent that talks to you and keeps the project's .claude/agent-memory/baton-refuter/ memory vault. Run /baton:setup to enable the Task tools (CLAUDE_CODE_ENABLE_TODO_TOOLS) in the project's .claude/settings.json."
     },
     {
       "name": "baton",
       "source": "./plugins/baton",
-      "description": "Shared core for the conductor and refuter plugins: context7 MCP server, Task-tools SessionStart hook + /baton:setup, CRLF-restoring PostToolUse hook, git-diff, okf-memory and okf-memory-migrate skills."
+      "description": "Shared core and orchestrators for the conductor and refuter worker packs: the baton:conductor and baton:refuter orchestrator agents, context7 MCP server, Task-tools SessionStart hook + /baton:setup, CRLF-restoring PostToolUse hook, git-diff, okf-memory and okf-memory-migrate skills."
     },
     {
       "name": "statusline",
       "source": "./plugins/statusline",
-      "description": "Starship-style powerline statusline: repo/branch + git flags, model + context usage, plan usage with reset countdowns. Wire it in with /statusline:setup."
+      "description": "Starship-style powerline statusline for Claude Code: repo/branch with live git flags, model + context window usage, and plan usage (5h session / weekly / Fable) with reset countdowns. Run /statusline:setup to wire it into settings.json."
     },
     {
       "name": "bevy",

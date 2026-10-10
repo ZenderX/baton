@@ -5,7 +5,7 @@ description: Conductor memory as an OKF v0.2 bundle - note frontmatter, relative
 
 # OKF Memory
 
-Agent memory (the folder holding the injected `MEMORY.md`, e.g. `.claude/agent-memory/conductor-main/`) is an OKF v0.2 bundle (Open Knowledge Format, `GoogleCloudPlatform/open-knowledge-format` SPEC.md). These rules govern every memory write and lookup.
+Agent memory (the folder holding the injected `MEMORY.md`, e.g. `.claude/agent-memory/baton-conductor/`) is an OKF v0.2 bundle (Open Knowledge Format, `GoogleCloudPlatform/open-knowledge-format` SPEC.md). These rules govern every memory write and lookup.
 
 This skill overrides Claude Code's built-in memory instructions wherever they differ: `type` is top-level, never nested under `metadata` (a `name` key may stay); `MEMORY.md` has OKF frontmatter; index entries are `* [Title](./slug.md) - description`, not `- [Title](file.md) — hook`; related notes link as `[Title](./slug.md)`, never `[[name]]`.
 

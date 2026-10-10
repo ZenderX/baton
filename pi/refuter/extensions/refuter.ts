@@ -43,7 +43,7 @@ const DESCRIPTOR: ProductDescriptor = {
 	packageRoot: PACKAGE_ROOT,
 	agentsDir: path.join(PACKAGE_ROOT, "agents"),
 	orchestratorPromptPath: path.join(PACKAGE_ROOT, "orchestrator.md"),
-	vaultDir: "refuter-main",
+	vaultDir: "baton-refuter",
 	jobsRel: path.join(".claude", "refuter", "jobs"),
 };
 

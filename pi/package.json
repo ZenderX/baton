@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Umbrella pi package for the-conductor: loads the baton core engine, the conductor and the refuter from one install, plus the shared context7 MCP server. Also the dev workspace (shared devDependencies, single tsconfig for typecheck).",
+  "description": "Umbrella pi package for baton: loads the baton core engine, the conductor and the refuter from one install, plus the shared context7 MCP server. Also the dev workspace (shared devDependencies, single tsconfig for typecheck).",
   "license": "MIT",
   "author": "ZenderX",
   "pi": {

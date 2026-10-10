@@ -34,7 +34,7 @@
  *      through grep or Select-String draw none; counters stay bounded.
  *  10. Per-child drift config: the engine hands each child PI_CONDUCTOR_DRIFT,
  *      with no-progress on only for `driftProgress: true` agents (the real
- *      implement and builder, not code-review) and the Surface prefixes of
+ *      implement and developer, not code-review) and the Surface prefixes of
  *      the `plan.md#<phase-id>` section the task names, read only from its
  *      own `<jobsRel>/<job-id>/` folder (never archive/ or a malformed id).
  *  11. drift-nudge extension: against a stubbed pi, the failed-run replay as
@@ -512,10 +512,10 @@ async function main(): Promise<void> {
 				return childDriftConfig(found.name, found.driftProgress, "task", scratch, undefined).noProgress;
 			};
 			assert.equal(noProgressOf("conductor", "implement"), true);
-			assert.equal(noProgressOf("refuter", "builder"), true);
+			assert.equal(noProgressOf("refuter", "developer"), true);
 			assert.equal(noProgressOf("conductor", "code-review"), false);
-			assert.equal(noProgressOf("refuter", "auditor"), false);
-			console.log("  [10] per-child drift config: no-progress for implement/builder only; Surface from the named plan section");
+			assert.equal(noProgressOf("refuter", "expert"), false);
+			console.log("  [10] per-child drift config: no-progress for implement/developer only; Surface from the named plan section");
 		}
 
 		// 7. Boundary hook.

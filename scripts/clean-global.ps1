@@ -8,9 +8,10 @@
     Plugin agents/skills resolve last, so a stale ~/.claude/agents/*.md (or
     rules/skills equivalent) silently wins over same-named plugin content
     forever. Canon names come from claude/plugins/*/ (agents/skills are authored
-    there, across every product - conductor and refuter both ship an agents/
-    dir; the two rules filenames no longer exist as files - their content is
-    now inlined in each product's own main.md - so they're hardcoded below).
+    there, across every product - baton, conductor and refuter each ship an
+    agents/ dir; the two rules filenames no longer exist as files - their
+    content is now inlined in the orchestrators baton ships, conductor.md and
+    refuter.md - so they're hardcoded below).
     Only name-matched items under <Destination>/{agents,
     rules,skills} are backed up then removed; foreign items, settings.json,
     agent-memory/, and plugins/ are never touched.

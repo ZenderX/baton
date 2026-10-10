@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
-    Sets the default agent in ~/.claude/settings.json to conductor:main or
-    refuter:main, preserving every other setting already in the file.
+    Sets the default agent in ~/.claude/settings.json to baton:conductor or
+    baton:refuter, preserving every other setting already in the file.
 .DESCRIPTION
     Claude Code reads the top-level "agent" key of settings.json to pick the
     agent a session starts in; this script sets it without disturbing the rest
@@ -11,7 +11,7 @@
     already makes on this file. A missing settings.json is created containing
     just the agent key; an already-correct one is left untouched.
 .PARAMETER Agent
-    Agent identifier to write: 'conductor:main' (default) or 'refuter:main'.
+    Agent identifier to write: 'baton:conductor' (default) or 'baton:refuter'.
 .PARAMETER DryRun
     Print what would be written without making changes.
 .PARAMETER Destination
@@ -19,8 +19,8 @@
     Exists so this script is testable against a scratch directory.
 #>
 param(
-    [ValidateSet('conductor:main', 'refuter:main', IgnoreCase = $false)]
-    [string]$Agent = 'conductor:main',
+    [ValidateSet('baton:conductor', 'baton:refuter', IgnoreCase = $false)]
+    [string]$Agent = 'baton:conductor',
     [switch]$DryRun,
     [string]$Destination = (Join-Path ([System.Environment]::GetFolderPath('UserProfile')) '.claude')
 )

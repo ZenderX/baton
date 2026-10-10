@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Product-parameterised conductor engine (subagent dispatch, statusline, orchestrator runtime) shared by the-conductor and the-refuter",
+  "description": "Product-parameterised conductor engine (subagent dispatch, statusline, orchestrator runtime) shared by the conductor and the refuter",
   "license": "MIT",
   "author": "ZenderX",
   "keywords": [
