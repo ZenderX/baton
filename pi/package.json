@@ -1,6 +1,6 @@
 {
   "name": "pi-baton",
-  "version": "0.1.0",
+  "version": "5.0.0",
   "private": true,
   "type": "module",
   "description": "Umbrella pi package for baton: loads the baton core engine, the conductor and the refuter from one install, plus the shared context7 MCP server. Also the dev workspace (shared devDependencies, single tsconfig for typecheck).",

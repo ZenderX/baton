@@ -1,5 +1,6 @@
 {
   "name": "blender",
+  "version": "5.0.0",
   "description": "Blender-to-Bevy workflow conventions using bevy_skein 0.6.0. Apply when writing code that integrates with Blender or uses bevy_skein.",
   "author": {
     "name": "ZenderX"

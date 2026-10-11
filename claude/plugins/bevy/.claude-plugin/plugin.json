@@ -1,5 +1,6 @@
 {
   "name": "bevy",
+  "version": "5.0.0",
   "description": "Bevy 0.19.1 ECS conventions, plugin architecture, and gameplay patterns. Apply when writing or reviewing Bevy game code.",
   "author": {
     "name": "ZenderX"

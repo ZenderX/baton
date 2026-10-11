@@ -1,5 +1,6 @@
 {
   "name": "vue3",
+  "version": "5.0.0",
   "description": "Vue 3 coding standards with Composition API, Pinia, and TypeScript. Apply when writing or reviewing .vue files and Vue-related composables.",
   "author": {
     "name": "ZenderX"
