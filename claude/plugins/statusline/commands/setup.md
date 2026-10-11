@@ -5,7 +5,7 @@ allowed-tools: Read, Edit, Bash(bash:*), Bash(ls:*), Bash(command:*)
 
 Configure the user's Claude Code statusline to use this plugin's script. (Note: the plugin's SessionStart hook does this automatically at the next session start after enabling — this command is the immediate/manual path. The simplest form: run `bash "${CLAUDE_PLUGIN_ROOT}/scripts/ensure-statusline.sh"` and verify `statusLine` appeared in `~/.claude/settings.json`; fall back to the manual steps below if that fails.)
 
-1. Resolve the script path: `${CLAUDE_PLUGIN_ROOT}/scripts/statusline.sh`. If `${CLAUDE_PLUGIN_ROOT}` was not substituted (still appears literally), fall back to the marketplace source directory declared in `~/.claude/settings.json` under `extraKnownMarketplaces` (append `/plugins/statusline/scripts/statusline.sh`). Verify the file exists before editing anything.
+1. Resolve the script path: `${CLAUDE_PLUGIN_ROOT}/scripts/statusline.sh`. If `${CLAUDE_PLUGIN_ROOT}` was not substituted (still appears literally), fall back to the marketplace source directory declared in `~/.claude/settings.json` under `extraKnownMarketplaces` (append `/claude/plugins/statusline/scripts/statusline.sh`). Verify the file exists before editing anything.
 2. Check prerequisites and warn (do not block) if missing: `jq`, `curl`, GNU `date` (`date -d`), a Nerd-Font-capable terminal (glyphs U+E0B0/U+E0A0/U+F07B).
 3. Edit `~/.claude/settings.json`, setting (preserve all other keys):
 

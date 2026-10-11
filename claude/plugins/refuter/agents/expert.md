@@ -21,7 +21,7 @@ python "${CLAUDE_PLUGIN_ROOT}/scripts/spanda-audit.py" <<'EOF'
 EOF
 ```
 
-If `${CLAUDE_PLUGIN_ROOT}` is unset or literal, resolve it to the `~/.claude/settings.json` marketplace `source.path` holding `plugins/refuter`, plus `/plugins/refuter`, append `/scripts/spanda-audit.py`, and verify it exists. Exit code `2` means fix the JSON and retry once.
+If `${CLAUDE_PLUGIN_ROOT}` is unset or literal, resolve it to the `~/.claude/settings.json` marketplace `source.path` holding `claude/plugins/refuter`, plus `/claude/plugins/refuter`, append `/scripts/spanda-audit.py`, and verify it exists. Exit code `2` means fix the JSON and retry once.
 
 Report `risk: null` as `n/a (<error>)`, never as a low score, and note any `dropped` samples in the same cell. If the script reports `"status":"unavailable"` or `python` is missing, retry once if transient; otherwise write every row as `n/a (unavailable: <reason>)` and reply `BLOCKED`. Never substitute your own judgment for a missing sample.
 

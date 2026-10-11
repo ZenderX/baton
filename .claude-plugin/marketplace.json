@@ -7,47 +7,47 @@
   "plugins": [
     {
       "name": "conductor",
-      "source": "./plugins/conductor",
+      "source": "./claude/plugins/conductor",
       "description": "Conductor worker pack: 4 subagents (planning, research, implement, code-review) for the baton:conductor orchestrator. The orchestrator, the context7 MCP server and the git-diff and okf-memory skills come from the baton dependency. Subagents work through the job-file protocol in .claude/conductor/jobs/<job-id>/; the orchestrator is the only agent that talks to you and keeps the project's .claude/agent-memory/baton-conductor/ Obsidian vault. Run /baton:setup to enable the Task tools (CLAUDE_CODE_ENABLE_TODO_TOOLS) in the project's .claude/settings.json."
     },
     {
       "name": "refuter",
-      "source": "./plugins/refuter",
+      "source": "./claude/plugins/refuter",
       "description": "Refuter worker pack: 5 subagents (scout, architect, developer, tester, expert) for the baton:refuter orchestrator. The orchestrator, the context7 MCP server and the git-diff and okf-memory skills come from the baton dependency. Subagents work through the job-file protocol in .claude/refuter/jobs/<job-id>/; the orchestrator is the only agent that talks to you and keeps the project's .claude/agent-memory/baton-refuter/ memory vault. Run /baton:setup to enable the Task tools (CLAUDE_CODE_ENABLE_TODO_TOOLS) in the project's .claude/settings.json."
     },
     {
       "name": "baton",
-      "source": "./plugins/baton",
+      "source": "./claude/plugins/baton",
       "description": "Shared core and orchestrators for the conductor and refuter worker packs: the baton:conductor and baton:refuter orchestrator agents, context7 MCP server, Task-tools SessionStart hook + /baton:setup, CRLF-restoring PostToolUse hook, git-diff, okf-memory and okf-memory-migrate skills."
     },
     {
       "name": "statusline",
-      "source": "./plugins/statusline",
+      "source": "./claude/plugins/statusline",
       "description": "Starship-style powerline statusline for Claude Code: repo/branch with live git flags, model + context window usage, and plan usage (5h session / weekly / Fable) with reset countdowns. Run /statusline:setup to wire it into settings.json."
     },
     {
       "name": "bevy",
-      "source": "./plugins/bevy",
+      "source": "./claude/plugins/bevy",
       "description": "Bevy 0.19.1 ECS conventions, plugin architecture, and gameplay patterns. Apply when writing or reviewing Bevy game code."
     },
     {
       "name": "blender",
-      "source": "./plugins/blender",
+      "source": "./claude/plugins/blender",
       "description": "Blender-to-Bevy workflow conventions using bevy_skein 0.6.0. Apply when writing code that integrates with Blender or uses bevy_skein."
     },
     {
       "name": "rust",
-      "source": "./plugins/rust",
+      "source": "./claude/plugins/rust",
       "description": "Rust coding standards and conventions. Apply when writing or reviewing Rust files."
     },
     {
       "name": "typescript",
-      "source": "./plugins/typescript",
+      "source": "./claude/plugins/typescript",
       "description": "TypeScript coding standards. Apply when writing or reviewing TypeScript or TSX files."
     },
     {
       "name": "vue3",
-      "source": "./plugins/vue3",
+      "source": "./claude/plugins/vue3",
       "description": "Vue 3 coding standards with Composition API, Pinia, and TypeScript. Apply when writing or reviewing .vue files and Vue-related composables."
     }
   ]

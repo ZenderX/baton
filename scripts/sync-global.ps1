@@ -41,7 +41,7 @@ $UserHome = [System.Environment]::GetFolderPath('UserProfile')
 # settings keys are introduced.
 # 'extraKnownMarketplaces' is preserved because this repo's own .claude/settings.json
 # used to register its own marketplace with a RELATIVE path for dogfooding (the
-# marketplace now lives in claude/ and is registered per machine via /plugin); a
+# marketplace now lives at the repo root and is registered per machine via /plugin); a
 # relative entry only resolves from this repo's directory, so the deployed
 # (global) value must win here rather than syncing the repo's relative path verbatim.
 # 'agent' is preserved so set-default-agent-global.ps1's product choice (the

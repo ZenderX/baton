@@ -20,7 +20,7 @@ Also included: a statusline, and skills (short guides the agents load when relev
 
 ## Install
 
-Clone this repository, then follow the steps for your harness.
+Follow the steps for your harness.
 
 ### Install & launch (pi)
 
@@ -40,18 +40,21 @@ To load only one product, replace that package with an entry in the `packages` l
 
 ### Install & launch (Claude Code)
 
-In Claude Code, run `/plugin`, choose **Add Marketplace**, and give the path to the clone's `claude/` folder. Then:
+Add the marketplace (or run `/plugin marketplace add ZenderX/baton` inside Claude Code), then install and launch:
 
 ```bash
+claude plugin marketplace add ZenderX/baton
 claude plugin install conductor@baton      # and/or: refuter@baton
 claude --agent baton:conductor             # or: claude --agent baton:refuter
 ```
+
+From a clone, add the clone's root folder instead: `claude plugin marketplace add /absolute/path/to/baton`.
 
 ## Repository layout
 
 | Path | What is inside |
 |---|---|
-| `claude/` | The Claude Code plugin marketplace: orchestrators, agents, hooks and the statusline |
+| `claude/` | The Claude Code plugins: orchestrators, agents, hooks and the statusline |
 | `pi/` | The pi package: the shared engine in `pi/core`, plus `pi/conductor` and `pi/refuter` |
 | `claude/plugins/*/skills/` | The skills, written once and read by both Claude Code and pi |
 | `docs/` | [`job-files.md`](docs/job-files.md), the protocol agents use to hand work to each other |

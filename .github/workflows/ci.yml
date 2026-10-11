@@ -34,7 +34,7 @@ jobs:
                 process.exitCode = 1;
               }
             }
-          ' claude/.claude-plugin/marketplace.json claude/plugins/*/.claude-plugin/plugin.json pi/package.json pi/*/package.json
+          ' .claude-plugin/marketplace.json claude/plugins/*/.claude-plugin/plugin.json pi/package.json pi/*/package.json
 
       - name: Plugin manifests have a name
         run: |
@@ -53,7 +53,7 @@ jobs:
         run: |
           node -e '
             const fs = require("fs");
-            const file = "claude/.claude-plugin/marketplace.json";
+            const file = ".claude-plugin/marketplace.json";
             const versioned = JSON.parse(fs.readFileSync(file, "utf8")).plugins.filter((plugin) => "version" in plugin);
             for (const plugin of versioned) console.log(`::error file=${file}::entry ${plugin.name} has a version; it belongs in its plugin.json`);
             if (versioned.length > 0) process.exitCode = 1;
