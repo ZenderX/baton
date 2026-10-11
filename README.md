@@ -24,18 +24,19 @@ Follow the steps for your harness.
 
 ### Install & launch (pi)
 
-Install the clone's `pi/` folder. It is one pi package that loads the core, both products and the context7 MCP server (a documentation lookup tool for the agents, named `pi-baton__context7_<tool>` in pi):
+Install the repo as one pi package. It loads the core, both products and the context7 MCP server (a documentation lookup tool for the agents, named `pi-baton__context7_<tool>` in pi):
 
 ```bash
-git clone https://github.com/ZenderX/baton.git
-pi install /absolute/path/to/baton/pi
+pi install git:github.com/ZenderX/baton     # or pin a release: git:github.com/ZenderX/baton@v5.0.0
 pi --conductor --model <provider/model>    # or: pi --refuter
 ```
+
+From a clone, install its `pi/` folder instead: `pi install /absolute/path/to/baton/pi`.
 
 To load only one product, replace that package with an entry in the `packages` list of pi's settings that filters out the other, for example:
 
 ```json
-{ "source": "/absolute/path/to/baton/pi", "extensions": ["!refuter/**"], "prompts": ["!refuter/**"] }
+{ "source": "git:github.com/ZenderX/baton", "extensions": ["!pi/refuter/**"], "prompts": ["!pi/refuter/**"] }
 ```
 
 ### Install & launch (Claude Code)

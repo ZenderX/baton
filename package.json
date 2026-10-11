@@ -1,0 +1,41 @@
+{
+  "name": "pi-baton",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Umbrella pi package for baton: loads the baton core engine, the conductor and the refuter from one install, plus the shared context7 MCP server.",
+  "license": "MIT",
+  "author": "ZenderX",
+  "pi": {
+    "extensions": [
+      "./pi/core/extensions/engine/index.ts",
+      "./pi/core/extensions/statusline.ts",
+      "./pi/core/extensions/task-list.ts",
+      "./pi/core/extensions/lmstudio-reasoning.ts",
+      "./pi/core/extensions/drift-nudge.ts",
+      "./pi/core/extensions/restore-crlf.ts",
+      "./pi/conductor/extensions/conductor.ts",
+      "./pi/refuter/extensions/refuter.ts"
+    ],
+    "skills": [
+      "./claude/plugins/baton/skills",
+      "./claude/plugins/bevy/skills",
+      "./claude/plugins/blender/skills",
+      "./claude/plugins/rust/skills",
+      "./claude/plugins/typescript/skills",
+      "./claude/plugins/vue3/skills"
+    ],
+    "prompts": [
+      "./pi/conductor/prompts",
+      "./pi/refuter/prompts"
+    ],
+    "mcp": "./pi/.mcp.json"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-agent-core": "*",
+    "@earendil-works/pi-tui": "*",
+    "typebox": "*"
+  }
+}

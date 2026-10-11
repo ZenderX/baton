@@ -34,7 +34,7 @@ jobs:
                 process.exitCode = 1;
               }
             }
-          ' .claude-plugin/marketplace.json claude/plugins/*/.claude-plugin/plugin.json pi/package.json pi/*/package.json
+          ' .claude-plugin/marketplace.json claude/plugins/*/.claude-plugin/plugin.json package.json pi/package.json pi/*/package.json
 
       - name: Plugin manifests have a name
         run: |
@@ -59,6 +59,35 @@ jobs:
             if (versioned.length > 0) process.exitCode = 1;
           '
 
+      # `pi install git:...` loads the root package.json; pi/package.json stays the dev workspace, so the two must not drift.
+      - name: Root pi manifest matches pi/package.json
+        run: |
+          node -e '
+            const fs = require("fs");
+            const { posix } = require("path");
+            const { isDeepStrictEqual } = require("util");
+            const read = (file) => JSON.parse(fs.readFileSync(file, "utf8"));
+            const dev = read("pi/package.json");
+            const root = read("package.json");
+            const rebase = (value) =>
+              typeof value === "string" ? `./${posix.join("pi", value)}`
+              : Array.isArray(value) ? value.map(rebase)
+              : Object.fromEntries(Object.entries(value ?? {}).map(([key, entry]) => [key, rebase(entry)]));
+            const fail = (message) => {
+              console.log(`::error file=package.json::${message}`);
+              process.exitCode = 1;
+            };
+            if (!isDeepStrictEqual(root.pi, rebase(dev.pi))) {
+              fail("pi section differs from pi/package.json re-based to the repo root");
+              console.log(JSON.stringify({ expected: rebase(dev.pi), actual: root.pi }, null, 2));
+            }
+            if (root.name !== dev.name) fail(`name ${root.name} differs from pi/package.json name ${dev.name}`);
+            if (!isDeepStrictEqual(root.peerDependencies, dev.peerDependencies)) fail("peerDependencies differ from pi/package.json");
+            if (("version" in root) !== ("version" in dev) || root.version !== dev.version) {
+              fail(`version ${root.version} differs from pi/package.json version ${dev.version}`);
+            }
+          '
+
       # The release command stamps every manifest at once and writes CHANGELOG.md; before the first release versions still differ.
       - name: Manifest versions are present and identical
         if: hashFiles('CHANGELOG.md') != ''
@@ -80,7 +109,7 @@ jobs:
               console.log(`::error::manifest versions differ: ${[...distinct].join(", ")}`);
               process.exitCode = 1;
             }
-          ' claude/plugins/*/.claude-plugin/plugin.json pi/package.json pi/*/package.json
+          ' claude/plugins/*/.claude-plugin/plugin.json package.json pi/package.json pi/*/package.json
 
       - name: Install pi dev dependencies
         run: npm ci --prefix pi
