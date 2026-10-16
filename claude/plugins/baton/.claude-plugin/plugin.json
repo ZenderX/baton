@@ -1,6 +1,6 @@
 {
   "name": "baton",
-  "version": "5.0.0",
+  "version": "5.0.1",
   "description": "Shared core and orchestrators for the conductor and refuter worker packs: the baton:conductor and baton:refuter orchestrator agents, context7 MCP server, Task-tools SessionStart hook + /baton:setup, CRLF-restoring PostToolUse hook, git-diff, okf-memory and okf-memory-migrate skills.",
   "author": {
     "name": "ZenderX"

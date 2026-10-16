@@ -1,6 +1,6 @@
 {
   "name": "rust",
-  "version": "5.0.0",
+  "version": "5.0.1",
   "description": "Rust coding standards and conventions. Apply when writing or reviewing Rust files.",
   "author": {
     "name": "ZenderX"

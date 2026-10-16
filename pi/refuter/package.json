@@ -1,6 +1,6 @@
 {
   "name": "the-refuter",
-  "version": "5.0.0",
+  "version": "5.0.1",
   "private": true,
   "type": "module",
   "description": "Refuter product shim (scout/architect/developer/tester/expert agents working through the job-file protocol, orchestrator persona, --refuter flag and /refuter command) on top of the baton core engine",

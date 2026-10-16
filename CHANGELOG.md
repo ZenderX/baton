@@ -1,5 +1,10 @@
 # Changelog
 
+## v5.0.1 — 2026-10-16
+
+- Use model aliases in agent frontmatter
+- Copy job skills only once per job with a byte-exact cp
+
 ## v5.0.0 — 2026-10-11
 
 - Add root pi package manifest for git installs

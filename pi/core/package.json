@@ -1,6 +1,6 @@
 {
   "name": "baton",
-  "version": "5.0.0",
+  "version": "5.0.1",
   "private": true,
   "type": "module",
   "description": "Product-parameterised conductor engine (subagent dispatch, statusline, orchestrator runtime) shared by the conductor and the refuter",

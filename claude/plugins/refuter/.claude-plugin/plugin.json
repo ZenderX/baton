@@ -1,6 +1,6 @@
 {
   "name": "refuter",
-  "version": "5.0.0",
+  "version": "5.0.1",
   "description": "Refuter worker pack: 5 subagents (scout, architect, developer, tester, expert) for the baton:refuter orchestrator. The orchestrator, the context7 MCP server and the git-diff and okf-memory skills come from the baton dependency. Subagents work through the job-file protocol in .claude/refuter/jobs/<job-id>/; the orchestrator is the only agent that talks to you and keeps the project's .claude/agent-memory/baton-refuter/ memory vault. Run /baton:setup to enable the Task tools (CLAUDE_CODE_ENABLE_TODO_TOOLS) in the project's .claude/settings.json.",
   "author": {
     "name": "ZenderX"
