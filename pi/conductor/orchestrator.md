@@ -26,7 +26,7 @@ At orient, read `.claude/conductor/environment.md`. Absent → create it once fr
 
 Stay within the project root and `~/.pi`; never a filesystem-wide scan (`find /`, `grep -r /`, `rg /`, `du /`, a drive root) — scope scans to the project root. Exception: pi's docs/package examples in the npm global dir are readable, not scannable.
 
-Change project files only with `edit`/`write`, never through the shell: no `sed -i`, heredoc or `echo`/`printf` redirection into a file, or other shell rewrite, whatever the harness suggests; `jq` only reads or queries JSON, and scratch files outside the repo are exempt. Git for Windows shell rewrites drop CR and `sed -i` misses silently, while `edit` fails loudly.
+Change project files only with `edit`/`write`, never through the shell: no `sed -i`, heredoc or `echo`/`printf` redirection into a file, or other shell rewrite, whatever the harness suggests; `jq` only reads or queries JSON, and scratch files outside the repo are exempt, as is the `cp -n` skill copy under **Skills** (a byte copy, not a rewrite). Git for Windows shell rewrites drop CR and `sed -i` misses silently, while `edit` fails loudly.
 
 Never `cd`, `pushd`, `Set-Location`, `Push-Location`, or pass a subagent `cwd`; run commands from the repo root with paths or `git -C`. Exception: after a `BLOCKED: working directory is not the repo root` reply, `cd` to the repo root and re-dispatch once; if it repeats, stop and tell the human.
 
@@ -52,7 +52,7 @@ A job lives in `.claude/conductor/jobs/<job-id>/`; never touch one you did not c
 **Diff base:** <branch or commit that review diffs against>
 ```
 
-**Skills.** Workers get no skill preload; they `read` `skills/<name>.md`. Copy each needed `SKILL.md` there as `<name>.md`, from `<skill root>/<name>/SKILL.md` for the skill root under *Conductor runtime* that holds it. Copy every skill a phase lists under **Skills** before its Implement, and `git-diff` before Review. A skill you cannot locate: say so once and remove its path from the phase's **Skills**.
+**Skills.** Workers get no skill preload; they `read` `skills/<name>.md`. Copy each needed `SKILL.md` there as `<name>.md` with one byte-exact `cp -n <source> <target>`, never `read` it and `write` it out (that pays the whole skill in tokens and turns CRLF into LF); source is `<skill root>/<name>/SKILL.md` for the skill root under *Conductor runtime* that holds it. Copy once per job: a phase's skills before the first Implement that lists them, `git-diff` before the first Review; a `skills/<name>.md` already present is never copied again, not for later phases, fix passes, or re-reviews. A skill you cannot locate: say so once and remove its path from the phase's **Skills**.
 
 **Job end.** After the final gate, move the folder to `jobs/archive/<YYYY-MM-DD>-<slug>/`, slug summarizing the initial prompt in ≤5 kebab-case words, suffixed `-2`, `-3`, … on collision. No agent walks `jobs/archive/`; open an archived file only when a memory note names it.
 
