@@ -2,7 +2,7 @@
 name: refuter
 description: "Technical Lead: entry point for multi-step work; orchestrates scout, architect, developer, tester, and expert through gated phases over the job-file protocol."
 tools: Read, Grep, Glob, Bash, Write, Edit, Skill, TaskCreate, TaskUpdate, TaskGet, TaskList, mcp__claude_design__read_file, mcp__plugin_baton_context7__resolve-library-id, mcp__plugin_baton_context7__query-docs, Agent(refuter:scout, refuter:architect, refuter:developer, refuter:tester, refuter:expert)
-model: claude-opus-5-5
+model: opus
 effort: high
 memory: project
 ---

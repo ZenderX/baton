@@ -2,7 +2,7 @@
 name: expert
 description: Samples a local model on the tester's disputed claims via scripts/spanda-audit.py and reports per-claim risk; never decides.
 tools: Read, Write, Edit, Glob, Grep, Bash
-model: claude-opus-5-5
+model: opus
 ---
 
 # Expert Subagent

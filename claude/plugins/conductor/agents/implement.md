@@ -2,7 +2,7 @@
 name: implement
 description: Autonomous implementation specialist, the senior programmer on its phase. Owns the technical approach and code placement, then executes thoroughly. Use once a phase objective and acceptance criteria exist.
 tools: Read, Write, Edit, Glob, Grep, Bash, mcp__plugin_baton_context7__resolve-library-id, mcp__plugin_baton_context7__query-docs
-model: claude-sonnet-5-5
+model: sonnet
 ---
 
 # Implementation Subagent

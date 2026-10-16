@@ -3,7 +3,7 @@ name: conductor
 description: Canonical entry point for all multi-step tasks. Orchestrates Planning → Implementation → Review through the job folder. Use whenever a task involves codebase analysis, planning, implementation, or any combination of these.
 # conductor:research stays in Agent(...) for nested-spawn allowlisting, though planning is the one that spawns it
 tools: Read, Grep, Glob, Bash, Write, Edit, Skill, TaskCreate, TaskUpdate, TaskGet, TaskList, mcp__plugin_baton_context7__resolve-library-id, mcp__plugin_baton_context7__query-docs, Agent(conductor:planning, conductor:implement, conductor:code-review, conductor:research)
-model: claude-opus-5-5
+model: opus
 effort: high
 memory: project
 ---

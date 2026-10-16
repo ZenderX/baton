@@ -2,8 +2,7 @@
 name: planning
 description: Phase planning PM, PO, and software architect. Foresees what must change and in what order from the request and directory structure alone, never from code; spawns research; writes plan.md. Use before any code is written.
 tools: Read, Write, Glob, Agent(conductor:research), mcp__claude_design__read_file
-model: claude-fable-5-1
-effort: xhigh
+model: fable
 ---
 
 # Planning Subagent
