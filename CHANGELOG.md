@@ -1,5 +1,9 @@
 # Changelog
 
+## v5.0.2 — 2026-10-22
+
+- Add rules to prevent nested orchestrators in conductor and refuter agents
+
 ## v5.0.1 — 2026-10-16
 
 - Use model aliases in agent frontmatter
