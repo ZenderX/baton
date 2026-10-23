@@ -2,7 +2,7 @@
 name: analyst
 description: "Fast reconnaissance: a codebase map of a job's surfaces at orient, and codebase or dated web facts for one question. Returns a map, never a plan."
 tools: WebFetch, WebSearch, Read, Write, Edit, Glob, Grep, Bash, mcp__plugin_baton_context7__resolve-library-id, mcp__plugin_baton_context7__query-docs
-model: sonnet
+model: opus
 ---
 
 # Analyst Subagent

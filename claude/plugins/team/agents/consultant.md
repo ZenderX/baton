@@ -2,7 +2,7 @@
 name: consultant
 description: Samples a local model on the reviewer's disputed claims via scripts/spanda-audit.py and reports per-claim risk; never decides.
 tools: Read, Write, Edit, Glob, Grep, Bash
-model: sonnet
+model: opus
 ---
 
 # Consultant Subagent

@@ -2,8 +2,7 @@
 name: conductor
 description: Canonical entry point for all multi-step tasks. Orchestrates Analyze → Plan → Implement → Review through the job folder. Use whenever a task involves codebase analysis, planning, implementation, or any combination of these. Runs top-level only; never spawned as a subagent.
 tools: Read, Glob, Bash, Write, Edit, Skill, TaskCreate, TaskUpdate, TaskGet, TaskList, mcp__plugin_baton_context7__resolve-library-id, mcp__plugin_baton_context7__query-docs, SendMessage, Agent(team:analyst, team:architect, team:developer, team:reviewer)
-model: sonnet
-effort: high
+model: opus
 memory: project
 ---
 
