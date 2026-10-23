@@ -34,8 +34,8 @@
  *      through grep or Select-String draw none; counters stay bounded.
  *  10. Per-child drift config: the engine hands each child PI_CONDUCTOR_DRIFT,
  *      with no-progress on only for `driftProgress: true` agents (the real
- *      team developer, not tester or expert), package agents limited to the
- *      product's roster (no expert for the conductor), and the Surface prefixes of
+ *      team developer, not reviewer or consultant), package agents limited to the
+ *      product's roster (no consultant for the conductor), and the Surface prefixes of
  *      the `plan.md#<phase-id>` section the task names, read only from its
  *      own `<jobsRel>/<job-id>/` folder (never archive/ or a malformed id).
  *  11. drift-nudge extension: against a stubbed pi, the failed-run replay as
@@ -507,8 +507,8 @@ async function main(): Promise<void> {
 
 			const piRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 			const teamAgentsDir = path.join(piRoot, "team", "agents");
-			const conductorRoster = ["scout", "architect", "developer", "tester"];
-			const refuterRoster = [...conductorRoster, "expert"];
+			const conductorRoster = ["analyst", "architect", "developer", "reviewer"];
+			const refuterRoster = [...conductorRoster, "consultant"];
 			const teamAgent = (roster: string[], name: string) =>
 				discoverAgents(scratch, "user", teamAgentsDir, roster, PACKAGE_ROOT).agents.find((a) => a.name === name);
 			const noProgressOf = (roster: string[], name: string): boolean => {
@@ -518,9 +518,9 @@ async function main(): Promise<void> {
 			};
 			assert.equal(noProgressOf(conductorRoster, "developer"), true);
 			assert.equal(noProgressOf(refuterRoster, "developer"), true);
-			assert.equal(noProgressOf(conductorRoster, "tester"), false);
-			assert.equal(noProgressOf(refuterRoster, "expert"), false);
-			assert.equal(teamAgent(conductorRoster, "expert"), undefined, "a team agent outside the product's roster stays hidden");
+			assert.equal(noProgressOf(conductorRoster, "reviewer"), false);
+			assert.equal(noProgressOf(refuterRoster, "consultant"), false);
+			assert.equal(teamAgent(conductorRoster, "consultant"), undefined, "a team agent outside the product's roster stays hidden");
 			console.log("  [10] per-child drift config: no-progress for developer only; roster hides unlisted team agents; Surface from the named plan section");
 		}
 

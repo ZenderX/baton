@@ -164,10 +164,10 @@ function assertOneWinnerPerEntry(shape: string, loaded: LoadedCopy[], entries: s
 	}
 }
 
-/** Both products dispatch the shared team agents; only the refuter samples disputed claims through the expert. */
+/** Both products dispatch the shared team agents; only the refuter samples disputed claims through the consultant. */
 const ROSTERS: Record<string, string[]> = {
-	conductor: ["scout", "architect", "developer", "tester"],
-	refuter: ["scout", "architect", "developer", "tester", "expert"],
+	conductor: ["analyst", "architect", "developer", "reviewer"],
+	refuter: ["analyst", "architect", "developer", "reviewer", "consultant"],
 };
 
 function assertWinningDescriptors(shape: string): void {

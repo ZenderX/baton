@@ -44,7 +44,7 @@ const DESCRIPTOR: ProductDescriptor = {
 	packageRoot: PACKAGE_ROOT,
 	// The worker agents live in the sibling team package, shared with the conductor.
 	agentsDir: path.join(PACKAGE_ROOT, "..", "team", "agents"),
-	agents: ["scout", "architect", "developer", "tester", "expert"],
+	agents: ["analyst", "architect", "developer", "reviewer", "consultant"],
 	orchestratorPromptPath: path.join(PACKAGE_ROOT, "orchestrator.md"),
 	vaultDir: "baton-refuter",
 	jobsRel: path.join(".claude", "refuter", "jobs"),

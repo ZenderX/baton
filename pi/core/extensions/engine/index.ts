@@ -105,7 +105,7 @@ function envSpawnAllow(): Set<string> | undefined {
 	return new Set(names);
 }
 
-/** Root conductor is 0, its workers 1, their `scout` children 2 — nothing spawns beyond that. */
+/** Root conductor is 0, its workers 1, their `analyst` children 2 — nothing spawns beyond that. */
 const MAX_SPAWN_DEPTH = 2;
 
 /**

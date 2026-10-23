@@ -44,8 +44,8 @@ const DESCRIPTOR: ProductDescriptor = {
 	packageRoot: PACKAGE_ROOT,
 	// The worker agents live in the sibling team package, shared with the refuter.
 	agentsDir: path.join(PACKAGE_ROOT, "..", "team", "agents"),
-	// No expert: only the refuter samples the tester's disputed claims.
-	agents: ["scout", "architect", "developer", "tester"],
+	// No consultant: only the refuter samples the reviewer's disputed claims.
+	agents: ["analyst", "architect", "developer", "reviewer"],
 	orchestratorPromptPath: path.join(PACKAGE_ROOT, "orchestrator.md"),
 	vaultDir: "baton-conductor",
 	jobsRel: path.join(".claude", "conductor", "jobs"),
