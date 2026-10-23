@@ -19,6 +19,6 @@ __pycache__/
 
 # Per-user agent memory and machine-local state
 .claude/agent-memory/
-.claude/conductor/environment.md
+.claude/environment.md
 .claude/settings.local.json
 

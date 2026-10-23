@@ -105,7 +105,7 @@ function envSpawnAllow(): Set<string> | undefined {
 	return new Set(names);
 }
 
-/** Root conductor is 0, its workers 1, their `research`/`scout` children 2 — nothing spawns beyond that. */
+/** Root conductor is 0, its workers 1, their `scout` children 2 — nothing spawns beyond that. */
 const MAX_SPAWN_DEPTH = 2;
 
 /**
@@ -810,7 +810,7 @@ export default function (pi: ExtensionAPI) {
 				authedProviders: new Set(ctx.modelRegistry.getAvailable().map((m) => m.provider)),
 				notify: (message, type) => ctx.ui.notify(message, type),
 			};
-			const discovery = discoverAgents(ctx.cwd, agentScope, product.agentsDir, PACKAGE_ROOT);
+			const discovery = discoverAgents(ctx.cwd, agentScope, product.agentsDir, product.agents, PACKAGE_ROOT);
 			const agents = discovery.agents;
 			const confirmProjectAgents = params.confirmProjectAgents ?? true;
 

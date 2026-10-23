@@ -11,10 +11,10 @@ AI agent orchestration for Claude Code and pi, from one source tree, with no bui
 
 You give an orchestrator a coding task. It writes a plan, splits the work into steps, and hands each step to a specialist agent. Finished work is checked and sent back for fixes until it passes. The orchestrator is the only agent that talks to you.
 
-Two products share one core, called baton, and can be installed side by side:
+Two products share one core, called baton, and one set of five agents (scout, architect, developer, tester, expert), called team. They can be installed side by side:
 
-- **conductor**: an orchestrator with four agents (planning, research, implement, code-review). It plans the job, builds it, then reviews it.
-- **refuter**: an orchestrator with five agents (scout, architect, developer, tester, expert). Each step is built, then challenged by a tester until it holds up.
+- **conductor**: an orchestrator that uses four of the team agents (scout, architect, developer, tester). It maps the code, plans the job, builds it, then reviews it.
+- **refuter**: an orchestrator that uses all five team agents. Each step is built, then challenged by a tester until it holds up.
 
 Also included: a statusline, and skills (short guides the agents load when relevant) for Bevy, Blender, Rust, TypeScript and Vue 3.
 
@@ -45,7 +45,7 @@ Add the marketplace (or run `/plugin marketplace add ZenderX/baton` inside Claud
 
 ```bash
 claude plugin marketplace add ZenderX/baton
-claude plugin install conductor@baton      # and/or: refuter@baton
+claude plugin install team@baton           # pulls in baton, which ships both orchestrators
 claude --agent baton:conductor             # or: claude --agent baton:refuter
 ```
 
@@ -56,7 +56,7 @@ From a clone, add the clone's root folder instead: `claude plugin marketplace ad
 | Path | What is inside |
 |---|---|
 | `claude/` | The Claude Code plugins: orchestrators, agents, hooks and the statusline |
-| `pi/` | The pi package: the shared engine in `pi/core`, plus `pi/conductor` and `pi/refuter` |
+| `pi/` | The pi package: the shared engine in `pi/core`, the shared agents in `pi/team`, plus `pi/conductor` and `pi/refuter` |
 | `claude/plugins/*/skills/` | The skills, written once and read by both Claude Code and pi |
 | `docs/` | [`job-files.md`](docs/job-files.md), the protocol agents use to hand work to each other |
 | `scripts/` | Repository tooling (PowerShell 7) |

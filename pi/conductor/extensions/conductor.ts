@@ -30,6 +30,7 @@ interface ProductDescriptor {
 	name: string;
 	packageRoot: string;
 	agentsDir: string;
+	agents: string[];
 	orchestratorPromptPath: string;
 	vaultDir: string;
 	jobsRel: string;
@@ -41,7 +42,10 @@ const PACKAGE_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), 
 const DESCRIPTOR: ProductDescriptor = {
 	name: PRODUCT,
 	packageRoot: PACKAGE_ROOT,
-	agentsDir: path.join(PACKAGE_ROOT, "agents"),
+	// The worker agents live in the sibling team package, shared with the refuter.
+	agentsDir: path.join(PACKAGE_ROOT, "..", "team", "agents"),
+	// No expert: only the refuter samples the tester's disputed claims.
+	agents: ["scout", "architect", "developer", "tester"],
 	orchestratorPromptPath: path.join(PACKAGE_ROOT, "orchestrator.md"),
 	vaultDir: "baton-conductor",
 	jobsRel: path.join(".claude", "conductor", "jobs"),

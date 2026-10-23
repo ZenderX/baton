@@ -231,20 +231,24 @@ function findNearestProjectAgentsDir(cwd: string): string | null {
 }
 
 /**
- * Package agents ship with the active product (`packageAgentsDir`, from its
- * ProductDescriptor), so they load under every scope and sit lowest in
- * precedence: a same-named user or project agent overrides them.
+ * Package agents ship with the active product (`packageAgentsDir` and its
+ * `packageRoster`, from its ProductDescriptor), so they load under every scope
+ * and sit lowest in precedence: a same-named user or project agent overrides
+ * them. Products share one agents directory, so only rostered names load.
  */
 export function discoverAgents(
 	cwd: string,
 	scope: AgentScope,
 	packageAgentsDir: string,
+	packageRoster: readonly string[],
 	packageRoot: string = PACKAGE_ROOT,
 ): AgentDiscoveryResult {
 	const userDir = path.join(getAgentDir(), "agents");
 	const projectAgentsDir = findNearestProjectAgentsDir(cwd);
 
-	const packageAgents = loadAgentsFromDir(packageAgentsDir, "package", packageRoot);
+	const packageAgents = loadAgentsFromDir(packageAgentsDir, "package", packageRoot).filter(({ name }) =>
+		packageRoster.includes(name),
+	);
 	const userAgents = scope === "project" ? [] : loadAgentsFromDir(userDir, "user", packageRoot);
 	const projectAgents =
 		scope === "user" || !projectAgentsDir ? [] : loadAgentsFromDir(projectAgentsDir, "project", packageRoot);

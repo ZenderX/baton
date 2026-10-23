@@ -19,7 +19,8 @@ import { type ProductDescriptor, getActiveProductName, getProduct } from "./prod
 import { envSpawnDepth } from "./spawn-depth.ts";
 import { resolveTaskStorePath } from "./tasks.ts";
 
-const ENVIRONMENT_RELATIVE = path.join(".claude", "conductor", "environment.md");
+// One environment file shared by every product and every worker, never per-product.
+const ENVIRONMENT_RELATIVE = path.join(".claude", "environment.md");
 
 function readFileOr(filePath: string, fallback: string): string {
 	try {
@@ -35,7 +36,7 @@ function readFileOr(filePath: string, fallback: string): string {
  * vault contents.
  */
 function buildRuntimeBlock(cwd: string, sessionId: string, product: ProductDescriptor): string {
-	const agents = discoverAgents(cwd, "user", product.agentsDir, PACKAGE_ROOT).agents;
+	const agents = discoverAgents(cwd, "user", product.agentsDir, product.agents, PACKAGE_ROOT).agents;
 	const agentList =
 		agents.length > 0
 			? agents.map((a) => `  - ${a.name} (${a.source}): ${a.description}`).join("\n")

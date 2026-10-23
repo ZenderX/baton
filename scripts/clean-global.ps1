@@ -2,14 +2,13 @@
 .SYNOPSIS
     One-time migration: removes stale name-matched copies of this repo's
     plugin agent/rule/skill names from ~/.claude/ so a plugin install
-    (conductor, etc.) takes over resolution instead of being silently
+    (team, etc.) takes over resolution instead of being silently
     shadowed by them.
 .DESCRIPTION
     Plugin agents/skills resolve last, so a stale ~/.claude/agents/*.md (or
     rules/skills equivalent) silently wins over same-named plugin content
     forever. Canon names come from claude/plugins/*/ (agents/skills are authored
-    there, across every product - baton, conductor and refuter each ship an
-    agents/ dir; the two rules filenames no longer exist as files - their
+    there - baton and team each ship an agents/ dir; the two rules filenames no longer exist as files - their
     content is now inlined in the orchestrators baton ships, conductor.md and
     refuter.md - so they're hardcoded below).
     Only name-matched items under <Destination>/{agents,
@@ -40,7 +39,7 @@ $ErrorActionPreference = 'Stop'
 $PluginsRoot = Join-Path (Split-Path -Parent $PSScriptRoot) 'claude' 'plugins'
 $ManagedDirs = @('agents', 'rules', 'skills')
 # Retired from claude/plugins/ but once synced to ~/.claude/agents/, so still ours to remove.
-$RetiredAgents = @('memory.md')
+$RetiredAgents = @('memory.md', 'planning.md', 'research.md', 'implement.md', 'code-review.md')
 $removedCount = 0
 $preservedCount = 0
 

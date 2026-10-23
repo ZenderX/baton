@@ -34,7 +34,8 @@
  *      through grep or Select-String draw none; counters stay bounded.
  *  10. Per-child drift config: the engine hands each child PI_CONDUCTOR_DRIFT,
  *      with no-progress on only for `driftProgress: true` agents (the real
- *      implement and developer, not code-review) and the Surface prefixes of
+ *      team developer, not tester or expert), package agents limited to the
+ *      product's roster (no expert for the conductor), and the Surface prefixes of
  *      the `plan.md#<phase-id>` section the task names, read only from its
  *      own `<jobsRel>/<job-id>/` folder (never archive/ or a malformed id).
  *  11. drift-nudge extension: against a stubbed pi, the failed-run replay as
@@ -341,6 +342,7 @@ async function main(): Promise<void> {
 					name: "harness",
 					packageRoot: scratch,
 					agentsDir,
+					agents: ["capped", "free", "drifty"],
 					orchestratorPromptPath: path.join(scratch, "orchestrator.md"),
 					vaultDir: scratch,
 					jobsRel,
@@ -504,18 +506,22 @@ async function main(): Promise<void> {
 			assert.deepEqual(await echo("drifty", "no plan section"), { agent: "drifty", noProgress: true, cwd: scratch, surface: [] });
 
 			const piRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-			const noProgressOf = (product: string, name: string): boolean => {
-				const found = discoverAgents(scratch, "user", path.join(piRoot, product, "agents"), PACKAGE_ROOT).agents.find(
-					(a) => a.name === name,
-				);
-				assert.ok(found !== undefined && found.source === "package", `${product}/${name} is a package agent`);
+			const teamAgentsDir = path.join(piRoot, "team", "agents");
+			const conductorRoster = ["scout", "architect", "developer", "tester"];
+			const refuterRoster = [...conductorRoster, "expert"];
+			const teamAgent = (roster: string[], name: string) =>
+				discoverAgents(scratch, "user", teamAgentsDir, roster, PACKAGE_ROOT).agents.find((a) => a.name === name);
+			const noProgressOf = (roster: string[], name: string): boolean => {
+				const found = teamAgent(roster, name);
+				assert.ok(found !== undefined && found.source === "package", `team/${name} is a package agent`);
 				return childDriftConfig(found.name, found.driftProgress, "task", scratch, undefined).noProgress;
 			};
-			assert.equal(noProgressOf("conductor", "implement"), true);
-			assert.equal(noProgressOf("refuter", "developer"), true);
-			assert.equal(noProgressOf("conductor", "code-review"), false);
-			assert.equal(noProgressOf("refuter", "expert"), false);
-			console.log("  [10] per-child drift config: no-progress for implement/developer only; Surface from the named plan section");
+			assert.equal(noProgressOf(conductorRoster, "developer"), true);
+			assert.equal(noProgressOf(refuterRoster, "developer"), true);
+			assert.equal(noProgressOf(conductorRoster, "tester"), false);
+			assert.equal(noProgressOf(refuterRoster, "expert"), false);
+			assert.equal(teamAgent(conductorRoster, "expert"), undefined, "a team agent outside the product's roster stays hidden");
+			console.log("  [10] per-child drift config: no-progress for developer only; roster hides unlisted team agents; Surface from the named plan section");
 		}
 
 		// 7. Boundary hook.
@@ -808,7 +814,7 @@ async function main(): Promise<void> {
 		// 11. drift-nudge extension (this process is at depth 1 since case 7).
 		{
 			const failedRun = [...healthyCalls(), ...scratchCalls(), ...symbolGreps("grep")];
-			const childConfig = { agent: "implement", noProgress: true, cwd: DRIFT_CWD, surface: ["crates/"] };
+			const childConfig = { agent: "developer", noProgress: true, cwd: DRIFT_CWD, surface: ["crates/"] };
 			process.env[DRIFT_ENV] = JSON.stringify(childConfig);
 			const child = replayNudgeExtension(failedRun);
 			assert.ok(child.sends.length >= 2, `at least two nudges, got ${child.sends.length}`);
