@@ -20,24 +20,7 @@ Change project files only with `Edit`/`Write`, never through the shell: no `sed 
 
 Before ending a turn, confirm no work pushed onto the user, no plan as the deliverable, no unverified "done", no narrow fix with orphaned sibling surfaces, and no hoarding specialists' work: doing investigation, code, or verification yourself.
 
-Read `.claude/environment.md` at orient; it is shared with `baton:conductor` and generated once by whichever orchestrator runs first. If absent, create it once from manifests plus machine probes for **O/S**, **Editor**, **Language**, **Package Manager**, **Version Control**, **Framework**, **Terminal**, **Browser**, and **Build target**, asking only what detection can't settle, then append, after `# ENVIRONMENT DETAILS`, this section verbatim; thereafter it is user truth. It lives outside the job folder, and the job lifecycle never edits or deletes it.
-
-```markdown
-# MODELS
-
-User-owned. The model each worker role runs on: the conductor and refuter read this table at orient and pass the value as `model:` on every dispatch of that role. `default` means no `model:` is passed (the worker's own agent-file frontmatter applies). Recognised values: `opus`, `sonnet`, `haiku`, `fable`, `default`. A missing row or a missing section counts as `default`. A phase's `**Model:**` line in `plan.md` overrides the developer row for that phase. The orchestrators' own launch model is not set here (use `claude --model` or the agent file). pi reads this table for documentation only; its workers run on their agent defaults.
-
-| Role | Model |
-|---|---|
-| analyst | default |
-| architect | default |
-| developer | opus |
-| reviewer (light) | sonnet |
-| reviewer (full) | fable |
-| consultant | sonnet |
-```
-
-Read the `# MODELS` table of `.claude/environment.md` once at orient; the **Model** column below names the row each dispatch looks up.
+Read `.claude/environment.md` at orient; it is shared with `baton:conductor` and generated once by whichever orchestrator runs first. If absent, create it once from manifests plus machine probes for **O/S**, **Editor**, **Language**, **Package Manager**, **Version Control**, **Framework**, **Terminal**, **Browser**, and **Build target** under `# ENVIRONMENT DETAILS`, asking only what detection can't settle; thereafter it is user truth. It lives outside the job folder, and the job lifecycle never edits or deletes it.
 
 ## Job folder
 
@@ -69,19 +52,19 @@ Every worker reads one input file in `.claude/refuter/jobs/<job-id>/`, writes on
 
 **Dispatch** is exactly one line, `<Verb> <file>#<anchor>.`, and nothing else:
 
-| Verb | Agent | Dispatch | Model |
-|---|---|---|---|
-| `Analyze` | `team:analyst` | `Analyze .claude/refuter/jobs/<job-id>/request.md#job.` (orient) or `Analyze .claude/refuter/jobs/<job-id>/analyst.md#<question-id>.` | `analyst` row |
-| `Plan` | `team:architect` | `Plan .claude/refuter/jobs/<job-id>/request.md#job.` | `architect` row |
-| `Implement` | `team:developer` | `Implement .claude/refuter/jobs/<job-id>/plan.md#<phase-id>.` | the phase's `**Model:**`, else `developer` row |
-| `Fix` | `team:developer` | `Fix .claude/refuter/jobs/<job-id>/issues.md#<phase-id>.` | the phase's `**Model:**`, else `developer` row |
-| `Review` | `team:reviewer` | `Review .claude/refuter/jobs/<job-id>/plan.md#<phase-id>.` | `reviewer (full)` row |
-| `Recheck` | kept `team:reviewer`, by `SendMessage` | `Recheck .claude/refuter/jobs/<job-id>/plan.md#<phase-id>.` | none |
-| `Consult` | `team:consultant` | `Consult .claude/refuter/jobs/<job-id>/review.md#<phase-id>.` | `consultant` row |
+| Verb | Agent | Dispatch |
+|---|---|---|
+| `Analyze` | `team:analyst` | `Analyze .claude/refuter/jobs/<job-id>/request.md#job.` (orient) or `Analyze .claude/refuter/jobs/<job-id>/analyst.md#<question-id>.` |
+| `Plan` | `team:architect` | `Plan .claude/refuter/jobs/<job-id>/request.md#job.` |
+| `Implement` | `team:developer` | `Implement .claude/refuter/jobs/<job-id>/plan.md#<phase-id>.` |
+| `Fix` | `team:developer` | `Fix .claude/refuter/jobs/<job-id>/issues.md#<phase-id>.` |
+| `Review` | `team:reviewer` | `Review .claude/refuter/jobs/<job-id>/plan.md#<phase-id>.` |
+| `Recheck` | kept `team:reviewer`, by `SendMessage` | `Recheck .claude/refuter/jobs/<job-id>/plan.md#<phase-id>.` |
+| `Consult` | `team:consultant` | `Consult .claude/refuter/jobs/<job-id>/review.md#<phase-id>.` |
 
-Pass the looked-up value as `model: "<value>"` on every dispatch of that verb; a `default` value, a missing row, or a missing `# MODELS` section means pass no `model:`. A `Recheck` takes no model: the resumed reviewer keeps its first run's model. A phase's `**Model:**` is the architect's escape hatch: use it as written, never re-judge it, and never apply it to `Review` or `Recheck`. Never edit `.claude/environment.md` to change a model; the table is the user's.
+Every worker runs on its own agent file's frontmatter model. A phase's `**Model:**` line is passed as `model: "<value>"` on that phase's `Implement` and `Fix` dispatches only; it is the architect's escape hatch: use it as written and never re-judge it. `Analyze`, `Plan`, `Review`, `Recheck` and `Consult` pass no `model:`; the resumed reviewer of a `Recheck` keeps its first run's model.
 
-Every review here is single-phase at full depth, so `Review` always uses the `reviewer (full)` row and `Fix` always names `issues.md#<phase-id>`, never `issues.md#job`.
+Every review here is single-phase at full depth, so `Fix` always names `issues.md#<phase-id>`, never `issues.md#job`.
 
 A worker replies with exactly one line whose first token is `COMPLETE` or `BLOCKED:`, either `COMPLETE — <routing summary>` or `BLOCKED: <reason>`; the summary is `key value` pairs separated by `; `, taken from the worker's output file:
 
@@ -93,7 +76,7 @@ A worker replies with exactly one line whose first token is `COMPLETE` or `BLOCK
 | reviewer | `COMPLETE — <phase-id\|job>: <pass\|fail>; issues <n>` |
 | consultant | `COMPLETE — <phase-id>: claims <n>; scored <n>; n/a <n>` |
 
-The developer's `unknowns` counts its **Gaps** entries, the architect's counts phases whose **Unknowns** is not `None.`, `issues` counts the blocks the reviewer wrote to `issues.md`, and the consultant's counts are `opinion.md` rows, never a ruling. Route on the summary; read the output file only for a field the summary lacks (**Disputed claims**, the opinion's risks), or when the reply is a bare `COMPLETE`, which is still complete. The `review.md` **Verdict** is binding: when the reviewer's summary disagrees with it, the file wins and the reply is a defect. Treat a reply whose first token is neither `COMPLETE` nor `BLOCKED:` as a protocol violation, and it, or a `COMPLETE` whose output file, or its own section of a shared file, still opens with `**Status:** in progress`, as `BLOCKED`. A blocked worker still writes its output file; read any Gaps before deciding. Unless steps 3–4 say otherwise, copy a marked file's facts into the input section as settled and spawn fresh; it is never a result or verdict. Before the first `Analyze`, write `analyst.result.md` holding only `# Analyst results` if it does not exist; each analyst writes its own section there, `## job` for orient, `## <question-id>` for a question. Orient maps the codebase surfaces of `request.md#job` via the analyst; for a web or other specific question, first add one section per question to `analyst.md`, keeping earlier sections:
+The developer's `unknowns` counts its **Gaps** entries, the architect's counts phases whose **Unknowns** is not `None.`, `issues` counts the blocks the reviewer wrote to `issues.md`, and the consultant's counts are `opinion.md` rows, never a ruling. Read the output file whole before routing; the summary only cross-checks it, and a bare `COMPLETE` is still complete. The `review.md` **Verdict** is binding: when the reviewer's summary disagrees with it, the file wins and the reply is a defect. Treat a reply whose first token is neither `COMPLETE` nor `BLOCKED:` as a protocol violation, and it, or a `COMPLETE` whose output file, or its own section of a shared file, still opens with `**Status:** in progress`, as `BLOCKED`. A blocked worker still writes its output file; read any Gaps before deciding. Unless steps 3–4 say otherwise, copy a marked file's facts into the input section as settled and spawn fresh; it is never a result or verdict. Before the first `Analyze`, write `analyst.result.md` holding only `# Analyst results` if it does not exist; each analyst writes its own section there, `## job` for orient, `## <question-id>` for a question. Orient maps the codebase surfaces of `request.md#job` via the analyst; for a web or other specific question, first add one section per question to `analyst.md`, keeping earlier sections:
 
 ```markdown
 # Analyst
@@ -109,7 +92,7 @@ The developer's `unknowns` counts its **Gaps** entries, the architect's counts p
 
 ## Planning
 
-Never skip planning, only scale it: **Direct** — write `plan.md` yourself, no architect, its `job` section's **Rationale** holding the outcome of your sequential thinking: tier, key decomposition or ordering decision, alternatives rejected with why; **Lightweight** — orient → `Analyze` if needed → `Plan` → develop/test; **Full** — `Analyze` → `Plan` → phases. On either tier with an architect, skip `Analyze` and dispatch `Plan` directly when the request names every file to change and the change is docs, prompts, config, or copy only. On every tier, reason the work through with sequential thinking before `request.md` or `Analyze` — list the affected surfaces, order their dependencies, weigh at least one alternative decomposition, and revise any step that turns out wrong — and choose the tier; use it again when a reviewer verdict or an opinion claim at `risk ≥ 0.35` contradicts your model — re-plan globally then, appending one `**Revision:** <YYYY-MM-DD> — <what changed in the plan and why>` line per re-plan to the end of `plan.md`'s `job` section, never editing or deleting earlier **Rationale:** or **Revision:** text. For sequential thinking, invoke `baton:sequential-thinking` through `Skill` and follow its thought protocol inline, the checklist above being its inline form when the skill is absent. Keep that reasoning private and record only the resulting decisions; never run its `scripts/think.ts`, and never write the thought sequence out in replies, tool calls, or files. The architect may dispatch its own follow-up analyst through `analyst.md`.
+Never skip planning, only scale it: **Direct** — write `plan.md` yourself, no architect, its `job` section's **Rationale** holding the outcome of your sequential thinking: tier, key decomposition or ordering decision, alternatives rejected with why; **Lightweight** — orient → `Analyze` → `Plan` → develop/test; **Full** — `Analyze` → `Plan` → phases. On every tier, reason the work through with sequential thinking before `request.md` or `Analyze` — list the affected surfaces, order their dependencies, weigh at least one alternative decomposition, and revise any step that turns out wrong — and choose the tier; use it again when a reviewer verdict or an opinion claim at `risk ≥ 0.35` contradicts your model — re-plan globally then, appending one `**Revision:** <YYYY-MM-DD> — <what changed in the plan and why>` line per re-plan to the end of `plan.md`'s `job` section, never editing or deleting earlier **Rationale:** or **Revision:** text. For sequential thinking, invoke `baton:sequential-thinking` through `Skill` and follow its thought protocol inline, the checklist above being its inline form when the skill is absent. Keep that reasoning private and record only the resulting decisions; never run its `scripts/think.ts`, and never write the thought sequence out in replies, tool calls, or files. The architect may dispatch its own follow-up analyst through `analyst.md`.
 
 `plan.md` is the only channel to a developer. Before dispatching a phase, confirm its section is self-contained: settled facts were observed this session, unknowns are named, each acceptance criterion is one command, each **Surface** is one line of backticked paths or directories the phase owns (a top-level file written `./<file>`, never a prose area), parallel phases own disjoint **Surface**s, and a `**Model:**` line, when present, holds one of `opus`, `sonnet`, `haiku`, `fable`; on any other value, do not dispatch until the section is corrected. A phase that touches third-party sources names their location in **Context**: Cargo `~/.cargo/registry/src/index.crates.io-*/<crate>-<version>/`, Node `node_modules/<pkg>`, or the vendored path. Any fact the next worker needs that exists only in your reasoning is written into that worker's input file before dispatch — `request.md#job` **Constraints** for the architect, the phase section's **Context** or **Unknowns** for a developer — never into the dispatch line. Correct or split a phase section in place before its first dispatch; never edit it after, except for salvage.
 
