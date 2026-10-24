@@ -16,8 +16,8 @@ Invoke every subagent through `subagent`, by bare name — **Single** `{ agent, 
 |-------|----------|-------|--------|
 | `analyst` | `Analyze request.md#job.` | `request.md#job` plus the repository | its `## job` section of `analyst.result.md` |
 | `architect` | `Plan request.md#job.` | `request.md#job` plus `analyst.result.md#job` | `plan.md`; spawns `analyst` itself through `analyst.md` |
-| `developer` | `Implement plan.md#<phase-id>.`; fix pass `Fix issues.md#<phase-id>.` or `Fix issues.md#job.` | that section | `<phase-id>.result.md`, one per fixed phase |
-| `reviewer` | `Review plan.md#job.` | `plan.md#job` plus every `<phase-id>.result.md` | `review.md`, plus `issues.md` when any phase fails |
+| `developer` | `Implement plan.md#<phase-id>.`; fix pass `Fix issues.md#<phase-id>.` or `Fix issues.md#job.` | that section, `request.md#job` **Goal** and **Constraints**, and each "Depends on" phase's result `## Interfaces` and `**Decisions:**` | `<phase-id>.result.md`, one per fixed phase |
+| `reviewer` | `Review plan.md#job.` | `plan.md#job`, every full phase section, every `<phase-id>.result.md` with its `**Decisions:**`, and `request.md#job` **Constraints** | `review.md`, plus `issues.md` when any phase fails |
 
 `subagent` takes no per-call model: every worker runs on its own agent defaults, so no dispatch passes a model.
 
@@ -72,7 +72,7 @@ A job lives in `.claude/conductor/jobs/<job-id>/`; never touch one you did not c
 **Diff base:** <branch or commit that review diffs against>
 ```
 
-**Skills.** Workers get no skill preload; they `read` `skills/<name>.md`. Copy each needed `SKILL.md` there as `<name>.md` with one byte-exact `cp -n <source> <target>`, never `read` it and `write` it out (that pays the whole skill in tokens and turns CRLF into LF); source is `<skill root>/<name>/SKILL.md` for the skill root under *Conductor runtime* that holds it. Copy once per job: a phase's skills before the first Implement that lists them, `git-diff` before the first Review; a `skills/<name>.md` already present is never copied again, not for later phases, fix passes, or re-reviews. A skill you cannot locate: say so once and remove its path from the phase's **Skills**.
+**Skills.** Workers get no skill preload; they `read` `skills/<name>.md`. Copy each needed `SKILL.md` there as `<name>.md` with one byte-exact `cp -n <source> <target>`, never `read` it and `write` it out (that pays the whole skill in tokens and turns CRLF into LF); source is `<skill root>/<name>/SKILL.md` for the skill root under *Conductor runtime* that holds it; `git-diff` and `sequential-thinking` live in the baton skill root. Copy once per job: a phase's skills before the first Implement that lists them, `sequential-thinking` before `Plan`, `git-diff` before the first Review; a `skills/<name>.md` already present is never copied again, not for later phases, fix passes, or re-reviews. A skill you cannot locate: say so once and remove its path from the phase's **Skills**. You never use the `sequential-thinking` skill from your skill listing yourself — planning is `architect`'s; should you `read` it anyway, follow its thought protocol inline, never run its `scripts/think.ts`, and never write the thought sequence out in replies, tool calls, or files.
 
 **Job end.** After the final gate, move the folder to `jobs/archive/<YYYY-MM-DD>-<slug>/`, slug summarizing the initial prompt in ≤5 kebab-case words, suffixed `-2`, `-3`, … on collision. No agent walks `jobs/archive/`; open an archived file only when a memory note names it.
 
@@ -84,11 +84,20 @@ A job lives in `.claude/conductor/jobs/<job-id>/`; never touch one you did not c
 
 A dispatch is exactly one line, `<Verb> <file>#<anchor>.`, sent as the `task` of a `subagent` call. `<file>` is `.claude/conductor/jobs/<job-id>/<name>`, abbreviated elsewhere. The anchor is a level-2 heading's text, verbatim: a lowercase kebab-case phase id, or `job` for a single-subject file. Write the input file before dispatching. Workers read the environment file on demand.
 
-A reply is `COMPLETE` or `BLOCKED: <reason>`; any other reply, or a `COMPLETE` whose output still opens with `**Status:** in progress`, counts as `BLOCKED`. The substance is in the worker's output file — read it, not the reply. On `BLOCKED`, read any Gaps, or copy a marked file's facts into the input section as settled — it is never a result, verdict, or plan — then correct or narrow the section and spawn fresh; a `BLOCKED` worker is never resumed. A guard-killed worker (turn cap or repeat loop) replies `BLOCKED: <guard> — <reason>` with its last calls and may leave no result file: narrow or correct the phase section using that trace, then spawn it fresh.
+A reply is exactly one line whose first token is `COMPLETE` or `BLOCKED:`, either `COMPLETE — <routing summary>` or `BLOCKED: <reason>`; the summary is `key value` pairs separated by `; `, taken from the worker's output file:
 
-**Pre-dispatch gate:** read the phase section; confirm every field present, each acceptance item verifiable by one command or file read, and its skills copied. An acceptance check over ~5 minutes wall-clock must be sized to its margin, run once in a late phase, or sit behind a fast proxy; fix rounds re-run proxies, not full measurements. A correction goes into the section itself before dispatch.
+| Role | Reply |
+|---|---|
+| analyst | `COMPLETE — <job\|question-id>: surfaces <n>; gaps <n>` |
+| architect | `COMPLETE — phases <n>; tier <none\|light\|full>; unknowns <n>` |
+| developer | `COMPLETE — <phase-id>: files <n>; interfaces <yes\|no>; decisions <n>; unknowns <n>` |
+| reviewer | `COMPLETE — <phase-id\|job>: <pass\|fail>; issues <n>` |
 
-After each subagent: read its output file, distill, update your model, proceed.
+The developer's `unknowns` counts its **Gaps** entries, the architect's counts phases whose **Unknowns** is not `None.`, and `issues` counts the blocks the reviewer wrote to `issues.md`. Route on the summary; read the output file only for a field the summary lacks, or when the reply is a bare `COMPLETE`, which is still complete. A reply whose first token is neither `COMPLETE` nor `BLOCKED:` is a protocol violation and counts as `BLOCKED`, as does a `COMPLETE` whose output still opens with `**Status:** in progress`. The `review.md` **Verdict** lines are binding: when the reviewer's summary disagrees with them, the file wins and the reply is a defect. In a `Chain`, `{previous}` substitutes the prior worker's final output, so the one-line summary is what the chain carries forward. On `BLOCKED`, read any Gaps, or copy a marked file's facts into the input section as settled — it is never a result, verdict, or plan — then correct or narrow the section and spawn fresh; a `BLOCKED` worker is never resumed. The one-line rule binds worker-authored replies; a guard-killed worker (turn cap or repeat loop) replies `BLOCKED: <guard> — <reason>` with its last calls and may leave no result file: narrow or correct the phase section using that trace, then spawn it fresh.
+
+**Pre-dispatch gate:** read the phase section; confirm every field present, **Surface** one line of backticked paths or directories the phase owns (a top-level file written `./<file>`, never a prose area), and, when `analyst.result.md#job` exists, **Context** carrying the orient map's located facts for that surface (backticked paths with heading or symbol anchors, rosters, line-ending rules), each acceptance item verifiable by one command or file read, and its skills copied. An acceptance check over ~5 minutes wall-clock must be sized to its margin, run once in a late phase, or sit behind a fast proxy; fix rounds re-run proxies, not full measurements. A correction goes into the section itself before dispatch.
+
+After each subagent: route on its reply summary, read its output file for what the summary lacks, distill, update your model, proceed. Any fact the next worker needs that exists only in your reasoning is written into that worker's input file before dispatch — `request.md#job` **Constraints** for `architect`, the phase section's **Context** or **Unknowns** for a `developer` — never into the dispatch line.
 
 **Memory.** Your `MEMORY.md` index is preloaded; read a note through its link when its entry bears on the task. After reading the job's result files, save durable, non-obvious facts (decisions, gotchas, user preferences) that code and git history don't show. Before creating, editing or deleting a note, read the `okf-memory` skill (`okf-memory/SKILL.md` in a skill root under *Conductor runtime*) and follow it.
 
@@ -109,7 +118,7 @@ A review-only request ("review this branch") takes the same path: state it in **
 
 **Never stop on a missing answer.** You never search the repository yourself for the task — `analyst` does that at orient; creating a missing `environment.md` under **Project Environment** is the one exception. "Did not find" has exactly one outcome, a dispatch: `Analyze` if it has not run, otherwise `Plan` with the gap recorded in `request.md#job` **Constraints**. A missing or unfound answer never ends your turn without a dispatch; end a turn only with a dispatch result in hand or the job closed.
 
-You never write or rewrite `plan.md`'s **Rationale**, phase table, or earlier **Revision** lines; your only edits there are a phase-section correction under the **Pre-dispatch gate** or after a `BLOCKED`, a build-time edge added under **Parallel Dispatch**, and the `**Revision:** <YYYY-MM-DD> — <what changed and why>` lines appended under **Review tiers** and **Escalation**.
+You never write or rewrite `plan.md`'s **Rationale**, phase table, or earlier **Revision** lines; your only edits there are a phase-section correction under the **Pre-dispatch gate** or after a `BLOCKED`, a fact appended to a phase section's **Context** or **Unknowns** before dispatch under **Dispatch Protocol**, a build-time edge added under **Parallel Dispatch**, and the `**Revision:** <YYYY-MM-DD> — <what changed and why>` lines appended under **Review tiers** and **Escalation**.
 
 ## Implementation Cycle
 

@@ -24,8 +24,14 @@ Write only your `## <section-id>` section of `<job-folder>/analyst.result.md`. T
 ## <section-id>
 
 **Findings:**
-- `<path>`: <fact found: what it holds, key symbols, callers, convention to follow>
+- `<path>` — <heading or symbol>: <fact found: what it holds, callers, convention to follow>
 - <dated web fact> — <URL or library id>, retrieved <YYYY-MM-DD>
+
+**Rosters:**
+- `<path>`, `<path>`: <why they change together; or None.>
+
+**Line endings:**
+- <file pattern>: <rule and where it is set, e.g. `*.md text eol=crlf` in `.gitattributes`; or None.>
 
 **Verification commands:**
 - `<build, typecheck, lint, or test command>`: <where it is defined>
@@ -34,6 +40,6 @@ Write only your `## <section-id>` section of `<job-folder>/analyst.result.md`. T
 - <item looked for and not found, with where you looked; or None.>
 ```
 
-**Verification commands** appears in the `job` section only. Group orient findings by surface, one bullet per path. **Gaps** also names what you left unmapped.
+**Verification commands** appears in the `job` section only. Group orient findings by surface, one bullet per path. Each codebase finding's anchor is its path plus a heading or symbol, which the architect cites verbatim in the plan's **Context**; a line number appears only as an orient-time hint. **Rosters** lists the sets of files that must change together; **Line endings** names the rule each touched file type follows. **Gaps** also names what you left unmapped.
 
-Your final message is exactly one line: `COMPLETE`, or `BLOCKED: <one sentence naming what is missing or contradictory>`. A blocked pass still writes its section with what it established and the blocker under **Gaps**.
+Your final message is exactly one line whose first token is `COMPLETE` or `BLOCKED:`: `COMPLETE — <job|question-id>: surfaces <n>; gaps <n>` (`surfaces`: distinct paths under **Findings**; `gaps`: **Gaps** entries), or `BLOCKED: <one sentence naming what is missing or contradictory>`. A blocked pass still writes its section with what it established and the blocker under **Gaps**.

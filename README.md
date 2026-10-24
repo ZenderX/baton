@@ -71,3 +71,5 @@ From a clone, add the clone's root folder instead: `claude plugin marketplace ad
 ## License
 
 MIT, see [LICENSE](LICENSE).
+
+The vendored `claude/plugins/baton/skills/sequential-thinking/` skill comes from [thedotmack/sequential-thinking-skill](https://github.com/thedotmack/sequential-thinking-skill) at commit `d0fd5d4257aeb9a8622fffe9082379a787279dba`, MIT, see its [LICENSE](claude/plugins/baton/skills/sequential-thinking/LICENSE).

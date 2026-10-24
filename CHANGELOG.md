@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Changed: the job-file handoff protocol carries located facts between workers, with the dispatch kept a one-line pointer. Analyst findings and plan **Context** cite path plus heading or symbol anchors, rosters, and line-ending rules; plan **Surface** is a backticked path list; developers and reviewers read `request.md#job` **Constraints**; developers read each dependency's result `## Interfaces` and `**Decisions:**`; results gain anchored **Changed files** lines and a required **Decisions** field; whole-job reviewers read full phase sections; every worker reply is one line, `COMPLETE — <per-role routing summary>` or `BLOCKED: <reason>`; orchestrators route on the summary and write any fact the next worker needs into its input file before dispatch
+- Added: the vendored `sequential-thinking` skill is back in `baton` (thedotmack/sequential-thinking-skill @ `d0fd5d4`, MIT, byte-identical to its last vendored state) with its `.think_state.json` ignore rule. The conductor and refuter copy it to `skills/sequential-thinking.md` before the first `Plan` dispatch; the architect follows its thought protocol inline when decomposing and records only decisions in **Rationale**; refuter main uses it for its own planning, Direct tier included; pi bash-capable workers carry a guard against running its `scripts/think.ts`, which no agent runs. The baton and team plugin descriptions list the skill again, and `README.md` credits it under License
+
 ## v5.0.2 — 2026-10-22
 
 - Add rules to prevent nested orchestrators in conductor and refuter agents

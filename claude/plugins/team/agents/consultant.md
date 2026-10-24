@@ -38,4 +38,4 @@ Write only this phase's section of `<job-folder>/opinion.md`, replacing any earl
 | <claim from review.md> — majority: <answer> | <spanda risk> | <K> |
 ```
 
-Then reply with exactly one line: `COMPLETE`, or `BLOCKED: <one sentence naming what is missing or contradictory>`. When blocked, still write your `opinion.md` section.
+Then reply with exactly one line whose first token is `COMPLETE` or `BLOCKED:`: `COMPLETE — <phase-id>: claims <n>; scored <n>; n/a <n>` (`claims`: rows of your table; `scored`: rows with a numeric **Risk (0-1)**; `n/a`: rows whose risk is `n/a (...)`), or `BLOCKED: <one sentence naming what is missing or contradictory>`. The summary counts rows, never rulings; the orchestrator rules from `opinion.md`. When blocked, still write your `opinion.md` section.
