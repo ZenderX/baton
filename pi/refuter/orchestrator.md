@@ -19,7 +19,7 @@ The Claude conductor and refuter honour a phase's `**Model:**` line on its `Impl
 
 ## Job folder
 
-Every worker reads one input file in `.claude/refuter/jobs/<job-id>/`, writes one output file there, and replies with one line. A worker that replied is finished and is never resumed: the pi `subagent` tool spawns a fresh `pi --mode json -p --no-session` process per call, so `Fix`, `Consult`, every re-review, and every other dispatch is a fresh spawn. Paths below are relative to that folder; dispatch `<file>`s and task descriptions carry its full path, as in the table below, since each worker takes its job folder from the dispatched path. Touch other job folders only on the human's request; never walk `jobs/archive/`, opening an archived file only when a memory note names it.
+Every worker reads one input file in `.claude/refuter/jobs/<job-id>/`, writes one output file there, and replies with one line. A worker that replied is finished and is never resumed: the pi `subagent` tool spawns a fresh `pi --mode json -p --no-session` process per call, so `Fix`, `Consult`, every re-review, and every other dispatch is a fresh spawn. Paths below are relative to that folder; dispatch `<file>`s and task descriptions carry its full path, as in the table below, since each worker takes its job folder from the dispatched path. Touch other job folders only on the human's request; never walk `jobs/archive/` or `jobs/local/`, opening an archived note only when a memory note names it.
 
 - **Job start.** Seed **Constraints** from relevant notes in your memory index, `MEMORY.md` under *Conductor runtime*. Name the job `YYYYMMDD-HHMM-<4 lowercase hex>`; `mkdir -p .claude/refuter/jobs`, then plain `mkdir` its folder, re-rolling the hex if taken. Create `skills/` and write `request.md`:
 
@@ -39,9 +39,47 @@ Every worker reads one input file in `.claude/refuter/jobs/<job-id>/`, writes on
   **Diff base:** <branch or commit that review diffs against>
   ```
 
-- **Job end.** After the last phase's final gate, save memory per *Memory*, then move the folder to `jobs/archive/<YYYY-MM-DD>-<slug>/`, slug at most five kebab-case words summarizing the initial prompt, plus `-2`, `-3`, ... on collision.
-- **Resume on request.** List active folders (`jobs/*/` except `archive/`) with job id and **Goal**, adopt one, and continue from its first phase without a `COMPLETE` result, creating its remaining tasks.
-- **Archive on request.** Append `**Closed incomplete:** <YYYY-MM-DD>` to its `request.md` preamble and archive it as at job end.
+- **Job end.** After the last phase's final gate, save memory per *Memory* first, then:
+  1. Name the record `<name>` = `<YYYY-MM-DD>-<slug>`, slug summarizing the initial prompt in ≤5 kebab-case words, suffixed `-2`, `-3`, … while `jobs/archive/<name>.md` or `jobs/local/<name>/` exists or `git log --all --format=%h -1 -- .claude/refuter/jobs/archive/<name>.md` prints anything. That read-only check is your only git use; you still never stage, commit, or push.
+  2. Write the OKF job note `jobs/archive/<name>.md`, 20 to 60 lines distilled from `request.md`, `plan.md#job`, `review.md` and the result files' `**Decisions:**`, never a result file copied wholesale:
+     ```markdown
+     ---
+     type: job
+     title: <slug words in sentence case>
+     description: <one sentence: what the job changed or decided>
+     job_id: <job-id>
+     archived: <YYYY-MM-DD>
+     outcome: <complete | incomplete>
+     tags: [job, refuter]
+     sources:
+       - resource: ../local/<name>/
+         title: raw job folder (untracked, on the machine that ran the job)
+     ---
+
+     ## Goal
+     <request.md **Goal**>
+
+     ## Outcome
+     <review verdict and completion state>
+
+     ## Decisions
+     <plan.md#job **Rationale** and each phase's **Decisions:**>
+
+     ## Phases
+     | Phase | Goal | Verdict |
+     |---|---|---|
+     | <phase-id> | <goal> | <review verdict, or not run> |
+
+     ## Memory
+     <memory notes this job wrote or updated, or None.>
+
+     ## Artifacts
+     <files retained under references/, or None.>
+     ```
+  3. Insert `* [<title>](<name>.md) - <description>` as the first entry under `# Jobs` in `jobs/archive/index.md`; when absent, create it holding frontmatter `okf_version: "0.2"` only, then `# Jobs`.
+  4. `mkdir -p .claude/refuter/jobs/local && mv .claude/refuter/jobs/<job-id> .claude/refuter/jobs/local/<name>`, then tell the human to commit `jobs/archive/` and memory in their own commit, apart from project changes, before removing the worktree.
+- **Resume on request.** List active folders (`jobs/*/` except `archive/` and `local/`) with job id and **Goal**, adopt one, and continue from its first phase without a `COMPLETE` result, creating its remaining tasks.
+- **Archive on request.** Append `**Closed incomplete:** <YYYY-MM-DD>` to its `request.md` preamble and close it as at job end with `outcome: incomplete`.
 
 **Skill delivery.** Workers get no skill preload; they `read` copies you place in `skills/`. Each skill root under *Conductor runtime* holds `<name>/SKILL.md` folders; copy each needed `SKILL.md` to `skills/<name>.md`: `git-diff` at job start for the reviewer; `sequential-thinking` before the first `Plan` dispatch for the architect; after `plan.md` exists, every file a phase's **Skills** list names. Available language skills are `rust` (.rs), `typescript` (.ts/.tsx), and `vue3` (.vue).
 

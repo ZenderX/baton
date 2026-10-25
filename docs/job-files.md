@@ -23,7 +23,7 @@ Each active job has its folder `.claude/<product>/jobs/<job-id>/`. The refuter f
 
 Both products share one environment file, `.claude/environment.md`, which is user-owned and lives outside every `jobs/` folder. Whichever orchestrator runs first generates it once when it is absent, writing the probed fields under its single `# ENVIRONMENT DETAILS` section; thereafter it is user truth. Workers read it on demand for OS, editor, and toolchain facts and never write it. The job lifecycle never edits or deletes it.
 
-`jobs/` is ignored by git through the repository's root `.gitignore`.
+`jobs/` is ignored by git through the repository's root `.gitignore`. A repository that syncs job history un-ignores `jobs/archive/` alone, so active job folders and `jobs/local/` are never tracked.
 
 ### Folder layout
 
@@ -40,7 +40,10 @@ Both products share one environment file, `.claude/environment.md`, which is use
   agents.md                # main, Claude only: agent IDs of kept workers
   skills/<name>.md         # main: copied SKILL.md text for workers
   scripts/<script>         # pi only: pi orchestrator's copies of the scripts workers run
-.claude/<product>/jobs/archive/<YYYY-MM-DD>-<slug>/   # ended or closed jobs
+.claude/<product>/jobs/archive/index.md                   # OKF bundle index, newest job first
+.claude/<product>/jobs/archive/<YYYY-MM-DD>-<slug>.md     # OKF job note, tracked
+.claude/<product>/jobs/archive/references/                # retained artifacts, type: reference
+.claude/<product>/jobs/local/<YYYY-MM-DD>-<slug>/         # raw folder, never tracked
 ```
 
 A file appears only when its role runs. `<phase-id>` is a lowercase kebab-case slug that is unique within the job, for example `p1-job-file-contract`.
@@ -49,17 +52,21 @@ A file appears only when its role runs. `<phase-id>` is a lowercase kebab-case s
 
 1. **Job start.** Main generates `<job-id>` as `YYYYMMDD-HHMM-<4 lowercase hex>`, independent of any session id, runs `mkdir -p .claude/<product>/jobs`, then a plain `mkdir` of the job folder, which fails if it exists; main then picks new hex, so sessions never share a folder. Main writes `request.md` and copies the needed skills into `skills/` (see Skill delivery); on pi, the refuter orchestrator also copies worker scripts into `scripts/` (see Script delivery).
 2. **Work.** Main dispatches workers one line at a time. Each worker reads its input file, writes its output file, and replies.
-3. **Job end.** After the final gate, main deletes every task it created and moves the job folder to `.claude/<product>/jobs/archive/<YYYY-MM-DD>-<slug>/`: the archive day, then a lowercase kebab-case summary of the initial prompt, five words at most, suffixed `-2`, `-3`, ... on collision.
+3. **Job end.** After the final gate, main saves memory first and deletes every task it created, then:
+   1. Names the record `<name>` = `<YYYY-MM-DD>-<slug>`: the archive day, then a lowercase kebab-case summary of the initial prompt, five words at most, suffixed `-2`, `-3`, ... while `jobs/archive/<name>.md` or `jobs/local/<name>/` exists or `git log --all --format=%h -1 -- .claude/<product>/jobs/archive/<name>.md` prints anything. The check covers every local and fetched ref, so a name taken on another branch is not reused; it is read-only, and main still never stages, commits, or pushes.
+   2. Writes the OKF job note `jobs/archive/<name>.md` (see Job note).
+   3. Inserts `* [<title>](<name>.md) - <description>` as the first entry under `# Jobs` in `jobs/archive/index.md`, creating the file with frontmatter `okf_version: "0.2"` only and a `# Jobs` heading when absent.
+   4. Runs `mv .claude/<product>/jobs/<job-id> .claude/<product>/jobs/local/<name>` (after `mkdir -p .claude/<product>/jobs/local`) and tells the human to commit `jobs/archive/` and memory in their own commit, apart from project changes, before removing the worktree.
 
 **Ownership.** A session never touches a job folder it did not create.
 
-**Resume on request.** Only when the human asks, main lists active folders (`jobs/*/` except `archive/`) with job id and `## job` **Goal**, adopts the one picked, reads `plan.md` and the existing result files and continues from the first phase without a `COMPLETE` result. A result file that still opens with `**Status:** in progress` is salvage, not `COMPLETE`. Main creates tasks for the remaining phases in its own list.
+**Resume on request.** Only when the human asks, main lists active folders (`jobs/*/` except `archive/` and `local/`) with job id and `## job` **Goal**, adopts the one picked, reads `plan.md` and the existing result files and continues from the first phase without a `COMPLETE` result. A result file that still opens with `**Status:** in progress` is salvage, not `COMPLETE`. Main creates tasks for the remaining phases in its own list.
 
-**Archive on request.** For a job left aside, main appends `**Closed incomplete:** <YYYY-MM-DD>` to its `request.md` preamble and moves its folder into `jobs/archive/` under the job-end naming rule.
+**Archive on request.** For a job left aside, main appends `**Closed incomplete:** <YYYY-MM-DD>` to its `request.md` preamble, saves memory, and closes it with the Job end steps, its note carrying `outcome: incomplete`.
 
 **Memory.** Main alone writes memory: after reading the job's result files, it saves durable, non-obvious facts as notes in its own memory vault. Workers write none.
 
-**Archived jobs.** No agent walks `jobs/archive/`; main opens an archived file only when a memory note names it.
+**Archived jobs.** `jobs/archive/` is an OKF bundle: the job note is the record of an ended job and, where `jobs/archive/` is tracked, the only part that syncs between machines. The raw folder stays under `jobs/local/` on the machine that ran the job; folders archived before the job-note format are also in git history before the migration commit. No agent walks `jobs/archive/` or `jobs/local/`; main opens an archived note only when a memory note names it.
 
 **Task lists** are per session on both harnesses. Claude uses its default, with no project-wide `CLAUDE_CODE_TASK_LIST_ID`; pi's engine task store is keyed by the pi session id. Resuming the same session keeps its list; Claude `/clear` and pi `/new` or `/fork` start a new one.
 
@@ -178,7 +185,7 @@ Every schema below is a literal template. Placeholders are in angle brackets. A 
 
 ### request.md
 
-No worker reads the preamble above `## job`; its initial prompt names the archive.
+No worker reads the preamble above `## job`; its initial prompt gives the job note its slug.
 
 ```markdown
 # Request
@@ -398,6 +405,47 @@ Main alone writes `agents.md`, on Claude only; no worker reads it. It holds one 
 |---|---|---|---|
 | reviewer | plan.md#job | <agent id> | kept |
 ```
+
+### Job note
+
+Main writes `jobs/archive/<name>.md` at Job end, 20 to 60 lines distilled from `request.md`, `plan.md#job`, `review.md` and the result files' `**Decisions:**`, never a result file copied wholesale. It is an Open Knowledge Format (OKF) v0.2 concept: `type` is the only key OKF requires, the other keys are producer keys, and the outcome is `outcome`, never `status`, which OKF reserves for `draft|stable|deprecated`. `<product>` is `conductor` or `refuter`. A note migrated from a legacy raw folder may carry `outcome: unknown`, omit `job_id` when the folder did not record it, and title its source `raw job folder (untracked; in git history before the migration commit)`.
+
+```markdown
+---
+type: job
+title: <slug words in sentence case>
+description: <one sentence: what the job changed or decided>
+job_id: <job-id>
+archived: <YYYY-MM-DD>
+outcome: <complete | incomplete>
+tags: [job, <product>]
+sources:
+  - resource: ../local/<name>/
+    title: raw job folder (untracked, on the machine that ran the job)
+---
+
+## Goal
+<request.md **Goal**>
+
+## Outcome
+<review verdict and completion state>
+
+## Decisions
+<plan.md#job **Rationale** and each phase's **Decisions:**>
+
+## Phases
+| Phase | Goal | Verdict |
+|---|---|---|
+| <phase-id> | <goal> | <review verdict, or not run> |
+
+## Memory
+<memory notes this job wrote or updated, or None.>
+
+## Artifacts
+<files retained under references/, or None.>
+```
+
+`jobs/archive/index.md` is the bundle-root index: its only frontmatter is `okf_version: "0.2"`, then a `# Jobs` heading with one `* [<title>](<name>.md) - <description>` line per note, newest first, and a `## References` list when `references/` holds files.
 
 ## Skill delivery
 

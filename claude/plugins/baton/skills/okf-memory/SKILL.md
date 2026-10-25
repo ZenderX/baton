@@ -7,13 +7,14 @@ description: Conductor memory as an OKF v0.2 bundle - note frontmatter, relative
 
 Agent memory (the folder holding the injected `MEMORY.md`, e.g. `.claude/agent-memory/baton-conductor/`) is an OKF v0.2 bundle (Open Knowledge Format, `GoogleCloudPlatform/open-knowledge-format` SPEC.md). These rules govern every memory write and lookup.
 
-This skill overrides Claude Code's built-in memory instructions wherever they differ: `type` is top-level, never nested under `metadata` (a `name` key may stay); `MEMORY.md` has OKF frontmatter; index entries are `* [Title](./slug.md) - description`, not `- [Title](file.md) — hook`; related notes link as `[Title](./slug.md)`, never `[[name]]`.
+Each note is valid in both formats at once: it carries OKF's top-level `type` and `title` and Claude Code's native `name` and `metadata.type`, where `name` equals the file slug and `metadata.type` equals `type`. This skill overrides Claude Code's built-in memory instructions only for the index and links: `MEMORY.md` has OKF frontmatter; index entries are `* [Title](./slug.md) - description`, not `- [Title](file.md) — hook`; related notes link as `[Title](./slug.md)`, never `[[name]]`.
 
 ## Bundle
 
 - Flat folder, one fact per note, no subfolders.
 - A note is `<kebab-slug>.md`. Never name a note `index.md` or `log.md` (OKF-reserved), and never create either file: git is the history.
 - No memory subagent, hook, or per-write validator.
+- Job archives (`.claude/<product>/jobs/archive/`) are a separate OKF bundle governed by the `okf-memory-cleanup` skill; this vault stays flat and holds no job notes.
 
 ## Note frontmatter
 
@@ -21,6 +22,7 @@ YAML between `---` lines at the very top of the file, for example:
 
   ```yaml
   ---
+  name: crlf-line-endings
   type: project
   title: CRLF line endings
   description: Repo files are CRLF; edit them only with Edit/Write, never shell rewrites.
@@ -29,14 +31,19 @@ YAML between `---` lines at the very top of the file, for example:
     - resource: https://example.com/doc
       title: Example doc
   stale_after: 2026-12-31T00:00:00Z
+  metadata:
+    type: project
   ---
   ```
 
-- `type` (required): one of `feedback`, `project`, `reference`, `user`, Claude Code's native memory types.
+- Key order: `name`, `type`, `title`, `description`, then optional and unknown keys, then the `metadata:` block last.
+- `name` (required, native): equals the file slug, the filename without `.md`; rename both together.
+- `type` (required, OKF): one of `feedback`, `project`, `reference`, `user`, Claude Code's native memory types.
 - `title` (required).
 - `description` (required): one sentence, at most about 150 characters. It is also the index entry text.
+- `metadata.type` (required, native): a trailing `metadata:` mapping holding `  type:` (two-space indent) that always equals top-level `type`; change both together.
 - Optional: `tags` (list); `sources` (list of mappings, each with a required `resource` URI or path and an optional `title`); `stale_after` (ISO 8601 datetime with an explicit offset such as `Z`, only when the fact is known to expire).
-- Quote a value that contains `: ` or starts with a YAML special character, so the block stays parseable.
+- Quote a frontmatter value that contains `: ` or ` #`, or starts with a YAML special character, in double quotes; unquoted, ` #` starts a YAML comment and truncates the value.
 - Preserve unknown keys, including the `modified` timestamp Claude Code adds to files that begin with frontmatter.
 - Do not use `status`, `generated`, or `verified`.
 
@@ -54,6 +61,7 @@ YAML between `---` lines at the very top of the file, for example:
 ---
 type: index
 title: Conductor memory
+description: Index of the conductor's memory notes, one entry per note, grouped by type.
 okf_version: "0.2"
 ---
 
@@ -66,6 +74,7 @@ okf_version: "0.2"
 * [Other title](./other-slug.md) - <description copied from the note>
 ```
 
+- Frontmatter exactly `type: index`, `title`, `description` (one line) and `okf_version: "0.2"`; no `name` or `metadata`, since `MEMORY.md` is not a note.
 - One `## <Type>` heading per type in use: `Feedback`, `Project`, `Reference`, `User`.
 - Exactly one entry per note, of exactly the form `* [Title](./slug.md) - <description>`, with title and description copied from the note's frontmatter.
 - Keep it under 200 lines; only the first 200 lines (or 25KB) are injected.
