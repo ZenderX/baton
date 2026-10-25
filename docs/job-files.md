@@ -2,7 +2,7 @@
 
 This document is the authoring spec for the transactional job-file protocol used by the conductor and refuter products on the Claude and pi harnesses.
 
-Every dispatch is one line, `<Verb> <file>#<anchor>.`, whose substance lives in job files: the worker reads one input section and the job files its role's read rules add, does the work, writes one result file, and replies with one line. A worker that replied is finished, but main may resume it by its agent ID (see Review cycle); job files stay the source of truth, so a resume that fails is replaced by a fresh dispatch and never loses a result. Main is the only agent that talks to the human. On pi, the orchestrator (`pi/conductor/orchestrator.md`, `pi/refuter/orchestrator.md`) plays the role of main.
+Every dispatch is one line, `<Verb> <file>#<anchor>.` (the analyst's `Answer` mode aside, see Triage), whose substance lives in job files: the worker reads one input section and the job files its role's read rules add, does the work, writes one result file, and replies with one line. A worker that replied is finished, but main may resume it by its agent ID (see Review cycle); job files stay the source of truth, so a resume that fails is replaced by a fresh dispatch and never loses a result. Main is the only agent that talks to the human. On pi, the orchestrator (`pi/conductor/orchestrator.md`, `pi/refuter/orchestrator.md`) plays the role of main.
 
 Both products dispatch the same five workers, shipped by the `team` plugin: `team:analyst`, `team:architect`, `team:developer`, `team:reviewer`, and `team:consultant` on Claude (`claude/plugins/team/agents/`), the bare names `analyst`, `architect`, `developer`, `reviewer`, and `consultant` on pi (`pi/team/agents/`). The conductor dispatches all but `consultant`; the refuter dispatches all five.
 
@@ -10,7 +10,7 @@ Workers take their input from files because subagents do not get `TaskGet` or `T
 
 ## Agents cannot read this document
 
-Installed plugins cannot read the repository's `docs/` folder at runtime. Each agent prompt therefore carries its own part of this contract: its row of the role table, the schema of the file it reads, the schema of the file it writes, the dispatch grammar, and the reply grammar. When this document changes, every agent prompt that embeds the changed part changes with it.
+Installed plugins cannot read the repository's `docs/` folder at runtime. Each agent prompt therefore carries its own part of this contract: its row of the role table, the schema of the file it reads, the schema of the file it writes, the dispatch grammar, and the reply grammar. The conductor and refuter prompts embed the same Triage criteria. When this document changes, every agent prompt that embeds the changed part changes with it.
 
 ## Locations
 
@@ -46,11 +46,11 @@ Both products share one environment file, `.claude/environment.md`, which is use
 .claude/<product>/jobs/local/<YYYY-MM-DD>-<slug>/         # raw folder, never tracked
 ```
 
-A file appears only when its role runs. `<phase-id>` is a lowercase kebab-case slug that is unique within the job, for example `p1-job-file-contract`.
+A file appears only when its role runs. The path the request takes (see Triage) bounds the folder: the answer path creates no folder at all; the direct path holds `request.md`, `plan.md`, and one `<phase-id>.result.md` (plus `skills/`, and on the refuter its review files); the full path may hold every file above. `<phase-id>` is a lowercase kebab-case slug that is unique within the job, for example `p1-job-file-contract`.
 
 ## Lifecycle
 
-1. **Job start.** Main generates `<job-id>` as `YYYYMMDD-HHMM-<4 lowercase hex>`, independent of any session id, runs `mkdir -p .claude/<product>/jobs`, then a plain `mkdir` of the job folder, which fails if it exists; main then picks new hex, so sessions never share a folder. Main writes `request.md` and copies the needed skills into `skills/` (see Skill delivery); on pi, the refuter orchestrator also copies worker scripts into `scripts/` (see Script delivery).
+1. **Job start.** On the direct and full paths (the answer path has no job), main generates `<job-id>` as `YYYYMMDD-HHMM-<4 lowercase hex>`, independent of any session id, runs `mkdir -p .claude/<product>/jobs`, then a plain `mkdir` of the job folder, which fails if it exists; main then picks new hex, so sessions never share a folder. Main writes `request.md` and copies the needed skills into `skills/` (see Skill delivery); on pi, the refuter orchestrator also copies worker scripts into `scripts/` (see Script delivery).
 2. **Work.** Main dispatches workers one line at a time. Each worker reads its input file, writes its output file, and replies.
 3. **Job end.** After the final gate, main saves memory first and deletes every task it created, then:
    1. Names the record `<name>` = `<YYYY-MM-DD>-<slug>`: the archive day, then a lowercase kebab-case summary of the initial prompt, five words at most, suffixed `-2`, `-3`, ... while `jobs/archive/<name>.md` or `jobs/local/<name>/` exists or `git log --all --format=%h -1 -- .claude/<product>/jobs/archive/<name>.md` prints anything. The check covers every local and fetched ref, so a name taken on another branch is not reused; it is read-only, and main still never stages, commits, or pushes.
@@ -72,7 +72,7 @@ A file appears only when its role runs. `<phase-id>` is a lowercase kebab-case s
 
 ## Anchors
 
-Each section that a dispatch can address is a level-2 heading whose text is its anchor, written exactly as the slug: `## p1-job-file-contract`. The anchor in a dispatch matches that heading text verbatim. A file with a single subject uses the anchor `job`.
+Each section that a dispatch can address is a level-2 heading whose text is its anchor, written exactly as the slug: `## p1-job-file-contract`. The anchor in a dispatch matches that heading text verbatim. A file with a single subject uses the anchor `job`. A phase **Context** citation `analyst.result.md#<surface-slug>` is not a dispatch anchor: it names a level-3 **Findings** group (see analyst.md and analyst.result.md).
 
 ## Dispatch grammar
 
@@ -88,6 +88,7 @@ Main, or the spawning worker named in the role table, sends exactly one line:
 |---|---|---|
 | `Analyze` | analyst, orient | `Analyze .claude/<product>/jobs/<job-id>/request.md#job.` |
 | `Analyze` | analyst, one question | `Analyze .claude/<product>/jobs/<job-id>/analyst.md#q1-plugin-cache-path.` |
+| `Answer` | analyst, answer path (no job folder) | `Answer Which files does the drift guard read the Surface line from?` |
 | `Plan` | architect | `Plan .claude/<product>/jobs/<job-id>/request.md#job.` |
 | `Implement` | developer | `Implement .claude/<product>/jobs/<job-id>/plan.md#p1-job-file-contract.` |
 | `Fix` | developer, one phase | `Fix .claude/<product>/jobs/<job-id>/issues.md#p1-job-file-contract.` |
@@ -97,9 +98,11 @@ Main, or the spawning worker named in the role table, sends exactly one line:
 | `Recheck` | kept reviewer, resumed (Claude only) | `Recheck .claude/<product>/jobs/<job-id>/plan.md#job.` or `...plan.md#p1-job-file-contract.` |
 | `Consult` | consultant (refuter only) | `Consult .claude/refuter/jobs/<job-id>/review.md#p1-job-file-contract.` |
 
-The dispatch is a pointer and nothing else: every fact the worker needs lives in the job file it points at, never in the dispatch text. Keep the `<file>#<anchor>` token first after the verb: on pi, `pi/core/extensions/engine/drift-config.ts` regex-parses the first `plan.md#<anchor>` or `issues.md#<anchor>` token from the dispatch text to find the phase's **Surface**.
+The dispatch is a pointer and nothing else: every fact the worker needs lives in the job file it points at, never in the dispatch text. The one exception is `Answer <question>`, which carries a one-line question inline because the answer path has no job folder to point at (see Triage). Keep the `<file>#<anchor>` token first after the verb: on pi, `pi/core/extensions/engine/drift-config.ts` regex-parses the first `plan.md#<anchor>` or `issues.md#<anchor>` token from the dispatch text to find the phase's **Surface**.
 
 `Recheck` is the one verb not sent as a spawn: main sends it with `SendMessage` to the agent ID of a kept reviewer (see Review cycle). Workers never call `SendMessage`; a worker's final reply is its message to main.
+
+**Worker-to-worker resume is not wired.** Resuming a warm analyst would let the architect ask follow-ups at cache price, but workers have no `SendMessage` in their frontmatter, and pi spawns each worker as a `--no-session` process that cannot be resumed. The architect therefore answers a follow-up from the orient map (`analyst.result.md#job`) first and spawns a fresh question analyst only for a question the map cannot answer. Main's `Recheck` resume of the kept reviewer (see Review cycle) is unchanged.
 
 ## Reply grammar
 
@@ -116,19 +119,21 @@ After `COMPLETE` comes ` — ` and a fixed per-role routing summary of `key valu
 
 | Role | Reply |
 |---|---|
-| analyst | `COMPLETE — <job\|question-id>: surfaces <n>; gaps <n>` — `surfaces`: distinct paths under **Findings**; `gaps`: **Gaps** entries |
+| analyst | `COMPLETE — <job\|question-id\|answer>: surfaces <n>; gaps <n>; notes <n>; change <yes\|no>` — `surfaces`: distinct paths under **Findings**; `gaps`: **Gaps** entries; `notes`: **Notes** entries; `change`: the job section's **Change indicated** (job and answer replies only; a question reply omits it) |
 | architect | `COMPLETE — phases <n>; tier <none\|light\|full>; unknowns <n>` — `unknowns`: phases whose **Unknowns** is not `None.` |
-| developer | `COMPLETE — <phase-id>: files <n>; interfaces <yes\|no>; decisions <n>; unknowns <n>` — `files`: **Changed files** lines; `interfaces`: whether `## Interfaces` is not `None.`; `decisions`: **Decisions** entries; `unknowns`: **Gaps** entries |
+| developer | `COMPLETE — <phase-id>: files <n>; interfaces <yes\|no>; decisions <n>; unknowns <n>; notes <n>` — `files`: **Changed files** lines; `interfaces`: whether `## Interfaces` is not `None.`; `decisions`: **Decisions** entries; `unknowns`: **Gaps** entries; `notes`: **Notes** entries |
 | reviewer | `COMPLETE — <phase-id\|job>: <pass\|fail>; issues <n>` — `fail` when any verdict it wrote is `FAIL`; `issues`: issue blocks it wrote to `issues.md` |
 | consultant | `COMPLETE — <phase-id>: claims <n>; scored <n>; n/a <n>` — `claims`: rows of its `opinion.md` table; `scored`: rows with a numeric **Risk (0-1)**; `n/a`: rows whose risk is `n/a (...)` |
 
-Main reads the output file whole before routing; the summary only cross-checks it. The reviewer's summary never replaces its file: the `**Verdict:**` lines in `review.md` stay binding, and when the reply and the file disagree the file wins and the reply is a defect. The consultant measures agreement and never rules on a claim, so its summary counts scored rows, not claims upheld or overturned; main still reads `opinion.md` to rule.
+**Answer mode.** An analyst dispatched with `Answer <question>` writes no file. Its reply is the analyst line, `COMPLETE — answer: surfaces <n>; gaps <n>; notes <n>; change <yes|no>`, followed by a body of at most 40 lines holding its findings, gaps, and notes in the `analyst.result.md` shapes; this is the one exception to the one-line rule, and main answers the human from the body. `change yes` there is report-only: main tells the human a change looks indicated and starts no job unless the human asks for one.
+
+Main reads the output file whole before routing; the summary only cross-checks it. The one exception is the conductor's orient map: on `change yes` the conductor routes to `Plan` from the reply alone and leaves `analyst.result.md#job` to the architect. The reviewer's summary never replaces its file: the `**Verdict:**` lines in `review.md` stay binding, and when the reply and the file disagree the file wins and the reply is a defect. The consultant measures agreement and never rules on a claim, so its summary counts scored rows, not claims upheld or overturned; main still reads `opinion.md` to rule.
 
 A reply whose first token is neither `COMPLETE` nor `BLOCKED:` is a protocol violation, and main treats it as `BLOCKED`. A bare `COMPLETE` with no summary is still complete, since main reads the output file whole either way, which keeps fake workers that echo a bare `COMPLETE` (`pi/scripts/worker-guard-harness.mts`) valid. The one-line rule binds worker-authored replies; the pi guard reply below is engine-authored and keeps its multi-line trace. On pi's Chain mode, `{previous}` substitutes the prior worker's final output, so a chain carries forward only the one-line reply; main still reads each chained worker's output file whole before routing on it.
 
 On pi, the engine kills a worker that issues the same tool call three times in a row, and replies for it `BLOCKED: <guard> — <reason>` followed by its last tool calls. No agent on either harness sets a turn cap. On pi, a drift nudge running inside each child steers a worker that repeats searches or results, or (for `developer`) goes 40 calls without a Surface edit, with a `[drift]` message to take a concrete next step or write its result as `BLOCKED` with Gaps; it never kills.
 
-**Rolling output.** Every worker keeps its output current while it works, so a stopped worker leaves its established findings on disk. It creates its output file early, or adds its own section to a shared file (`analyst.result.md`, the single-phase reviewer's `review.md`, `opinion.md`, each written under the rule in its schema below), and its first line is the marker:
+**Rolling output.** Every worker except an `Answer` analyst keeps its output current while it works, so a stopped worker leaves its established findings on disk. It creates its output file early, or adds its own section to a shared file (`analyst.result.md`, the single-phase reviewer's `review.md`, `opinion.md`, each written under the rule in its schema below), and its first line is the marker:
 
 ```text
 **Status:** in progress
@@ -146,24 +151,42 @@ The "Spawned by" column names the only agent that dispatches the role.
 
 | Product | Harness | Role | Input file | Output file | Spawned by |
 |---|---|---|---|---|---|
-| conductor, refuter | Claude, pi | analyst | orient: `request.md#job`; question: `analyst.md#<question-id>` | `analyst.result.md#job` or `analyst.result.md#<question-id>` | orient: main; question: architect, or refuter main |
+| conductor, refuter | Claude, pi | analyst | orient: `request.md#job`; question: `analyst.md#<question-id>`; answer: the dispatch line | `analyst.result.md#job` or `analyst.result.md#<question-id>`; answer: none, the reply body | orient and answer: main; question: architect, or refuter main |
 | conductor, refuter | Claude, pi | architect | `request.md#job` plus `analyst.result.md#job` when present | `plan.md` | main |
-| conductor, refuter | Claude, pi | developer | `plan.md#<phase-id>`; fix pass: `issues.md#<phase-id>`, or `issues.md#job` for every open block; plus `request.md#job` **Goal** and **Constraints**, and the `## Interfaces` and `**Decisions:**` of each "Depends on" phase's `<phase-id>.result.md` | `<phase-id>.result.md`, one per fixed phase | main |
+| conductor, refuter | Claude, pi | developer | `plan.md#<phase-id>`; fix pass: `issues.md#<phase-id>`, or `issues.md#job` for every open block; plus `request.md#job` **Goal** and **Constraints**, the `analyst.result.md` sections its **Context** cites by anchor, and the `## Interfaces` and `**Decisions:**` of each "Depends on" phase's `<phase-id>.result.md` | `<phase-id>.result.md`, one per fixed phase | main |
 | conductor | Claude, pi | reviewer, whole job | `plan.md#job`, every full `plan.md#<phase-id>` section, every `<phase-id>.result.md` with its `**Decisions:**`, plus `request.md#job` **Constraints** | `review.md`, plus `issues.md` when any phase fails | main |
 | refuter | Claude, pi | reviewer, one phase | the full `plan.md#<phase-id>` section plus `<phase-id>.result.md` with its `**Decisions:**`, plus `request.md#job` **Constraints** | `review.md#<phase-id>`, plus `issues.md#<phase-id>` when the phase fails | main |
 | refuter | Claude, pi | consultant | `review.md#<phase-id>` (its disputed claims) | `opinion.md#<phase-id>` | main |
 
 The architect spawns its question analysts itself, not through main: it writes `analyst.md`, seeds `analyst.result.md` with `# Analyst results` when the file is absent, spawns one analyst per question, and reads their sections before it writes `plan.md`.
 
-**Read rules.** The developer reads its phase section (or its `issues.md` block and the plan section and result file that block names), `request.md#job` **Goal** and **Constraints**, and, for each phase in its row's "Depends on" column of the `plan.md#job` index, the `## Interfaces` and `**Decisions:**` of that phase's `<phase-id>.result.md`; it never reads any other sibling output, and it does not read `analyst.result.md`, whose located facts the architect copies into **Context**. The reviewer reads the full phase section, **Goal** and **Context** included, in both single-phase and whole-job modes, plus `request.md#job` **Constraints** and each result's `**Decisions:**`.
+**Read rules.** The developer reads its phase section (or its `issues.md` block and the plan section and result file that block names), `request.md#job` **Goal** and **Constraints**, and, for each phase in its row's "Depends on" column of the `plan.md#job` index, the `## Interfaces` and `**Decisions:**` of that phase's `<phase-id>.result.md`; it never reads any other sibling output, and it reads `analyst.result.md` only in the `### <surface-slug>` groups its **Context** cites as `analyst.result.md#<surface-slug>`, never the map whole. The reviewer reads the full phase section, **Goal** and **Context** included, in both single-phase and whole-job modes, plus `request.md#job` **Constraints** and each result's `**Decisions:**`.
 
-**Fold-back.** Main reads each worker's output file whole, then routes; the reply summary is a cross-check, never a substitute (see Reply grammar). Any fact the next worker needs that exists only in main's reasoning is written into that worker's input file before dispatch: into `request.md#job` **Constraints** for the architect, into the phase section's **Context** or **Unknowns** for a developer. This append is the one edit main makes to a phase section before its dispatch; dispatch text never carries it.
+**Fold-back.** Main reads each worker's output file whole, then routes (the conductor's orient map on `change yes` aside, see Reply grammar); the reply summary is a cross-check, never a substitute (see Reply grammar). Any fact the next worker needs that exists only in main's reasoning is written into that worker's input file before dispatch: into `request.md#job` **Constraints** for the architect, into the phase section's **Context** or **Unknowns** for a developer. This append is the one edit main makes to a phase section before its dispatch; dispatch text never carries it.
 
 The reviewer holds `Write` and `Edit`: in whole-job mode it overwrites `review.md` and, when a phase fails, `issues.md` whole; in single-phase mode it changes only its own phase's block in each.
+
+## Triage
+
+Before it creates a job, main puts the request on one of three paths by the criteria below. The process scales to the request: a question or a small named edit never runs the full pipeline.
+
+**Read budget.** On the answer and direct paths main may read at most 3 files whose paths the request or its memory index names, at most 200 lines per read and 600 lines in total. It may `Glob` only a literally named path to confirm it exists, and never runs `Grep` or a pattern search.
+
+**answer.** The request asks a question or asks to review, audit, check or explain, and requests no file change. Main answers within the read budget; when the budget cannot answer, it dispatches one `analyst` with `Answer <question>` and replies from its reply body (see Reply grammar). No job folder, no `request.md`, no `plan.md`, no archive.
+
+**direct.** The request names at most two target files by path, each confirmed by one literal `Glob`, states the edit's content or behaviour, contains no search word (all, every, each, wherever, find, across, audit), and states no unknown. Main writes `request.md` and a direct-path `plan.md` (see plan.md) itself within the read budget, dispatches one `Implement`, runs the job's **Verification commands** itself once, trusts the result's recorded acceptance output, and then runs the final gate and Job end. Any one of these escalation triggers converts the job to the full path: the result's **Gaps** is not `None.`, a `BLOCKED` reply, a verification command failing, or `git diff --name-only <Diff base>` listing a file outside **Surface**. Main then writes the trigger into `request.md#job` **Constraints** and dispatches `Analyze` then `Plan` on the same job folder.
+
+**full.** Everything else: `Analyze`, then `Plan`, then the implementation and review cycle.
+
+**Early exit.** After `Analyze` on the full path, when the analyst reply carries `change no` (the orient map shows no change is indicated, or the map itself answers the request), main reports from `analyst.result.md#job`, dispatches no `Plan`, and runs Job end.
+
+**Refuter.** The refuter's Direct tier is the direct path but keeps its single-phase `Review` and `Consult`, since adversarial review is the refuter's purpose; its Lightweight and Full tiers are the full path. On its direct path refuter main never runs the **Verification commands** itself: the one phase's **Acceptance criteria** list each **Verification commands** entry, so the developer runs them once and records the output, and main checks the escalation triggers from the result file (**Gaps**, a `BLOCKED` reply, a **Changed files** entry outside **Surface**) and a failing command in the result's Verification table or in `review.md#<phase-id>`.
 
 ## Review cycle
 
 A fix pass is a fresh developer spawn that reads `issues.md` cold. The reviewer is the only worker main resumes; the `Fix` developer and the refuter's `Consult` consultant stay fresh spawns.
+
+**Verify once.** Each check is paid for once, then its recorded evidence is trusted. The developer runs its phase's acceptance commands and records each one's output in its result file, and does not re-run the analyst's exploratory probes. The whole-job reviewer, the tier-`none` check, the conductor's direct-path run, and the refuter's direct-path developer (through its phase's **Acceptance criteria**) execute the job's **Verification commands** once, and re-run an acceptance command only when its recorded output is missing, is contradicted by the diff or another result file, or covers files a later phase touched. A `Recheck` still re-runs the fixed phases' acceptance criteria, since a fix invalidates their recorded output.
 
 **Resume (Claude).** Main resumes a worker that replied with `SendMessage`, addressed to the agent ID from the `Agent` launch result (`agentId`) or the `task-notification` `task-id`. The resumed run keeps its full history and tool set; inside the 5-minute subagent prompt-cache window it reads the original run's cache, and after it the history is written to cache again, cold but still correct. A subagent the user stopped from `/tasks` refuses messages. Right after each `Review` reply, main writes or replaces the reviewer's row in `agents.md` with `State` `kept`.
 
@@ -175,9 +198,9 @@ A fix pass is a fresh developer spawn that reads `issues.md` cold. The reviewer 
 
 **Optional cache setting.** `CLAUDE_CODE_SUBAGENT_PROMPT_CACHE_TTL=1h` (or the `subagentPromptCacheTtl` setting) extends the subagent cache window so a `Recheck` after a long fix still reads cache, at a higher cache-write price; it is ignored while a subscription runs on usage credits. Baton does not set it.
 
-**Conductor.** Before writing `request.md`, main reasons the work through — affected surfaces, dependency order, one alternative decomposition — and records the result in `request.md#job` **Constraints**; when a review verdict contradicts it or one issue class recurs across two phases, main appends a **Revision** line to `plan.md#job` and re-dispatches `Plan`. Once every phase has a `COMPLETE` result, main applies the review-tier escalation, deletes any previous `issues.md`, and runs the effective **Review tier** (see plan.md). At `none`, main's mechanical all-green check passing leads to the final gate; otherwise the review tier rises to `light`. At `light` or `full`, main dispatches `Review plan.md#job.` to the reviewer in whole-job mode; a `light` review whose `review.md` preamble carries `**Escalate: full** — <reason>` makes main append a `full` **Revision** line and dispatch Review again before acting on any verdict. Verdicts are binding: main reads each `**Verdict:**` line literally, counts a missing or malformed one as `FAIL`, and never overrides, downgrades, or skips a `FAIL`. Every verdict `PASS` leads to the final gate. On a `FAIL` in one phase block, main dispatches `Fix issues.md#<phase-id>.`; on a `FAIL` in more than one phase block, it dispatches one `Fix issues.md#job.`, a fresh developer that fixes every open block in plan order and overwrites each fixed phase's `<phase-id>.result.md`. Main then sends `Recheck plan.md#job.` to the kept reviewer, or, with no `kept` row or on expiry, deletes `issues.md` and dispatches a fresh Review. A `FAIL` in the `job` block, a diff-wide finding no phase owns, gets no `Fix`: failing phases are fixed and re-reviewed first, and a `job` `FAIL` still standing after that goes to the human with its findings, and the job closes incomplete. Fix rounds have no cap: the loop repeats until every verdict is `PASS`, and the reviewer's findings win over the developer's claims. Only a `BLOCKED` review goes to the human with the findings from `review.md`.
+**Conductor.** On the full path, before writing `request.md`, main reasons the work through — affected surfaces, dependency order, one alternative decomposition — and records the result in `request.md#job` **Constraints**; after `Analyze` it reads `analyst.result.md#job` only on `change no`, to take the early exit (see Triage), and otherwise dispatches `Plan` without reading the map, which the architect reads. When a review verdict contradicts it or one issue class recurs across two phases, main appends a **Revision** line to `plan.md#job` and re-dispatches `Plan`. Once every phase has a `COMPLETE` result, main applies the review-tier escalation, deletes any previous `issues.md`, and runs the effective **Review tier** (see plan.md). At `none`, main's mechanical all-green check passing leads to the final gate; otherwise the review tier rises to `light`. At `light` or `full`, main dispatches `Review plan.md#job.` to the reviewer in whole-job mode; a `light` review whose `review.md` preamble carries `**Escalate: full** — <reason>` makes main append a `full` **Revision** line and dispatch Review again before acting on any verdict. Verdicts are binding: main reads each `**Verdict:**` line literally, counts a missing or malformed one as `FAIL`, and never overrides, downgrades, or skips a `FAIL`. Every verdict `PASS` leads to the final gate. On a `FAIL` in one phase block, main dispatches `Fix issues.md#<phase-id>.`; on a `FAIL` in more than one phase block, it dispatches one `Fix issues.md#job.`, a fresh developer that fixes every open block in plan order and overwrites each fixed phase's `<phase-id>.result.md`. Main then sends `Recheck plan.md#job.` to the kept reviewer, or, with no `kept` row or on expiry, deletes `issues.md` and dispatches a fresh Review. A `FAIL` in the `job` block, a diff-wide finding no phase owns, gets no `Fix`: failing phases are fixed and re-reviewed first, and a `job` `FAIL` still standing after that goes to the human with its findings, and the job closes incomplete. Fix rounds have no cap: the loop repeats until every verdict is `PASS`, and the reviewer's findings win over the developer's claims. Only a `BLOCKED` review goes to the human with the findings from `review.md`.
 
-**Refuter.** Each phase runs `Implement`, then `Review plan.md#<phase-id>.` (the reviewer in single-phase mode), then `Consult` when `review.md#<phase-id>` lists disputed claims. Main rules on the verdict with the opinion, and on a remaining `FAIL` dispatches `Fix issues.md#<phase-id>.` to a fresh developer, followed by `Recheck plan.md#<phase-id>.` to the kept reviewer, or a fresh `Review` with no `kept` row or on expiry; `Consult` always spawns a fresh consultant. Fix passes have no cap: the cycle repeats until main accepts the phase.
+**Refuter.** Each phase, the direct path's single phase included, runs `Implement`, then `Review plan.md#<phase-id>.` (the reviewer in single-phase mode), then `Consult` when `review.md#<phase-id>` lists disputed claims. Main rules on the verdict with the opinion, and on a remaining `FAIL` dispatches `Fix issues.md#<phase-id>.` to a fresh developer, followed by `Recheck plan.md#<phase-id>.` to the kept reviewer, or a fresh `Review` with no `kept` row or on expiry; `Consult` always spawns a fresh consultant. Fix passes have no cap: the cycle repeats until main accepts the phase.
 
 ## Schemas
 
@@ -185,7 +208,7 @@ Every schema below is a literal template. Placeholders are in angle brackets. A 
 
 ### request.md
 
-No worker reads the preamble above `## job`; its initial prompt gives the job note its slug.
+No worker reads the preamble above `## job`; its initial prompt gives the job note its slug. **Constraints** holds the limits the human stated, plus one clause per memory rule that binds the job, naming the rule rather than restating the note's text. Analyst **Gaps** are never copied into it: a Gap that blocks the goal reaches main as the analyst's `BLOCKED:` reply, and the rest stay report-only in `analyst.result.md`.
 
 ```markdown
 # Request
@@ -198,28 +221,32 @@ No worker reads the preamble above `## job`; its initial prompt gives the job no
 
 **Goal:** <the human's goal in one or two sentences>
 
-**Constraints:** <limits the human stated, plus your recorded reasoning: affected surfaces, dependency order, one alternative decomposition>
+**Constraints:** <limits the human stated; one clause per binding memory rule; on the full path, your recorded reasoning: affected surfaces, dependency order, one alternative decomposition>
 
 **Diff base:** <branch or commit that review diffs against>
 ```
 
 ### plan.md
 
-`plan.md` starts with a `job` index section, then one anchored section per phase. Each phase section is self-contained, because a developer reads only its own section, `request.md#job`, and its dependencies' `## Interfaces` and `**Decisions:**` (see Role table). The architect writes the same schema for both products. The job-level **Acceptance criteria**, **Verification commands**, and **Review tier** are read by the conductor and the whole-job reviewer; the refuter's gate runs per phase and does not use them.
+`plan.md` starts with a `job` index section, then one anchored section per phase. Each phase section is self-contained, because a developer reads only its own section, `request.md#job`, the `analyst.result.md` groups its **Context** cites, and its dependencies' `## Interfaces` and `**Decisions:**` (see Role table). The architect writes the same schema for both products. The job-level **Acceptance criteria**, **Verification commands**, and **Review tier** are read by the conductor and the whole-job reviewer; the refuter's gate runs per phase and does not use them, beyond its direct-path phase listing the **Verification commands** under its **Acceptance criteria**.
 
-**Rationale** applies to both products: whoever writes `plan.md` (the architect, or refuter main on its Direct tier, where it writes the plan itself) records there, in two to four sentences, the decisions its sequential thinking reached (see Skill delivery): the refuter workflow tier chosen (refuter main only), why that review tier, the key decomposition or ordering decision, and the alternatives rejected with why. **Revision** lines are optional and main's alone: on each global re-plan or conductor review-tier escalation main appends one dated line to the end of the `job` section, never editing or deleting earlier **Rationale** or **Revision** text, so the original reasoning survives a resume.
+**Rationale** applies to both products: the architect records there, in two to four sentences, the decisions its sequential thinking reached (see Skill delivery): why that review tier, the key decomposition or ordering decision, and the alternatives rejected with why. On the direct path main writes `plan.md` itself, and its **Rationale** is the one line `direct path`; refuter main writes **Rationale** only there, and on its Lightweight and Full tiers, where the architect writes it, only appends **Revision** lines.
+
+**Size limits.** Each review tier caps the plan, checkable by `wc -l`: `none` is one phase and the whole file at most 60 lines; `light` is at most 3 phases and the whole file at most 160 lines; `full` is at most 45 lines per phase section.
+
+**Direct-path plan.** On the direct path main writes `plan.md` itself, with no architect: the `## job` section holds **Goal**, **Rationale** `direct path`, **Review tier** `none`, **Diff base**, **Acceptance criteria**, **Verification commands**, and the phase table; the one phase section holds **Goal**, **Surface** (the named files), **Context**, **Out of scope**, **Acceptance criteria**, **Conventions**, and **Skills**. Fields the template below has and this list omits are left out. **Revision** lines are optional and main's alone: on each global re-plan or conductor review-tier escalation main appends one dated line to the end of the `job` section, never editing or deleting earlier **Rationale** or **Revision** text, so the original reasoning survives a resume.
 
 **Review tier** is read by the conductor and the whole-job reviewer: `none`, `light`, or `full`, with a one-clause reason, set by the architect from the "When" column below; the conductor never lowers it and raises it only by an appended **Revision** line, and **Rationale** names why. An absent field means `full`.
 
 | Review tier | When | What runs |
 |---|---|---|
-| `none` | Docs, prompts, config, copy, or mechanical single-surface edits where every acceptance item is checkable by one command | No review dispatch: main runs a mechanical all-green check from the repo root — it runs every **Verification commands** entry plus `git diff --name-only <Diff base>` and `git diff --stat <Diff base>`, and reads every result file whole, Verification table included; every command exits 0, every file in `git diff --name-only <Diff base>` lies inside some phase's **Surface**, every Verification row is a pass, and every result file's Gaps is `None.` — and never judges code; anything else raises the review tier to `light` |
-| `light` | Moderate code changes inside one surface, no public interface changed | the reviewer on changed hunks and one-hop callers, plus the **Verification commands** and every acceptance criterion; pi's `subagent` takes no per-call model, so there `light` saves cost through narrower scope only |
-| `full` | Public API, schema, migration, security, or concurrency changes, parallel phases sharing an interface, and every user-requested review (a review-only job, "review this branch"), whatever the field says | the reviewer reads every touched file whole and traces every caller |
+| `none` | Docs, prompts, config, copy, or mechanical single-surface edits where every acceptance item is checkable by one command | No review dispatch: main runs a mechanical all-green check from the repo root — it runs every **Verification commands** entry plus `git diff --name-only <Diff base>` and `git diff --stat <Diff base>`, and reads every result file whole, Verification table included; every command exits 0, every file in `git diff --name-only <Diff base>` lies inside some phase's **Surface**, every Verification row is a pass, and every result file's **Gaps** is `None.` (its **Notes** never count) — and never judges code; it re-runs an acceptance command only under the verify-once rule (see Review cycle); anything else raises the review tier to `light` |
+| `light` | Moderate code changes inside one surface, no public interface changed | the reviewer on changed hunks and one-hop callers, plus the **Verification commands** run once and every acceptance criterion checked against its recorded output under the verify-once rule; pi's `subagent` takes no per-call model, so there `light` saves cost through narrower scope only |
+| `full` | Public API, schema, migration, security, or concurrency changes, parallel phases sharing an interface, and every review the human requested alongside a change, whatever the field says (a review with no requested change takes the answer path, see Triage) | the reviewer reads every touched file whole and traces every caller |
 
-The architect picks the lowest review tier whose "When" fits every phase; any phase meeting a `full` trigger makes the job `full`. **Escalation:** once every phase is `COMPLETE`, main checks these triggers: a result file with non-empty Gaps or an unconfirmed claim, a file in `git diff --name-only <Diff base>` outside every phase's **Surface**, or a failing verification command raises the review tier one step; a file in `git diff --name-only <Diff base>` on a public interface, schema, migration, security, or concurrency path raises it to `full`; the reviewer's `**Escalate: full**` line raises it to `full`. **Review tier** stays as planned: main records each escalation as an appended `**Revision:** <YYYY-MM-DD> — review tier <light|full>: <trigger>` line, and the effective review tier is the latest such line, else **Review tier**. A fix round re-reviews at the effective review tier and never lowers it.
+The architect picks the lowest review tier whose "When" fits every phase; any phase meeting a `full` trigger makes the job `full`. **Escalation:** once every phase is `COMPLETE`, main checks these triggers: a result file whose **Gaps** is not `None.` (escalation fires on **Gaps** only, never on **Notes**), a file in `git diff --name-only <Diff base>` outside every phase's **Surface**, or a failing verification command raises the review tier one step; a file in `git diff --name-only <Diff base>` on a public interface, schema, migration, security, or concurrency path raises it to `full`; the reviewer's `**Escalate: full**` line raises it to `full`. **Review tier** stays as planned: main records each escalation as an appended `**Revision:** <YYYY-MM-DD> — review tier <light|full>: <trigger>` line, and the effective review tier is the latest such line, else **Review tier**. A fix round re-reviews at the effective review tier and never lowers it.
 
-**Surface** is one line holding a backticked list of the paths or directories the phase owns, never a prose area: on pi the drift guard reads only that line and keeps only backticked tokens containing a `/` or `\`, so a top-level file is written `./CHANGELOG.md`. **Context** carries the located facts from the orient map (`analyst.result.md#job`) for that surface: backticked paths with a heading or symbol anchor, rosters of files that must change together, and line-ending rules. Anchors are path plus heading or symbol; line numbers appear only as orient-time hints the developer re-verifies. **Research** stays for dated web and library facts, each with its source. The architect never lists changed files: it does not pre-write the diff, and the owning paths in **Surface** are not a changed-files list.
+**Surface** is one line holding a backticked list of the paths or directories the phase owns, never a prose area: on pi the drift guard reads only that line and keeps only backticked tokens containing a `/` or `\`, so a top-level file is written `./CHANGELOG.md`. **Context** cites the orient map by anchor, `analyst.result.md#<surface-slug>` for each Findings group the phase needs, plus at most 5 copied facts (a roster, a line-ending rule, a fact the phase turns on), never the map's text wholesale; on the direct path, where there is no map, it holds the facts from main's own bounded reads. Anchors are path plus heading or symbol; line numbers appear only as orient-time hints the developer re-verifies. **Research** stays for dated web and library facts, each with its source. The architect never lists changed files: it does not pre-write the diff, and the owning paths in **Surface** are not a changed-files list.
 
 **Model:** is an optional last line of a phase section, after **Research**, omitted unless set. The architect sets it only as an escape hatch for one phase, never by default or as a by-tier policy, and records why in **Rationale**. Its value is one of `opus`, `sonnet`, `haiku`, `fable`. On Claude the conductor and refuter pass it as `model: "<value>"` on that phase's `Implement` and `Fix` dispatches only and never re-judge it; the conductor's multi-phase `Fix issues.md#job.` carries it only when every phase it covers has the same value. Every other dispatch (`Analyze`, `Plan`, `Review`, `Recheck`, `Consult`) passes no `model:`, the resumed reviewer of a `Recheck` keeps its first run's model, and every worker otherwise runs on its own agent file's frontmatter model. The conductor's and refuter's pre-dispatch check rejects any other value as a defect of that phase section and does not dispatch it. pi passes no per-call model, so there the line is documentation only.
 
@@ -256,7 +283,7 @@ The architect picks the lowest review tier whose "When" fits every phase; any ph
 
 **Surface:** `<path or directory this phase owns>`, `<path or directory>`
 
-**Context:** <requirements, plus located facts from the orient map: `<path>` — <heading or symbol>: <fact>; rosters that change together; line-ending rules; line numbers only as hints to re-verify>
+**Context:** <requirements; `analyst.result.md#<surface-slug>` anchors; at most 5 copied facts: `<path>` — <heading or symbol>: <fact>, a roster, a line-ending rule; line numbers only as hints to re-verify>
 
 **Out of scope:** <paths and areas the worker must not change>
 
@@ -277,7 +304,7 @@ The architect picks the lowest review tier whose "When" fits every phase; any ph
 
 ### `<phase-id>.result.md`
 
-The developer writes this file. A fix pass overwrites it with the full current state, not a delta. **Decisions** is required and comes first, so the reviewer and dependent developers read it before the diff: every choice the plan left open and every deviation from the plan, each with its reason, or `None.`. Each **Changed files** line carries the symbol or heading it changed, so the reviewer and a dependent phase can go straight to it.
+The developer writes this file. A fix pass overwrites it with the full current state, not a delta. **Decisions** is required and comes first, so the reviewer and dependent developers read it before the diff: every choice the plan left open and every deviation from the plan, each with its reason, or `None.`. Each **Changed files** line carries the symbol or heading it changed, so the reviewer and a dependent phase can go straight to it. **Verification** is mandatory and holds one row per acceptance command with its recorded output, trimmed to the lines that prove the result; that record is what the verify-once rule trusts (see Review cycle). **Gaps** holds doubts about this phase: an unmet criterion, a plan error, an unconfirmed claim, or an assumption made; it may escalate the review. **Notes** holds observations outside the phase's scope; it is report-only and never escalates, and nothing in it becomes work unless the human asks.
 
 ```markdown
 # <phase-id> result
@@ -294,10 +321,13 @@ The developer writes this file. A fix pass overwrites it with the full current s
 ## Verification
 | Command | Result |
 |---|---|
-| `<command>` | <pass or fail, with the output line that proves it> |
+| `<command>` | <pass or fail, with the recorded output, trimmed, that proves it> |
 
 ## Gaps
-- <unmet criterion, plan error, unconfirmed claim, or assumption made; or None.>
+- <unmet criterion, plan error, unconfirmed claim, or assumption made about this phase; or None.>
+
+## Notes
+- <observation outside this phase's scope, report-only; or None.>
 ```
 
 ### review.md
@@ -356,16 +386,14 @@ An orient analyst reads `request.md#job` and needs no `analyst.md`. `analyst.md`
 **Why:** <the decision it settles, and the asker's current belief>
 ```
 
-`analyst.result.md` is shared by analysts running in parallel. The dispatcher creates it, holding only the heading `# Analyst results`, before the first spawn. Each analyst changes only its own section, `## job` for an orient dispatch and `## <question-id>` for a question, with `Edit`, re-reads the file immediately before every `Edit`, re-appends its section if it went missing, replaces an earlier section with the same id, and never changes another section. **Verification commands** appears in the `job` section only. Anything looked for and not found is a **Gaps** entry, never a reason to stop. Each codebase finding carries an anchor the plan can cite verbatim in **Context**: the path plus a heading or symbol, with a line number only as an orient-time hint. **Rosters** lists the sets of files that must change together; **Line endings** names the line-ending rule each touched file type follows.
+`analyst.result.md` is shared by analysts running in parallel. The dispatcher creates it, holding only the heading `# Analyst results`, before the first spawn. Each analyst changes only its own section, `## job` for an orient dispatch and `## <question-id>` for a question, with `Edit`, re-reads the file immediately before every `Edit`, re-appends its section if it went missing, replaces an earlier section with the same id, and never changes another section. **Verification commands** and **Change indicated** appear in the `job` section only. **Findings** comes last in its section and is grouped under `### <surface-slug>` sub-headings, lowercase kebab-case and unique within the file, so a phase **Context** can cite `analyst.result.md#<surface-slug>`; a group runs to the next heading. Each codebase finding carries an anchor the plan can cite verbatim: the path plus a heading or symbol, with a line number only as an orient-time hint. **Gaps** holds what was looked for and not found, request premises the code contradicts, and areas left unmapped; a Gap is never a reason to stop, except one that blocks the goal, which the analyst reports as a `BLOCKED:` reply and main never copies into `request.md`. **Notes** holds observations outside the question, report-only. **Change indicated** is `yes`, or `no` with the reason when nothing needs changing or the findings themselves answer the request; it drives the early exit (see Triage). **Rosters** lists the sets of files that must change together; **Line endings** names the line-ending rule each touched file type follows.
 
 ```markdown
 # Analyst results
 
 ## <section-id>
 
-**Findings:**
-- `<path>` — <heading or symbol>: <fact found: what it holds, callers, convention to follow>
-- <dated web fact> — <URL or library id>, retrieved <YYYY-MM-DD>
+**Change indicated:** <yes | no — reason; job section only>
 
 **Rosters:**
 - `<path>`, `<path>`: <why they change together; or None.>
@@ -377,7 +405,16 @@ An orient analyst reads `request.md#job` and needs no `analyst.md`. `analyst.md`
 - `<build, typecheck, lint, or test command>`: <where it is defined>
 
 **Gaps:**
-- <item looked for and not found, with where it looked; or None.>
+- <item looked for and not found with where it looked, a request premise contradicted, or an area left unmapped; or None.>
+
+**Notes:**
+- <observation outside the question, report-only; or None.>
+
+**Findings:**
+
+### <surface-slug>
+- `<path>` — <heading or symbol>: <fact found: what it holds, callers, convention to follow>
+- <dated web fact> — <URL or library id>, retrieved <YYYY-MM-DD>
 ```
 
 ### opinion.md
@@ -455,7 +492,7 @@ Workers lose the `Skill` tool and the `skills:` frontmatter preload. A worker ge
 
 Reason: worker reads stay inside the project, so no worker hits a permission prompt, and any prompt for reading the plugin cache lands on main, the only agent a human is watching.
 
-**Sequential thinking.** Main also copies the `baton` skill `sequential-thinking` to the job folder's `skills/sequential-thinking.md` before the first `Plan` dispatch; no phase lists it under **Skills**. The architect reads it and follows its thought protocol inline to decompose the request, runs its native checklist (surfaces, dependency order, one alternative decomposition, revision) when the copy is absent, and records only the resulting decisions in **Rationale**. Refuter main follows the same protocol for its own planning, the Direct tier included: on Claude it invokes `baton:sequential-thinking` through `Skill`, on pi it reads the skill's `SKILL.md` from its skill listing. The conductor never uses the skill itself. No agent runs the skill's `scripts/think.ts` or writes the thought sequence out; on pi, where installed-package children see the skill in their listing, every bash-capable worker carries the guard "If you use the listed `sequential-thinking` skill, follow its thought protocol inline; never run its `scripts/think.ts`." The vendored skill comes unedited from thedotmack/sequential-thinking-skill at commit `d0fd5d4`, MIT.
+**Sequential thinking.** Main copies the `baton` skill `sequential-thinking` to the job folder's `skills/sequential-thinking.md` only when it dispatches `Plan` (the conductor's full path; the refuter's Lightweight and Full tiers), before the first `Plan` dispatch, and never on the answer or direct path; no phase lists it under **Skills**. The architect reads it and follows its thought protocol inline to decompose the request, runs its native checklist (surfaces, dependency order, one alternative decomposition, revision) when the copy is absent, and records only the resulting decisions in **Rationale**. Refuter main follows the same protocol for its own planning on the Lightweight and Full tiers only: on Claude it invokes `baton:sequential-thinking` through `Skill`, on pi it reads the skill's `SKILL.md` from its skill listing. The conductor never uses the skill itself. No agent runs the skill's `scripts/think.ts` or writes the thought sequence out; on pi, where installed-package children see the skill in their listing, every bash-capable worker carries the guard "If you use the listed `sequential-thinking` skill, follow its thought protocol inline; never run its `scripts/think.ts`." The vendored skill comes unedited from thedotmack/sequential-thinking-skill at commit `d0fd5d4`, MIT.
 
 **Rejected: absolute SKILL.md paths in plan.md.** In this option, main resolves absolute paths with `Glob` and writes them into `plan.md`. It is rejected for three reasons. `${CLAUDE_PLUGIN_ROOT}` does not expand in a file read at runtime. The cache path `~/.claude/plugins/cache/<marketplace>/<product>/<version>/` changes with every plugin update and differs under `--plugin-dir` or `CLAUDE_CODE_PLUGIN_CACHE_DIR`. Every worker read outside the working directory triggers a permission prompt that no human is watching.
 

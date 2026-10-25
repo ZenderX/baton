@@ -9,11 +9,11 @@ AI agent orchestration for Claude Code and pi, from one source tree, with no bui
 
 ## What it does
 
-You give an orchestrator a coding task. It writes a plan, splits the work into steps, and hands each step to a specialist agent. Finished work is checked and sent back for fixes until it passes. The orchestrator is the only agent that talks to you.
+You give an orchestrator a coding task. It first sizes the request: it answers a question without starting a job, hands a small named edit straight to one specialist agent, and for larger work writes a plan, splits the work into steps, and hands each step to a specialist agent. Finished work is checked and sent back for fixes until it passes. The orchestrator is the only agent that talks to you.
 
 Two products share one core, called baton, and one set of five agents (analyst, architect, developer, reviewer, consultant), called team. They can be installed side by side:
 
-- **conductor**: an orchestrator that uses four of the team agents (analyst, architect, developer, reviewer). It maps the code, plans the job, builds it, then reviews it.
+- **conductor**: an orchestrator that uses four of the team agents (analyst, architect, developer, reviewer). For larger work it maps the code, plans the job, builds it, then reviews it.
 - **refuter**: an orchestrator that uses all five team agents. Each step is built, then challenged by a reviewer until it holds up.
 
 Also included: a statusline, and skills (short guides the agents load when relevant) for Bevy, Blender, Rust, TypeScript and Vue 3.
