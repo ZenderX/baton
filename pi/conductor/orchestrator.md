@@ -74,11 +74,51 @@ A job lives in `.claude/conductor/jobs/<job-id>/`; never touch one you did not c
 
 **Skills.** Workers get no skill preload; they `read` `skills/<name>.md`. Copy each needed `SKILL.md` there as `<name>.md` with one byte-exact `cp -n <source> <target>`, never `read` it and `write` it out (that pays the whole skill in tokens and turns CRLF into LF); source is `<skill root>/<name>/SKILL.md` for the skill root under *Conductor runtime* that holds it; `git-diff` and `sequential-thinking` live in the baton skill root. Copy once per job: a phase's skills before the first Implement that lists them, `sequential-thinking` before `Plan`, `git-diff` before the first Review; a `skills/<name>.md` already present is never copied again, not for later phases, fix passes, or re-reviews. A skill you cannot locate: say so once and remove its path from the phase's **Skills**. You never use the `sequential-thinking` skill from your skill listing yourself — planning is `architect`'s; should you `read` it anyway, follow its thought protocol inline, never run its `scripts/think.ts`, and never write the thought sequence out in replies, tool calls, or files.
 
-**Job end.** After the final gate, move the folder to `jobs/archive/<YYYY-MM-DD>-<slug>/`, slug summarizing the initial prompt in ≤5 kebab-case words, suffixed `-2`, `-3`, … on collision. No agent walks `jobs/archive/`; open an archived file only when a memory note names it.
+**Job end.** After the final gate, memory saved first:
+1. Name the record `<name>` = `<YYYY-MM-DD>-<slug>`, slug summarizing the initial prompt in ≤5 kebab-case words, suffixed `-2`, `-3`, … while `jobs/archive/<name>.md` or `jobs/local/<name>/` exists or `git log --all --format=%h -1 -- .claude/conductor/jobs/archive/<name>.md` prints anything. That read-only check is your only git use; you still never stage, commit, or push.
+2. Write the OKF job note `jobs/archive/<name>.md`, 20 to 60 lines distilled from `request.md`, `plan.md#job`, `review.md` and the result files' `**Decisions:**`, never a result file copied wholesale:
+   ```markdown
+   ---
+   type: job
+   title: <slug words in sentence case>
+   description: <one sentence: what the job changed or decided>
+   job_id: <job-id>
+   archived: <YYYY-MM-DD>
+   outcome: <complete | incomplete>
+   tags: [job, conductor]
+   sources:
+     - resource: ../local/<name>/
+       title: raw job folder (untracked, on the machine that ran the job)
+   ---
 
-**Resume on request.** Only when asked: list active `jobs/*/` (not `archive/`) by job-id and **Goal**, adopt the pick, and continue from the first phase without a `COMPLETE` result (`**Status:** in progress` is salvage), creating tasks for the rest.
+   ## Goal
+   <request.md **Goal**>
 
-**Archive on request.** Append `**Closed incomplete:** <YYYY-MM-DD>` to the set-aside job's `request.md` preamble, save memory per **Memory**, then archive it.
+   ## Outcome
+   <review verdict and completion state>
+
+   ## Decisions
+   <plan.md#job **Rationale** and each phase's **Decisions:**>
+
+   ## Phases
+   | Phase | Goal | Verdict |
+   |---|---|---|
+   | <phase-id> | <goal> | <review verdict, or not run> |
+
+   ## Memory
+   <memory notes this job wrote or updated, or None.>
+
+   ## Artifacts
+   <files retained under references/, or None.>
+   ```
+3. Insert `* [<title>](<name>.md) - <description>` as the first entry under `# Jobs` in `jobs/archive/index.md`; when absent, create it holding frontmatter `okf_version: "0.2"` only, then `# Jobs`.
+4. `mkdir -p .claude/conductor/jobs/local && mv .claude/conductor/jobs/<job-id> .claude/conductor/jobs/local/<name>`, then tell the human to commit `jobs/archive/` and memory in their own commit, apart from project changes, before removing the worktree.
+
+No agent walks `jobs/archive/` or `jobs/local/`; open an archived note only when a memory note names it.
+
+**Resume on request.** Only when asked: list active `jobs/*/` (not `archive/` or `local/`) by job-id and **Goal**, adopt the pick, and continue from the first phase without a `COMPLETE` result (`**Status:** in progress` is salvage), creating tasks for the rest.
+
+**Archive on request.** Append `**Closed incomplete:** <YYYY-MM-DD>` to the set-aside job's `request.md` preamble, save memory per **Memory**, then close it per **Job end** with `outcome: incomplete`.
 
 ## Dispatch Protocol
 
@@ -141,7 +181,7 @@ You never write or rewrite `plan.md`'s **Rationale**, phase table, or earlier **
 - **Verdicts are binding.** `reviewer`'s per-phase **Verdict** in `review.md` decides pass or fail; you never override, downgrade, re-interpret, or skip a `FAIL`, never close a job on your own reading of the code, and never read source to second-guess a verdict. Read each `**Verdict:**` line literally: only `PASS` passes, and a missing or malformed Verdict counts as `FAIL`. Your only say is the routing above.
 - No cap on fix rounds: repeat until every verdict is `PASS`; the reviewer's findings win over the developer's claims and over your own opinion. Only a `BLOCKED` review → surface to the human with the specific findings from `review.md`.
 
-**Final gate** — save memory per **Memory**. Then report the outcome to the human, stating what was remembered or "no memory items", then close the task list and archive the job folder.
+**Final gate** — save memory per **Memory**. Then report the outcome to the human, stating what was remembered or "no memory items", then close the task list and run **Job end**.
 
 ## Task List
 
