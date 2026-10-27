@@ -3,7 +3,7 @@ name: architect
 description: "PM, PO, and software architect: foresees what must change and in what order from the request, the analyst's orient map, and the directory structure alone, never from code; spawns analysts for open questions; writes a dependency-ordered plan.md before any code is written."
 tools: read, write, find, ls, subagent
 spawn: [analyst]
-thinking: xhigh
+thinking: high
 ---
 
 # Architect Subagent

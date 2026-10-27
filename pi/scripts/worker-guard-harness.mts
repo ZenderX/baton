@@ -41,6 +41,10 @@
  *  11. drift-nudge extension: against a stubbed pi, the failed-run replay as
  *      tool_result events yields steer-only `[drift]` sends and no other pi
  *      or ctx call; no config, or depth 0, yields zero sends.
+ *  12. Output cap: a child whose final assistant message ends
+ *      `stopReason: "length"` is reported as `BLOCKED: output cap exhausted`
+ *      with `isError: true` (single mode), while a normal child is reported
+ *      as before.
  *
  * Run with: node --experimental-strip-types pi/scripts/worker-guard-harness.mts
  * (This file is intentionally NOT listed in package.json pi.extensions.)
@@ -94,6 +98,8 @@ interface Scenario {
 	piStream?: boolean;
 	/** On "complete", reply with this env var's value instead of COMPLETE. */
 	echoEnv?: string;
+	/** On "complete", end the final assistant message with this stopReason instead of "stop". */
+	stopReason?: "length";
 	/** Free text riding along in the task, e.g. a `plan.md#<phase-id>` reference. */
 	note?: string;
 }
@@ -137,7 +143,7 @@ scenario.calls.forEach((call, i) => {
 });
 if (scenario.then === "complete") {
 	const text = scenario.echoEnv ? String(process.env[scenario.echoEnv]) : "COMPLETE";
-	emit({ role: "assistant", content: [{ type: "text", text }], usage, stopReason: "stop", model: "fake" });
+	emit({ role: "assistant", content: [{ type: "text", text }], usage, stopReason: scenario.stopReason || "stop", model: "fake" });
 } else {
 	setInterval(() => {}, 1000);
 }
@@ -280,6 +286,7 @@ async function main(): Promise<void> {
 	const originalArgv1 = process.argv[1];
 	const originalAgentDir = process.env.PI_CODING_AGENT_DIR;
 	const originalDepth = process.env.PI_CONDUCTOR_SPAWN_DEPTH;
+	const originalSpawnAllow = process.env.PI_CONDUCTOR_SPAWN_ALLOW;
 	const originalDrift = process.env[DRIFT_ENV];
 	const channel = globalThis as Record<symbol, unknown>;
 	try {
@@ -335,6 +342,7 @@ async function main(): Promise<void> {
 		fs.mkdirSync(agentHome);
 		process.env.PI_CODING_AGENT_DIR = agentHome;
 		delete process.env.PI_CONDUCTOR_SPAWN_DEPTH;
+		delete process.env.PI_CONDUCTOR_SPAWN_ALLOW;
 		channel[PRODUCTS_KEY] = new Map([
 			[
 				"harness",
@@ -457,6 +465,21 @@ async function main(): Promise<void> {
 			const cappedRoles = (capped.details?.results[0]?.messages ?? []).filter(isStreamMessage).map((m) => m.role);
 			assert.deepEqual(cappedRoles.slice(0, 5), ["assistant", "toolResult", "assistant", "toolResult", "assistant"]);
 			console.log("  [8] pi 0.87.1 stream: tool results collected once via message_end; trace intact");
+		}
+
+		// 12. Output cap: a length-ended child is BLOCKED with isError; a normal child is unchanged.
+		{
+			const lengthChild = await run({
+				agent: "free",
+				task: task({ calls: distinctReads(1), then: "complete", stopReason: "length" }),
+			});
+			assert.match(textOf(lengthChild), /^BLOCKED: output cap exhausted — free's final reply was truncated at the output cap$/);
+			assert.equal(lengthChild.isError, true, "a length-ended child is an error, not a successful reply");
+			assert.equal(lengthChild.details?.results[0]?.stopReason, "length");
+			const normal = await run({ agent: "free", task: task({ calls: distinctReads(1), then: "complete" }) });
+			assert.equal(textOf(normal), "COMPLETE", "a normal child is reported as before");
+			assert.equal(normal.isError, undefined);
+			console.log("  [12] stopReason length: BLOCKED with isError; a normal child is unchanged");
 		}
 
 		// 10. Per-child drift config (run before 7, at depth 0 like the other spawns).
@@ -846,6 +869,9 @@ async function main(): Promise<void> {
 		else process.env.PI_CODING_AGENT_DIR = originalAgentDir;
 		if (originalDepth === undefined) delete process.env.PI_CONDUCTOR_SPAWN_DEPTH;
 		else process.env.PI_CONDUCTOR_SPAWN_DEPTH = originalDepth;
+		// The engine exports this on every child (empty at depth 0's children); a leftover value would refuse every dispatch here.
+		if (originalSpawnAllow === undefined) delete process.env.PI_CONDUCTOR_SPAWN_ALLOW;
+		else process.env.PI_CONDUCTOR_SPAWN_ALLOW = originalSpawnAllow;
 		if (originalDrift === undefined) delete process.env[DRIFT_ENV];
 		else process.env[DRIFT_ENV] = originalDrift;
 		delete channel[PRODUCTS_KEY];

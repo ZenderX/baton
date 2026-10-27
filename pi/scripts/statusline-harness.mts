@@ -12,7 +12,8 @@
  *      slow 40-char/10s stream reads "1 tok/s"); once a message completes the
  *      figure holds its final rate (not "0 tok/s"), including across the next
  *      message's pre-first-token wait; a sub-200ms span keeps the previous
- *      held value; the figure is right-aligned to the footer's right edge.
+ *      held value; at turn_end the speedometer rests at "0 tok/s"; the figure
+ *      is right-aligned to the footer's right edge.
  *   4. Cost: the $ figure only when total cost > 0.
  *   5. Self-heal: with a typical local provider structure in a temp agent dir
  *      (stale contextWindow 120000), a live 200000 from the mock server rewrites
@@ -35,7 +36,8 @@
  *      survives a further turn_start while the active product is unchanged.
  *  10. Empty-branch stream: with `state.branch = []`, `message_start` +
  *      `message_update` (400 chars over 1s after the first token) render the
- *      speedometer with no in/out items; `message_end` holds `100 tok/s`.
+ *      speedometer with no in/out items; `message_end` holds `100 tok/s` and
+ *      `turn_end` rests the figure at `0 tok/s`.
  *  11. Cache group: a message_end with 90 cache-read of 100 input-side
  *      tokens on a private baseUrl renders the hit rate only (90%) — no
  *      countdown, cold or time-left figure, no miss counter while every
@@ -307,6 +309,10 @@ async function main(): Promise<void> {
 	// deterministically and the real ~/.pi/agent/models.json is never touched.
 	const agentDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-statusline-harness-"));
 	process.env.PI_CODING_AGENT_DIR = agentDir;
+	// Scrub PI_CONDUCTOR_SPAWN_DEPTH inherited from a spawned-subagent shell:
+	// conductorEnabled() reads it and would leave the footer off, failing the
+	// product-flag checks. Check 7b sets the variable itself, after this scrub.
+	delete process.env.PI_CONDUCTOR_SPAWN_DEPTH;
 	const modelsPath = path.join(agentDir, "models.json");
 	const modelsFile = {
 		providers: {
@@ -454,6 +460,14 @@ async function main(): Promise<void> {
 				assert.equal(trailingFigure(lineC), "1 tok/s", `the held figure should stay right-aligned when the $ figure disappears, got: ${lineC}`);
 				assert.equal(visibleWidth(lineC), 200, `the padded line should fill exactly the render width, got: ${lineC}`);
 				console.log("  [4] zero cost hides $:", lineC);
+
+				// The turn ends: the speedometer rests at 0 tok/s instead of
+				// holding the last completed message's rate indefinitely.
+				env.fire("turn_end", { type: "turn_end" });
+				const lineRest = env.render();
+				assert.equal(trailingFigure(lineRest), "0 tok/s", `turn_end should rest the speedometer at 0 tok/s, got: ${lineRest}`);
+				assert.equal(visibleWidth(lineRest), 200, `the padded line should fill exactly the render width, got: ${lineRest}`);
+				console.log("  [3] turn_end rests the speedometer at 0 tok/s:", lineRest);
 
 				// The harness provider is absent from the temp models.json, so no self-heal notify.
 				assert.equal(env.notified.length, 0, "no self-heal notify for an untracked provider");
@@ -693,6 +707,11 @@ async function main(): Promise<void> {
 				const lineEnd = env.render();
 				assert.equal(trailingFigure(lineEnd), "100 tok/s", `the completed empty-branch stream should hold exactly 100 tok/s, got: ${lineEnd}`);
 				assert.ok(!lineEnd.includes("↑"), `an empty branch must show no in/out items, got: ${lineEnd}`);
+
+				// The turn ends: the empty-branch speedometer rests at 0 tok/s as well.
+				env.fire("turn_end", { type: "turn_end" });
+				const lineRest = env.render();
+				assert.equal(trailingFigure(lineRest), "0 tok/s", `turn_end should rest the empty-branch speedometer at 0 tok/s, got: ${lineRest}`);
 			} finally {
 				Date.now = realNow;
 			}

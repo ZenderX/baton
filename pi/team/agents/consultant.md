@@ -2,7 +2,7 @@
 name: consultant
 description: Samples a local model on the reviewer's disputed claims via scripts/spanda-audit.py and reports per-claim risk; never decides.
 tools: read, write, edit, grep, find, ls, bash
-thinking: xhigh
+thinking: high
 ---
 
 # Consultant Subagent

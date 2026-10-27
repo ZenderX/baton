@@ -292,7 +292,13 @@ function getFinalOutput(messages: Message[]): string {
 }
 
 function isFailedResult(result: SingleResult): boolean {
-	return result.exitCode !== 0 || result.stopReason === "error" || result.stopReason === "aborted";
+	// "length": the child hit the model's output cap mid-work; its truncated reply is a failure, not a result.
+	return (
+		result.exitCode !== 0 ||
+		result.stopReason === "error" ||
+		result.stopReason === "aborted" ||
+		result.stopReason === "length"
+	);
 }
 
 function getResultOutput(result: SingleResult): string {
@@ -1111,6 +1117,19 @@ Chain stopped at step ${i + 1} (${step.agent}).` },
 					return {
 						content: [{ type: "text", text: getResultOutput(result) }],
 						details: makeDetails("single")([result]),
+					};
+				}
+				// A length-ended child is reported as BLOCKED (not the truncated text), before the generic failed branch's `Agent <stopReason>:` prefix.
+				if (result.stopReason === "length") {
+					return {
+						content: [
+							{
+								type: "text",
+								text: `BLOCKED: output cap exhausted — ${result.agent}'s final reply was truncated at the output cap`,
+							},
+						],
+						details: makeDetails("single")([result]),
+						isError: true,
 					};
 				}
 				const isError = isFailedResult(result);
