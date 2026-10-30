@@ -47,6 +47,15 @@ Only produce full diffs when explicitly requested or when the conductor needs de
 git diff <base>...<head> -- <file>
 ```
 
+### 5. Per-Phase Diff Bundle (job review)
+
+For a job reviewed against a **Diff base** commit, bundle one phase's changes: diff the working tree against the diff base, restricted to that phase's **Surface** paths, and list the untracked files under them, which `git diff` omits and which are read whole.
+
+```bash
+git diff <diff-base> -- <surface-path>...
+git ls-files --others --exclude-standard -- <surface-path>...
+```
+
 ## Output Format
 
 ```
