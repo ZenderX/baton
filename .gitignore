@@ -1,17 +1,16 @@
+# Dependencies and pi runtime state
 node_modules/
 .pi/npm/
 .pi/git/
 .pi/sessions/
-bash.exe.stackdump
 
-# Job folders, active and archived (docs/job-files.md); legacy job/ kept
+# Job folders, active and archived (docs/job-files.md)
 .claude/conductor/jobs/
 .claude/refuter/jobs/
-.claude/conductor/job/
-.claude/refuter/job/
 
-# OS cruft
+# OS and shell cruft
 .DS_Store
+*.stackdump
 
 # Python bytecode caches
 __pycache__/

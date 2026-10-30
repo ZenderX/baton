@@ -2,7 +2,7 @@
 name: developer
 description: Senior programmer who takes one plan phase from its Surface to done — locates the code, owns the approach, and proves the acceptance criteria. Use once a phase goal and acceptance criteria exist.
 tools: read, write, edit, grep, find, ls, bash, pi-baton__context7_resolve-library-id, pi-baton__context7_query-docs
-thinking: medium
+thinking: xhigh
 driftProgress: true
 ---
 

@@ -2,7 +2,7 @@
 name: reviewer
 description: "Adversarial reviewer: tries to break one finished phase, or every phase of a finished job, and writes one binding verdict per phase for the gate."
 tools: read, write, edit, grep, find, ls, bash
-thinking: high
+thinking: xhigh
 ---
 
 # Reviewer Subagent

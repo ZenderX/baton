@@ -2,7 +2,7 @@
 name: analyst
 description: "Fast reconnaissance: a codebase map of a job's surfaces at orient, and codebase or dated web facts for one question. Returns a map, never a plan."
 tools: read, write, edit, grep, find, ls, bash, pi-baton__context7_resolve-library-id, pi-baton__context7_query-docs
-thinking: medium
+thinking: xhigh
 ---
 
 # Analyst Subagent
