@@ -23,7 +23,7 @@ Invoke every subagent through `subagent`, by bare name — **Single** `{ agent, 
 
 ## Project Environment
 
-At job start, read `.claude/environment.md` (shared with the refuter orchestrator). Absent → create it once from manifests/CI, noted generated-once: `# ENVIRONMENT DETAILS` over **O/S**, **Editor**, **Language**, **Package Manager**, **Version Control**, **Framework**, **Terminal**, **Browser**, **Build target**; editor from `.vscode`/`.idea`/`TERM_PROGRAM`, terminal from `WT_SESSION`, browser from the OS default-browser query; no placeholder or guess, else ask the user. Thereafter it is user truth outside the job folder: never edit it; flag, never apply, a contradicting manifest.
+At job start, read `.baton/environment.md` (shared with the refuter orchestrator). Absent → create it once from manifests/CI, noted generated-once: `# ENVIRONMENT DETAILS` over **O/S**, **Editor**, **Language**, **Package Manager**, **Version Control**, **Framework**, **Terminal**, **Browser**, **Build target**; editor from `.vscode`/`.idea`/`TERM_PROGRAM`, terminal from `WT_SESSION`, browser from the OS default-browser query; no placeholder or guess, else ask the user. Thereafter it is user truth outside the job folder: never edit it; flag, never apply, a contradicting manifest.
 
 ## Boundary
 
@@ -57,9 +57,9 @@ Outside the direct path, never write `plan.md` or rewrite its **Rationale**, pha
 
 ## Job Folder
 
-A job lives in `<job>` = `.claude/conductor/jobs/<job-id>`, spelled out in full in every dispatch line and task description; never touch one you did not create.
+A job lives in `<job>` = `.baton/conductor/jobs/<job-id>`, spelled out in full in every dispatch line and task description; never touch one you did not create.
 
-**Job start.** `<job-id>` = `YYYYMMDD-HHMM-<4 lowercase hex>`, not the session id: `mkdir -p .claude/conductor/jobs`, then a plain `mkdir <job>`; taken → new hex. Create `<job>/skills/` and `request.md`; its **Constraints** names each binding memory rule in one clause, never the note's text, never analyst **Gaps**:
+**Job start.** `<job-id>` = `YYYYMMDD-HHMM-<4 lowercase hex>`, not the session id: `mkdir -p .baton/conductor/jobs`, then a plain `mkdir <job>`; taken → new hex. Create `<job>/skills/` and `request.md`; its **Constraints** names each binding memory rule in one clause, never the note's text, never analyst **Gaps**:
 
 ```markdown
 # Request
@@ -119,7 +119,7 @@ Batch independent dispatches into one `Parallel` call; `Chain` only for genuine 
 **Escalation** — over the changed files (`git diff --name-only <Diff base>`): a result's **Gaps** not `None.` (never **Notes**), a changed file outside every phase's **Surface**, or a failing **Verification commands** entry raises the tier one step (`none`→`light`→`full`); a changed file on a public interface, schema, migration, security, or concurrency path, or the reviewer's `**Escalate: full**` line → `full`. Record each as an appended **Revision** in `plan.md#job` reading `review tier <light|full>: <trigger>`; the effective tier is the latest such line, else **Review tier**, and no fix round lowers it.
 
 **Review** — once every phase has a `COMPLETE` result, apply **Escalation**, delete any previous `issues.md`, then run the effective tier:
-- `none` — mechanical: from the repo root run every **Verification commands** entry, waiting and reusing gates per the `job-lifecycle` skill's **Verification waits and gate reuse**, the changed-files list and `git diff --stat <Diff base>`; read every result file whole, Verification table included. All commands exit 0, every changed file is in some phase's **Surface**, every Verification row passes, every **Gaps** is `None.` (**Notes** never count) → final gate; else escalate to `light` and dispatch `reviewer`. Verify once: re-run an acceptance command only when its recorded output is missing, contradicted by the diff or another result, or covers files a later phase touched, and cite instead of running any command whose recorded pass matches the current tree hash. Never judge code yourself.
+- `none` — mechanical: from the repo root run every **Verification commands** entry, waiting and reusing gates per the `job-lifecycle` skill's **Verification waits and gate reuse**, the changed-files list and `git diff --stat <Diff base>`; read every result file whole, Verification table included. All commands exit 0, every changed file is in some phase's **Surface**, every Verification row passes, every **Gaps** is `None.` (**Notes** never count) → final gate; else escalate to `light` and dispatch `reviewer`. Verify once: re-run an acceptance command only when its recorded output is missing, contradicted by the diff or another result, or covers files a later phase touched, and cite instead of running any command whose recorded pass matches the current state hash. Never judge code yourself.
 - `light` (`reviewer` on changed hunks and one-hop callers) or `full` (whole files, blast radius) — dispatch `Review <job>/plan.md#job.` Read `review.md`; an `**Escalate: full** — <reason>` preamble line → append the `full` **Revision** and re-dispatch the same Review at `full` before acting on any verdict. Then route:
   - Every **Verdict** `PASS` → final gate.
   - Any `FAIL` → a fresh `developer` gets `Fix <job>/issues.md#<phase-id>.` for one failing phase block, or one `Fix <job>/issues.md#job.` (every open block, plan order) for several; then Review again, a fresh `Review`.

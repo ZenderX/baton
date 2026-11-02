@@ -20,7 +20,7 @@ import { envSpawnDepth } from "./spawn-depth.ts";
 import { resolveTaskStorePath } from "./tasks.ts";
 
 // One environment file shared by every product and every worker, never per-product.
-const ENVIRONMENT_RELATIVE = path.join(".claude", "environment.md");
+const ENVIRONMENT_RELATIVE = path.join(".baton", "environment.md");
 
 function readFileOr(filePath: string, fallback: string): string {
 	try {

@@ -48,7 +48,7 @@ const DESCRIPTOR: ProductDescriptor = {
 	agents: ["analyst", "architect", "developer", "reviewer"],
 	orchestratorPromptPath: path.join(PACKAGE_ROOT, "orchestrator.md"),
 	vaultDir: "baton-conductor",
-	jobsRel: path.join(".claude", "conductor", "jobs"),
+	jobsRel: path.join(".baton", "conductor", "jobs"),
 };
 
 const PRODUCTS_KEY = Symbol.for("baton.products");

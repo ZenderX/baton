@@ -74,7 +74,7 @@ export function childDriftConfig(
 	cwd: string,
 	jobsDir: string | undefined,
 ): ChildDriftConfig {
-	// No `.` in the id: dispatch lines end with one ("Implement .claude/conductor/jobs/<job-id>/plan.md#p1-x.").
+	// No `.` in the id: dispatch lines end with one ("Implement .baton/conductor/jobs/<job-id>/plan.md#p1-x.").
 	// A fix pass ("Fix .../issues.md#p1-x.") shares its phase's Surface in the sibling plan.md.
 	const phase = /([^\s"'`]*)\b(?:plan|issues)\.md#([\w-]+)/.exec(task);
 	const planPath = phase === null || jobsDir === undefined ? undefined : dispatchedPlanPath(phase[1], cwd, jobsDir);

@@ -5,6 +5,8 @@ node_modules/
 .pi/sessions/
 
 # Job folders, active and archived (docs/job-files.md)
+.baton/conductor/jobs/
+.baton/refuter/jobs/
 .claude/conductor/jobs/
 .claude/refuter/jobs/
 
@@ -21,6 +23,7 @@ __pycache__/
 
 # Per-user agent memory and machine-local state
 .claude/agent-memory/
+.baton/environment.md
 .claude/environment.md
 .claude/settings.local.json
 

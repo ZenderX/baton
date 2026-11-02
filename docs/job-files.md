@@ -16,19 +16,21 @@ Installed plugins cannot read the repository's `docs/` folder at runtime. Each a
 
 | Product | Job root | Replaces |
 |---|---|---|
-| conductor | `.claude/conductor/jobs/` | worker dossiers held in task descriptions |
-| refuter | `.claude/refuter/jobs/` | the refuter's former single plan file |
+| conductor | `.baton/conductor/jobs/` | worker dossiers held in task descriptions |
+| refuter | `.baton/refuter/jobs/` | the refuter's former single plan file |
 
-Each active job has its folder `.claude/<product>/jobs/<job-id>/`. The refuter folder mirrors the conductor shape so that one set of schemas and one set of worker prompts serves both products. In the refuter, the job folder's `plan.md` replaces the refuter's former single plan file, which is no longer written.
+Each active job has its folder `.baton/<product>/jobs/<job-id>/`. The refuter folder mirrors the conductor shape so that one set of schemas and one set of worker prompts serves both products. In the refuter, the job folder's `plan.md` replaces the refuter's former single plan file, which is no longer written.
 
-Both products share one environment file, `.claude/environment.md`, which is user-owned and lives outside every `jobs/` folder. Whichever orchestrator runs first generates it once when it is absent, writing the probed fields under its single `# ENVIRONMENT DETAILS` section; thereafter it is user truth. Workers read it on demand for OS, editor, and toolchain facts and never write it. The job lifecycle never edits or deletes it.
+Both products share one environment file, `.baton/environment.md`, which is user-owned and lives outside every `jobs/` folder. Whichever orchestrator runs first generates it once when it is absent, writing the probed fields under its single `# ENVIRONMENT DETAILS` section; thereafter it is user truth. Workers read it on demand for OS, editor, and toolchain facts and never write it. The job lifecycle never edits or deletes it.
+
+Job folders and the environment file live under `.baton/`, outside the protected `.claude/` path, whose every write Claude Code sends through the auto-mode classifier with no allow rule to skip it; agent memory stays in `.claude/agent-memory/`, where Claude Code places it. The `memory-review` skill moves a legacy `.claude/` job root's `archive/` and `local/` folders and the legacy environment file into `.baton/`, skipping any target that exists and leaving active job folders in place.
 
 `jobs/` is ignored by git through the repository's root `.gitignore`. A repository that syncs job history un-ignores `jobs/archive/` alone, so active job folders and `jobs/local/` are never tracked.
 
 ### Folder layout
 
 ```text
-.claude/<product>/jobs/<job-id>/
+.baton/<product>/jobs/<job-id>/
   request.md               # main: preamble and the human's goal, written at job start
   plan.md                  # architect: one anchored section per phase
   analyst.md               # architect, or refuter main: analyst questions, one anchored section each
@@ -40,23 +42,23 @@ Both products share one environment file, `.claude/environment.md`, which is use
   agents.md                # main, Claude only: agent IDs of kept workers
   skills/<name>.md         # main: copied SKILL.md text for workers
   scripts/<script>         # pi only: pi orchestrator's copies of the scripts workers run
-.claude/<product>/jobs/archive/index.md                   # OKF bundle index, newest job first
-.claude/<product>/jobs/archive/<YYYY-MM-DD>-<slug>.md     # OKF job note, tracked
-.claude/<product>/jobs/archive/references/                # retained artifacts, type: reference
-.claude/<product>/jobs/local/<YYYY-MM-DD>-<slug>/         # raw folder, never tracked
+.baton/<product>/jobs/archive/index.md                    # OKF bundle index, newest job first
+.baton/<product>/jobs/archive/<YYYY-MM-DD>-<slug>.md      # OKF job note, tracked
+.baton/<product>/jobs/archive/references/                 # retained artifacts, type: reference
+.baton/<product>/jobs/local/<YYYY-MM-DD>-<slug>/          # raw folder, never tracked
 ```
 
 A file appears only when its role runs. The path the request takes (see Triage) bounds the folder: the answer path creates no folder at all; the direct path holds `request.md`, `plan.md`, and one `<phase-id>.result.md` (plus `skills/`, and on the refuter its review files); the full path may hold every file above. `<phase-id>` is a lowercase kebab-case slug that is unique within the job, for example `p1-job-file-contract`.
 
 ## Lifecycle
 
-1. **Job start.** On the direct and full paths (the answer path has no job), main generates `<job-id>` as `YYYYMMDD-HHMM-<4 lowercase hex>`, independent of any session id, runs `mkdir -p .claude/<product>/jobs`, then a plain `mkdir` of the job folder, which fails if it exists; main then picks new hex, so sessions never share a folder. Main writes `request.md` and copies the needed skills into `skills/` (see Skill delivery); on pi, the refuter orchestrator also copies worker scripts into `scripts/` (see Script delivery).
+1. **Job start.** On the direct and full paths (the answer path has no job), main generates `<job-id>` as `YYYYMMDD-HHMM-<4 lowercase hex>`, independent of any session id, runs `mkdir -p .baton/<product>/jobs`, then a plain `mkdir` of the job folder, which fails if it exists; main then picks new hex, so sessions never share a folder. Main writes `request.md` and copies the needed skills into `skills/` (see Skill delivery); on pi, the refuter orchestrator also copies worker scripts into `scripts/` (see Script delivery).
 2. **Work.** Main dispatches workers one line at a time. Each worker reads its input file, writes its output file, and replies.
 3. **Job end.** A turn that reports a job's answer or outcome to the human runs Job end in that turn (the conductor through its final gate), and at turn end no job folder of main's stays in `jobs/` unless a dispatch result is pending or a `Decision` awaits the human; the note's `outcome` is `complete` when the job's **Goal** is met, even with plan phases unrun, else `incomplete`. After the final gate, main saves memory first and deletes every task it created, then:
-   1. Names the record `<name>` = `<YYYY-MM-DD>-<slug>`: the archive day, then a lowercase kebab-case summary of the initial prompt, five words at most, suffixed `-2`, `-3`, ... while `jobs/archive/<name>.md` or `jobs/local/<name>/` exists or `git log --all --format=%h -1 -- .claude/<product>/jobs/archive/<name>.md` prints anything. The check covers every local and fetched ref, so a name taken on another branch is not reused; it is read-only, and main still never stages, commits, or pushes.
+   1. Names the record `<name>` = `<YYYY-MM-DD>-<slug>`: the archive day, then a lowercase kebab-case summary of the initial prompt, five words at most, suffixed `-2`, `-3`, ... while `jobs/archive/<name>.md` or `jobs/local/<name>/` exists or `git log --all --format=%h -1 -- .baton/<product>/jobs/archive/<name>.md` prints anything. The check covers every local and fetched ref, so a name taken on another branch is not reused; it is read-only, and main still never stages, commits, or pushes.
    2. Writes the OKF job note `jobs/archive/<name>.md` (see Job note).
    3. Inserts `* [<title>](<name>.md) - <description>` as the first entry under `# Jobs` in `jobs/archive/index.md`, creating the file with frontmatter `okf_version: "0.2"` only and a `# Jobs` heading when absent.
-   4. Runs `mv .claude/<product>/jobs/<job-id> .claude/<product>/jobs/local/<name>` (after `mkdir -p .claude/<product>/jobs/local`) and tells the human to commit `jobs/archive/` and memory in their own commit, apart from project changes, before removing the worktree.
+   4. Runs `mv .baton/<product>/jobs/<job-id> .baton/<product>/jobs/local/<name>` (after `mkdir -p .baton/<product>/jobs/local`) and tells the human to commit `jobs/archive/` and memory in their own commit, apart from project changes, before removing the worktree.
 
 **Ownership.** A session never touches a job folder it did not create.
 
@@ -82,21 +84,21 @@ Main, or the spawning worker named in the role table, sends exactly one line:
 <Verb> <file>#<anchor>.
 ```
 
-`<file>` is the project-relative path of a file in the job folder, e.g. `Plan .claude/conductor/jobs/20260101-0900-a3f9/request.md#job.` That file's directory is the worker's job folder: every path it reads or writes (section, sibling results, skills, scripts) and every analyst dispatch it sends resolves there, in the same full-path form. The worker reads that section of that file, plus any file the section names and the job files its role's read rules add (see Role table).
+`<file>` is the project-relative path of a file in the job folder, e.g. `Plan .baton/conductor/jobs/20260101-0900-a3f9/request.md#job.` That file's directory is the worker's job folder: every path it reads or writes (section, sibling results, skills, scripts) and every analyst dispatch it sends resolves there, in the same full-path form. The worker reads that section of that file, plus any file the section names and the job files its role's read rules add (see Role table).
 
 | Verb | Role | Example |
 |---|---|---|
-| `Analyze` | analyst, orient | `Analyze .claude/<product>/jobs/<job-id>/request.md#job.` |
-| `Analyze` | analyst, one question | `Analyze .claude/<product>/jobs/<job-id>/analyst.md#q1-plugin-cache-path.` |
+| `Analyze` | analyst, orient | `Analyze .baton/<product>/jobs/<job-id>/request.md#job.` |
+| `Analyze` | analyst, one question | `Analyze .baton/<product>/jobs/<job-id>/analyst.md#q1-plugin-cache-path.` |
 | `Answer` | analyst, answer path (no job folder) | `Answer Which files does the drift guard read the Surface line from?` |
-| `Plan` | architect | `Plan .claude/<product>/jobs/<job-id>/request.md#job.` |
-| `Implement` | developer | `Implement .claude/<product>/jobs/<job-id>/plan.md#p1-job-file-contract.` |
-| `Fix` | developer, one phase | `Fix .claude/<product>/jobs/<job-id>/issues.md#p1-job-file-contract.` |
-| `Fix` | developer, every open block (after a whole-job review) | `Fix .claude/conductor/jobs/<job-id>/issues.md#job.` |
-| `Review` | reviewer, whole job (conductor) | `Review .claude/conductor/jobs/<job-id>/plan.md#job.` |
-| `Review` | reviewer, one phase (refuter) | `Review .claude/refuter/jobs/<job-id>/plan.md#p1-job-file-contract.` |
-| `Recheck` | kept reviewer, resumed (Claude only) | `Recheck .claude/<product>/jobs/<job-id>/plan.md#job.` or `...plan.md#p1-job-file-contract.` |
-| `Consult` | consultant (refuter only) | `Consult .claude/refuter/jobs/<job-id>/review.md#p1-job-file-contract.` |
+| `Plan` | architect | `Plan .baton/<product>/jobs/<job-id>/request.md#job.` |
+| `Implement` | developer | `Implement .baton/<product>/jobs/<job-id>/plan.md#p1-job-file-contract.` |
+| `Fix` | developer, one phase | `Fix .baton/<product>/jobs/<job-id>/issues.md#p1-job-file-contract.` |
+| `Fix` | developer, every open block (after a whole-job review) | `Fix .baton/conductor/jobs/<job-id>/issues.md#job.` |
+| `Review` | reviewer, whole job (conductor) | `Review .baton/conductor/jobs/<job-id>/plan.md#job.` |
+| `Review` | reviewer, one phase (refuter) | `Review .baton/refuter/jobs/<job-id>/plan.md#p1-job-file-contract.` |
+| `Recheck` | kept reviewer, resumed (Claude only) | `Recheck .baton/<product>/jobs/<job-id>/plan.md#job.` or `...plan.md#p1-job-file-contract.` |
+| `Consult` | consultant (refuter only) | `Consult .baton/refuter/jobs/<job-id>/review.md#p1-job-file-contract.` |
 
 The dispatch is a pointer and nothing else: every fact the worker needs lives in the job file it points at, never in the dispatch text. The one exception is `Answer <question>`, which carries a one-line question inline because the answer path has no job folder to point at (see Triage). Keep the `<file>#<anchor>` token first after the verb: on pi, `pi/core/extensions/engine/drift-config.ts` regex-parses the first `plan.md#<anchor>` or `issues.md#<anchor>` token from the dispatch text to find the phase's **Surface**.
 
@@ -186,11 +188,11 @@ Before it creates a job, main puts the request on one of three paths by the crit
 
 A fix pass is a fresh developer spawn that reads `issues.md` cold. On Claude main resumes three workers: the kept reviewer for `Recheck`, a `BLOCKED` developer whose section correction only widens or clarifies it, and this session's `Answer` analyst for the orient `Analyze`; a `Fix` after a `FAIL` and the refuter's `Consult` consultant stay fresh spawns.
 
-**Verify once.** Each check is paid for once, then its recorded evidence is trusted. The developer runs its phase's acceptance commands and records each one's output in its result file, and does not re-run the analyst's exploratory probes. The whole-job reviewer, the tier-`none` check, the conductor's direct-path run, and the refuter's direct-path developer (through its phase's **Acceptance criteria**) execute the job's **Verification commands** once, and re-run an acceptance command only when its recorded output is missing, is contradicted by the diff or another result file, or covers files a later phase touched. A `Recheck` still re-runs the fixed phases' acceptance criteria, since a fix invalidates their recorded output, except where the tree-hash rule below lets it cite a recorded pass.
+**Verify once.** Each check is paid for once, then its recorded evidence is trusted. The developer runs its phase's acceptance commands and records each one's output in its result file, and does not re-run the analyst's exploratory probes. The whole-job reviewer, the tier-`none` check, the conductor's direct-path run, and the refuter's direct-path developer (through its phase's **Acceptance criteria**) execute the job's **Verification commands** once, and re-run an acceptance command only when its recorded output is missing, is contradicted by the diff or another result file, or covers files a later phase touched. A `Recheck` still re-runs the fixed phases' acceptance criteria, since a fix invalidates their recorded output, except where the state-hash rule below lets it cite a recorded pass.
 
-**Tree hash.** A passing build or test gate is keyed to the tree it ran on. Just before running it, the developer computes `GIT_INDEX_FILE=<tmp> git add -A && GIT_INDEX_FILE=<tmp> git write-tree` (`<tmp>` a scratch path; the hash covers tracked and untracked non-ignored files) and opens the gate's Verification row Result with `tree <hash>:`. A recorded pass covers the current tree when the hash is the same, or when `git diff --name-only <recorded> <current>` lists only files the command neither builds nor tests (docs, job files). The developer skips a gate so covered, as for a phase that changed no source or a docs-only fix, and cites the row; the reviewer, before a **Verification commands** entry or a `Recheck` acceptance command, and main in the tier-`none` check (the `job-lifecycle` skill's **Verification waits and gate reuse**) compute the hash the same way and cite a covering row instead of running the command.
+**State hash.** A passing build or test gate is keyed to the state it ran on. Just before running it, the developer computes the read-only state hash `{ git --no-optional-locks rev-parse HEAD; git --no-optional-locks diff HEAD --binary; git --no-optional-locks ls-files -o --exclude-standard -z | xargs -0 git --no-optional-locks hash-object --; git --no-optional-locks ls-files -o --exclude-standard; } | git --no-optional-locks hash-object --stdin` (it covers HEAD, tracked changes, and untracked non-ignored files, and writes nothing, so no `git add` deny rule or auto-mode classifier blocks it) and opens the gate's Verification row Result with `state <hash>:`. A recorded pass for the same command covers exactly the state hash it records: the current state only when the hash is the same. The developer skips a gate so covered and cites the row; the reviewer, before a **Verification commands** entry or a `Recheck` acceptance command, and main in the tier-`none` check (the `job-lifecycle` skill's **Verification waits and gate reuse**) compute the hash the same way and cite a covering row instead of running the command.
 
-**Waits.** The developer, the reviewer, and main in the tier-`none` check wait in chunks of at most 270 s, because one longer blocking call outlives the 5-minute prompt cache and forces a full-price prefix rewrite. A command that may exceed ~4.5 min starts in the background (`nohup sh -c '<cmd>; echo exit=$?' > <log> 2>&1 &`, noting the PID) and is awaited by foreground calls of `timeout 270 tail --pid=<pid> -f /dev/null` until one returns 0 (124: still running); any other command runs in the foreground with a timeout of at most 270 s (a `timeout` of at most 270000 ms; the pi workers' `bash` `timeout` is in seconds, at most 270). No `sleep`, no single blocking call over 270 s, and no worker ends its turn with the job running.
+**Waits.** The developer, the reviewer, and main in the tier-`none` check wait in chunks of at most 170 s, because Claude Code moves a longer foreground call to the background at 180 s and answers it late, and a call past 5 minutes outlives the prompt cache and forces a full-price prefix rewrite. A command that may exceed 170 s starts in the background (`nohup sh -c '<cmd>; echo exit=$?' > <log> 2>&1 &`, noting the PID) and is awaited by foreground calls of `timeout 170 tail --pid=<pid> -f /dev/null` until one returns 0 (124: still running); any other command runs in the foreground with a timeout of at most 170 s (a `timeout` of at most 170000 ms; the pi workers' `bash` `timeout` is in seconds, at most 170). No `sleep`, no single blocking call over 170 s, and no worker ends its turn with the job running.
 
 **Held outputs.** A developer or reviewer that finds an output file locked or busy (the OS reports a binary or file in use) replies `BLOCKED` at once, naming the file and symptom, before any gate runs. To avoid that stop, main runs the `job-lifecycle` skill's **Environment pre-check** at the conductor's first pre-dispatch gate, or before the refuter's first phase dispatch: for every phase whose acceptance runs a built binary or app end to end, it creates a `Decision: free <output>` task and asks the human, in the message carrying the first dispatches, to stop whatever holds that output while earlier phases run. The phase still dispatches when its dependencies complete; a developer stopped by a still-held output is resumed (Claude) once the human frees it.
 
@@ -308,7 +310,7 @@ The architect picks the lowest review tier whose "When" fits every phase; any ph
 **Conventions:** <names of the skills that apply, e.g. rust, typescript, or None.>
 
 **Skills:**
-- `.claude/<product>/jobs/<job-id>/skills/<name>.md`
+- `.baton/<product>/jobs/<job-id>/skills/<name>.md`
 
 **Research:** <dated facts from the analyst, each with its source, or None.>
 
@@ -319,7 +321,7 @@ The architect picks the lowest review tier whose "When" fits every phase; any ph
 
 ### `<phase-id>.result.md`
 
-The developer writes this file. A fix pass overwrites it with the full current state, not a delta. **Decisions** is required and comes first, so the reviewer and dependent developers read it before the diff: every choice the plan left open and every deviation from the plan, each with its reason, or `None.`. Each **Changed files** line carries the symbol or heading it changed, so the reviewer and a dependent phase can go straight to it. **Verification** is mandatory and holds one row per acceptance command with its recorded output, trimmed to the lines that prove the result; that record is what the verify-once rule trusts (see Review cycle). A build or test gate's Result cell opens with `tree <hash>:`, the tree hash it ran on (see Review cycle, Tree hash); other rows carry no hash, and the table keeps its two columns. **Gaps** holds doubts about this phase: an unmet criterion, a plan error, an unconfirmed claim, or an assumption made; it may escalate the review. **Notes** holds observations outside the phase's scope; it is report-only and never escalates, and nothing in it becomes work unless the human asks.
+The developer writes this file whole once, early, then changes it only with `Edit` (milestones, the final marker drop, a fix pass); after any file's first `Write` in a run, it changes that file with `Edit`, never another whole `Write`. A fix pass edits it to the full current state, not a delta. **Decisions** is required and comes first, so the reviewer and dependent developers read it before the diff: every choice the plan left open and every deviation from the plan, each with its reason, or `None.`; each item is at most 2 lines, with no sub-bullets. Each **Changed files** entry is one line carrying the symbol or heading it changed, so the reviewer and a dependent phase can go straight to it. **Verification** is mandatory and holds one row per acceptance command with its recorded output, trimmed to at most 3 lines that prove the result; that record is what the verify-once rule trusts (see Review cycle). A build or test gate's Result cell opens with `state <hash>:`, the state hash it ran on (see Review cycle, State hash); other rows carry no hash, and the table keeps its two columns. **Gaps** holds doubts about this phase: an unmet criterion, a plan error, an unconfirmed claim, or an assumption made; it may escalate the review. **Notes** holds observations outside the phase's scope; it is report-only and never escalates, and nothing in it becomes work unless the human asks.
 
 ```markdown
 # <phase-id> result
@@ -336,7 +338,7 @@ The developer writes this file. A fix pass overwrites it with the full current s
 ## Verification
 | Command | Result |
 |---|---|
-| `<command>` | <`tree <hash>:` for a build or test gate, then pass or fail, with the recorded output, trimmed, that proves it> |
+| `<command>` | <`state <hash>:` for a build or test gate, then pass or fail, with the recorded output, trimmed to at most 3 lines, that proves it> |
 
 ## Gaps
 - <unmet criterion, plan error, unconfirmed claim, or assumption made about this phase; or None.>

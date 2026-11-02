@@ -1,24 +1,41 @@
 ---
-name: okf-memory-cleanup
-description: Migrate a project's older conductor or refuter memory (type-prefixed notes, Obsidian vault, worker folders, dirty/superseded lifecycle, native wikilinks) to the okf-memory OKF v0.2 bundle, losing no fact, and distil raw archived job folders into the OKF job bundle.
+name: memory-review
+description: Migrate a project's older conductor or refuter memory (type-prefixed notes, Obsidian vault, worker folders, dirty/superseded lifecycle, native wikilinks) to the okf-memory OKF v0.2 bundle, losing no fact, move legacy job archives and the environment file from .claude/ to .baton/, and distil raw archived job folders into the OKF job bundle.
 disable-model-invocation: true
 ---
 
-# OKF Memory Cleanup
+# Memory Review
 
-Convert every older conductor or refuter memory folder in this project to the OKF v0.2 bundle, with no fact lost, and distil every raw archived job folder into its product's job bundle (step 4, **Job archives**). Optional argument: one memory folder or job archive path; restrict the run to it.
+Convert every older conductor or refuter memory folder in this project to the OKF v0.2 bundle, with no fact lost, move legacy job data from `.claude/` to `.baton/` (step 2), and distil every raw archived job folder into its product's job bundle (step 5, **Job archives**). Optional argument: one memory folder or job archive path; restrict the run to it.
 
 ## 1. Load the target
 
 Read `../okf-memory/SKILL.md` (the `okf-memory` skill, beside this skill's folder) and follow it as the only target format. These rules say how to get there; where they seem to differ, `okf-memory` wins.
 
-## 2. Discover
+## 2. Move job data to `.baton/`
+
+Run from the repo root, before discovery; every later step reads job data under `.baton/` only. Move with plain `mv`, never `git mv`, and never stage: the user reviews the move as tracked files deleted at the old path and untracked at the new one.
+- For each `<o>` of `conductor`, `refuter`: `.claude/<o>/jobs/archive/` → `.baton/<o>/jobs/archive/`, `.claude/<o>/jobs/local/` → `.baton/<o>/jobs/local/`. Then `.claude/environment.md` → `.baton/environment.md`.
+- Skip a missing source. Skip a source whose target already exists, never merging into or overwriting it, and report both paths.
+- Never move an active job folder `.claude/<o>/jobs/<job-id>/`; it belongs to a running job.
+- With an argument, move only a source the argument names, lies inside, or contains: set `a` to it as a repo-relative path; without one, leave `a` empty.
+
+```sh
+a=''; a=${a#./}; a=${a%/}
+m() { s=$1; t=$2; if [ -n "$a" ]; then case "$s/" in "$a"/*) ;; *) case "$a/" in "$s"/*) ;; *) return;; esac;; esac; fi; if [ -e "$t" ] && [ -e "$s" ]; then echo "SKIP $s: $t exists"; elif [ -e "$s" ]; then mkdir -p "${t%/*}" && mv "$s" "$t" && echo "MOVED $s -> $t"; fi; }
+for o in conductor refuter; do for d in archive local; do m .claude/$o/jobs/$d .baton/$o/jobs/$d; done; done
+m .claude/environment.md .baton/environment.md
+```
+
+A second run finds no source to move and prints only the earlier SKIP lines, if any.
+
+## 3. Discover
 
 Glob only these paths; never search the whole repo or drive.
 - `.claude/agent-memory/*/`, `.claude/agent-memory-local/*/`, and nested strays `.claude/agent-memory/*/.claude/agent-memory/*/`.
 - Vault leftovers in `.claude/agent-memory/`: `_conventions.md`, `.obsidian/`, `topics/`.
-- `~/.claude/agent-memory/promotion-queue/` and job-side `.claude/{conductor,refuter}/jobs/*/memory.md`: report only.
-- Job bundles `.claude/{conductor,refuter}/jobs/archive/`: their notes, `index.md`, `references/`, and any raw job folder directly under `archive/`. Never read `.claude/{conductor,refuter}/jobs/local/`.
+- `~/.claude/agent-memory/promotion-queue/` and job-side `.baton/{conductor,refuter}/jobs/*/memory.md` and legacy `.claude/{conductor,refuter}/jobs/*/memory.md`: report only.
+- Job bundles `.baton/{conductor,refuter}/jobs/archive/`: their notes, `index.md`, `references/`, and any raw job folder directly under `archive/`. Never read `.baton/{conductor,refuter}/jobs/local/`.
 
 Classify each folder:
 - **Target:** `baton-conductor/`, `baton-refuter/`. Create `baton-conductor/` when only older conductor folders exist, `baton-refuter/` when only older refuter folders exist.
@@ -27,11 +44,11 @@ Classify each folder:
 - **Local:** `.claude/agent-memory-local/<x>/` is private; convert it in place as its own target, never merge it into a tracked folder.
 - **Other:** another agent's memory; report it and leave it, unless the user named it, then convert it in place as its own target.
 
-Run `git status --short -- <folder>` per folder. Git cannot restore a folder it does not track; ask the user before editing one. Report the folders found and their era (step 3) before changing anything.
+Run `git status --short -- <folder>` per folder. Git cannot restore a folder it does not track; ask the user before editing one. Report the folders found and their era (step 4) before changing anything.
 
-## 3. Detect the era
+## 4. Detect the era
 
-Grep frontmatter keys, links and the index; do not bulk-read notes. A folder may mix eras: apply every matching row in step 4.
+Grep frontmatter keys, links and the index; do not bulk-read notes. A folder may mix eras: apply every matching row in step 5.
 
 | Marker | Era |
 |---|---|
@@ -43,7 +60,7 @@ Grep frontmatter keys, links and the index; do not bulk-read notes. A folder may
 | `name`/`description`/`metadata.type` with no top-level `type` or `title`, no tags; index `- [[slug]] — hook` | E6 native-only |
 | top-level `type` and `title`; `MEMORY.md` has `okf_version` | OKF already: add a missing `name`, `metadata.type` or `MEMORY.md` `description`, else verify only |
 
-## 4. Convert
+## 5. Convert
 
 Order: lifecycle artefacts, then stray folders, then frontmatter, then links (after every rename and move), then the index; job archives are independent of the memory steps.
 
@@ -85,7 +102,7 @@ Order: lifecycle artefacts, then stray folders, then frontmatter, then links (af
 | deprecated note or `status` key | successor exists: as superseded; else edit to the current fact and drop the key |
 | topic hub (`type: hub`, `topics/`) | delete; it holds only links |
 | `_conventions.md`, `.obsidian/`, `*.tmp` | delete |
-| index `title:` frontmatter, `# <Agent> Memory Index`, intro line, `## <Group>` headings, hook suffixes | discard; step 6 rebuilds |
+| index `title:` frontmatter, `# <Agent> Memory Index`, intro line, `## <Group>` headings, hook suffixes | discard; step 7 rebuilds |
 | promotion-queue files | report; never apply |
 | pending job `memory.md` sections | report as candidate facts; never ingest silently |
 | `[memory]` result lines, `memory.result.md`, linter codes | no note content; leave them |
@@ -93,14 +110,14 @@ Order: lifecycle artefacts, then stray folders, then frontmatter, then links (af
 | job note without an `index.md` line | add the line at its date position, newest first |
 | `skills/*.md` copies in a raw job folder | never retained in the bundle; they move with the raw folder |
 
-**Stray folders** (the old `/memory-review` consolidation, minus dirty flags)
+**Stray folders** (the v4 `memory-review` skill's consolidation, minus dirty flags)
 - Move every note into its target. Same-slug collision: the target's note wins; merge any new fact from the stray copy into it, then delete the copy. Unrelated notes sharing a slug: rename the stray one.
 - Merge the stray index entries, each pointing at the note's final filename.
 - Report non-note files and leave them, except the artefacts deleted above.
 - Remove the emptied folder; never leave one half-migrated.
 - Never move a note between products; on a cross-product slug clash, rename only the note being converted.
 
-**Merge and prune** (old `/memory-review` rules that `okf-memory` allows)
+**Merge and prune** (the v4 `memory-review` skill's rules that `okf-memory` allows)
 - Duplicates: merge into one survivor, the more recent or more specific, and re-point inbound links.
 - Contradictions: keep the more recent or better-tested fact, edit it in place, delete the other.
 - Prune only an inaccurate or superseded note, never one merely old. Unsure: keep it and flag it.
@@ -109,11 +126,11 @@ Order: lifecycle artefacts, then stray folders, then frontmatter, then links (af
 
 **Job archives**
 
-The job bundle `.claude/<product>/jobs/archive/` (`product`: `conductor`, `refuter`) is its own OKF v0.2 bundle, separate from the memory vault; the `okf-memory` note types and `MEMORY.md` rules do not apply to it.
+The job bundle `.baton/<product>/jobs/archive/` (`product`: `conductor`, `refuter`) is its own OKF v0.2 bundle, separate from the memory vault; the `okf-memory` note types and `MEMORY.md` rules do not apply to it.
 - Flat notes `<YYYY-MM-DD>-<slug>.md`, one per ended job; `<YYYY-MM-DD>-<slug>` is the raw folder's name.
 - One root `index.md` whose only frontmatter is `okf_version: "0.2"`, then a `# Jobs` heading and one `* [Title](<YYYY-MM-DD>-<slug>.md) - <description>` line per note, newest first, title and description copied from the note; retained artifacts are listed under a final `## References` heading as `* [Title](references/<file>.md) - <description>`.
 - Optional `references/` folder for the few retained artifacts; each `.md` file in it carries frontmatter with `type: reference`, `title` and `description`.
-- Raw job folders live untracked at `.claude/<product>/jobs/local/<YYYY-MM-DD>-<slug>/`, and in git history before the commit that removed them from `archive/`.
+- Raw job folders live untracked at `.baton/<product>/jobs/local/<YYYY-MM-DD>-<slug>/`, and in git history before the commit that removed them from `archive/`.
 
 Job note schema: frontmatter keys
 - `type: job`
@@ -139,17 +156,17 @@ Distil procedure, per raw folder:
 - 20 to 60 lines per note; quote a frontmatter value that contains `: ` or ` #`, or starts with a YAML special character, in double quotes.
 - Write the note, add its index line, then `mv` the folder to `jobs/local/<YYYY-MM-DD>-<slug>/`. Never retain `skills/*.md` copies or build-time baselines; a retained artifact goes to `references/` with frontmatter prepended and its body unchanged.
 
-## 5. Preserve facts
+## 6. Preserve facts
 
 - Keep a ledger: each source note → kept, renamed to, merged into, or deleted, with the reason.
 - Before deleting or merging a note, confirm each of its facts lands in a surviving note (or, for a promoted note, the named file).
 - Never drop a fact silently.
 
-## 6. Rebuild `MEMORY.md`
+## 7. Rebuild `MEMORY.md`
 
 Per `okf-memory`: its frontmatter (exactly `type: index`, `title`, `description` and `okf_version: "0.2"`; no `name` or `metadata`, since `MEMORY.md` is not a note), one `## <Type>` group per type in use, one entry per note with title and description copied from the note. At 200 lines or more, merge duplicate notes until under; report it.
 
-## 7. Verify
+## 8. Verify
 
 Run from the repo root once per converted folder, setting `M`; never `cd`. Each check prints nothing on success.
 
@@ -174,7 +191,7 @@ Checks: frontmatter `type`; no `[[` or root-absolute links outside code spans; l
 Then once per job bundle that exists, setting `J`:
 
 ```sh
-J=.claude/conductor/jobs/archive
+J=.baton/conductor/jobs/archive
 for f in $J/*.md $J/references/*.md; do [ -e "$f" ] || continue; case "$f" in */index.md) continue;; esac; head -1 "$f" | grep -q '^---' && grep -q '^type: .' "$f" || echo "FAIL $f"; done
 for f in $J/*.md; do b=$(basename "$f"); [ "$b" = index.md ] || grep -qF "]($b)" $J/index.md || echo "INDEX $b"; done
 find $J -mindepth 1 -type d ! -path "$J/references"
@@ -182,8 +199,9 @@ find $J -mindepth 1 -type d ! -path "$J/references"
 
 Checks: every note and reference has frontmatter with `type`; every note has an `index.md` line; the bundle is flat except `references/` (a listed folder is a raw job folder still to distil).
 
-## 8. Report
+## 9. Report
 
+- Each move to `.baton/` and each skipped target (step 2).
 - Per folder: path, era, notes before → after, the folder's fate (converted, merged into `<target>`, removed).
 - Per job bundle: raw folders distilled to notes and moved to `jobs/local/`, index lines added, artifacts retained under `references/`.
 - Every delete, merge and rename from the ledger, with the reason.

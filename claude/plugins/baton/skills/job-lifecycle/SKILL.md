@@ -5,11 +5,11 @@ description: Orchestrator job lifecycle - Job end note and archive, Resume and A
 
 # Job Lifecycle
 
-`<orchestrator>` is `conductor` or `refuter`, as your prompt names it. `<job>` = `.claude/<orchestrator>/jobs/<job-id>`, and `jobs/` below is `.claude/<orchestrator>/jobs/`. Your prompt owns each procedure's timing and the memory save; this skill holds the steps.
+`<orchestrator>` is `conductor` or `refuter`, as your prompt names it. `<job>` = `.baton/<orchestrator>/jobs/<job-id>`, and `jobs/` below is `.baton/<orchestrator>/jobs/`. Your prompt owns each procedure's timing and the memory save; this skill holds the steps.
 
 ## Job end
 
-1. Name the record `<name>` = `<YYYY-MM-DD>-<slug>`, slug summarizing the initial prompt in ≤5 kebab-case words, suffixed `-2`, `-3`, … while `jobs/archive/<name>.md` or `jobs/local/<name>/` exists or `git log --all --format=%h -1 -- .claude/<orchestrator>/jobs/archive/<name>.md` prints anything. That check is read-only (for the refuter, its only git use); you never stage, commit, or push.
+1. Name the record `<name>` = `<YYYY-MM-DD>-<slug>`, slug summarizing the initial prompt in ≤5 kebab-case words, suffixed `-2`, `-3`, … while `jobs/archive/<name>.md` or `jobs/local/<name>/` exists or `git log --all --format=%h -1 -- .baton/<orchestrator>/jobs/archive/<name>.md` prints anything. That check is read-only (for the refuter, its only git use); you never stage, commit, or push.
 2. Write the OKF job note `jobs/archive/<name>.md`, 20 to 60 lines distilled from `request.md`, `plan.md#job`, `review.md` and the result files' `**Decisions:**`, never a result file copied wholesale; each section `None.` when empty; `outcome` is `complete` when the job's **Goal** is met, even with plan phases unrun, else `incomplete`:
    ```markdown
    ---
@@ -46,7 +46,7 @@ description: Orchestrator job lifecycle - Job end note and archive, Resume and A
    <files retained under references/>
    ```
 3. Insert `* [<title>](<name>.md) - <description>` as the first entry under `# Jobs` in `jobs/archive/index.md`, creating it when absent with frontmatter `okf_version: "0.2"` only, then `# Jobs`.
-4. `mkdir -p .claude/<orchestrator>/jobs/local && mv <job> .claude/<orchestrator>/jobs/local/<name>`, then tell the human to commit `jobs/archive/` and memory in their own commit, apart from project changes, before removing the worktree.
+4. `mkdir -p .baton/<orchestrator>/jobs/local && mv <job> .baton/<orchestrator>/jobs/local/<name>`, then tell the human to commit `jobs/archive/` and memory in their own commit, apart from project changes, before removing the worktree.
 
 ## Resume on request
 
@@ -71,9 +71,9 @@ Claude Code only: pi's `subagent` has no resume, so a pi orchestrator spawns fre
 
 ## Verification waits and gate reuse
 
-For the commands an orchestrator runs itself (the conductor's tier-`none` check). Wait in chunks of at most 270 s, as one longer blocking call outlives the 5-minute prompt cache and forces a full-price prefix rewrite: a command that may exceed ~4.5 min starts in the background — `nohup sh -c '<cmd>; echo exit=$?' > <log> 2>&1 &`, noting the PID — and is awaited by foreground calls of `timeout 270 tail --pid=<pid> -f /dev/null` until one returns 0 (124: still running), then read the log; any other command runs in the foreground with a `timeout` of at most 270 s (Claude Code `Bash`: 270000 ms; pi `bash`: 270, in seconds). No `sleep`, no single blocking call over 270 s, and never end the turn with the job running.
+For the commands an orchestrator runs itself (the conductor's tier-`none` check). Wait in chunks of at most 170 s, as Claude Code moves a longer foreground `Bash` call to the background at 180 s and answers it late, and a call past 5 minutes outlives the prompt cache and forces a full-price prefix rewrite: a command that may exceed 170 s starts in the background — `nohup sh -c '<cmd>; echo exit=$?' > <log> 2>&1 &`, noting the PID — and is awaited by foreground calls of `timeout 170 tail --pid=<pid> -f /dev/null` until one returns 0 (124: still running), then read the log; any other command runs in the foreground with a `timeout` of at most 170 s (Claude Code `Bash`: 170000 ms; pi `bash`: 170, in seconds). No `sleep`, no single blocking call over 170 s, and never end the turn with the job running.
 
-Before running a **Verification commands** entry, compute the tree hash `GIT_INDEX_FILE=<tmp> git add -A && GIT_INDEX_FILE=<tmp> git write-tree` (`<tmp>` a scratch path outside the repo; it covers tracked and untracked non-ignored files, and its `LF will be replaced by CRLF` warnings are harmless). A result file's Verification row for the same command whose Result opens `tree <hash>:` and records a pass covers the current tree when the hash is the same, or when `git diff --name-only <recorded> <current>` lists only files the command neither builds nor tests (docs, job files): cite that row instead of running the command.
+Before running a **Verification commands** entry, compute the read-only state hash `{ git --no-optional-locks rev-parse HEAD; git --no-optional-locks diff HEAD --binary; git --no-optional-locks ls-files -o --exclude-standard -z | xargs -0 git --no-optional-locks hash-object --; git --no-optional-locks ls-files -o --exclude-standard; } | git --no-optional-locks hash-object --stdin` (it covers HEAD, tracked changes, and untracked non-ignored files, writes nothing, and its `LF will be replaced by CRLF` warnings are harmless). A result file's Verification row for the same command whose Result opens `state <hash>:` and records a pass covers the current state only when the hash is the same: cite that row instead of running the command.
 
 ## Skill copy
 
