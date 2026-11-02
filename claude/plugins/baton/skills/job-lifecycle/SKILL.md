@@ -46,7 +46,10 @@ description: Orchestrator job lifecycle - Job end note and archive, Resume and A
    <files retained under references/>
    ```
 3. Insert `* [<title>](<name>.md) - <description>` as the first entry under `# Jobs` in `jobs/archive/index.md`, creating it when absent with frontmatter `okf_version: "0.2"` only, then `# Jobs`.
-4. `mkdir -p .baton/<orchestrator>/jobs/local && mv <job> .baton/<orchestrator>/jobs/local/<name>`, then tell the human to commit `jobs/archive/` and memory in their own commit, apart from project changes, before removing the worktree.
+4. `mkdir -p .baton/<orchestrator>/jobs/local && mv <job> .baton/<orchestrator>/jobs/local/<name>`, then tell the human to commit `jobs/archive/` and memory in their own commit, apart from project changes, before removing the worktree. Your final report carries ready-to-paste commit messages for the human, derived from `plan.md#job` **Goal** and the phases' result files, never from `git diff`, `git status` or a file dump:
+   - Project commit, only when the job changed project files: a conventional-commit subject of at most ~72 chars (`feat: …`, `fix: …` or `chore: …`, a lowercase imperative verb after the prefix), optionally followed by at most 3 short `-` bullets.
+   - Archive-and-memory commit: one line, `chore(memory): <what this job recorded>`.
+   - Both stay neutral, describing only the public change: no job ids, people, local paths, session URLs or attribution trailers.
 
 ## Resume on request
 
@@ -78,5 +81,5 @@ Before running a **Verification commands** entry, compute the read-only state ha
 ## Skill copy
 
 The conductor's procedure; the refuter follows its own **Skill delivery**. Workers have no skill tool or preload; they read `<job>/skills/<name>.md`, filled by one byte-exact `cp -n <source> <target>` per `SKILL.md`, never `Read`/`read` then `Write`/`write` (pays the skill in tokens, turns CRLF into LF). Copy each once per job, never over an existing file. Unlocatable skill → say so once, drop it from the phase's **Skills**. Source:
-- Claude Code: `${CLAUDE_PLUGIN_ROOT}/../<plugin>/skills/<name>/SKILL.md`, else the `Glob` match of `${CLAUDE_PLUGIN_ROOT}/../../<plugin>/*/skills/<name>/SKILL.md`; language skills (`rust`, `typescript`, `vue3`, `bevy`, `blender`) live in the same-named plugin, `git-diff` and `sequential-thinking` in `baton`.
-- pi: `<skill root>/<name>/SKILL.md` for the skill root under *Conductor runtime* that holds it; `git-diff` and `sequential-thinking` in the baton skill root.
+- Claude Code: `${CLAUDE_PLUGIN_ROOT}/../<plugin>/skills/<name>/SKILL.md`, else the `Glob` match of `${CLAUDE_PLUGIN_ROOT}/../../<plugin>/*/skills/<name>/SKILL.md`; language skills (`rust`, `typescript`, `vue3`, `bevy`, `blender`) live in the same-named plugin, `git-diff`, `planning-poker` and `sequential-thinking` in `baton`.
+- pi: `<skill root>/<name>/SKILL.md` for the skill root under *Conductor runtime* that holds it; `git-diff`, `planning-poker` and `sequential-thinking` in the baton skill root.
