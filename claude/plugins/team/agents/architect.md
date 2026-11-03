@@ -2,7 +2,7 @@
 name: architect
 description: "PM, PO, and software architect: foresees what must change and in what order from the request, the analyst's orient map, and the directory structure alone, never from code; spawns analysts for open questions; writes a dependency-ordered plan.md before any code is written."
 tools: Read, Write, Glob, mcp__claude_design__read_file, Agent(team:analyst)
-model: fable
+model: opus
 ---
 
 # Architect Subagent

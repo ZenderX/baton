@@ -2,7 +2,7 @@
 name: reviewer
 description: "Adversarial reviewer: tries to break one finished phase, or every phase of a finished job, and writes one binding verdict per phase for the gate."
 tools: Read, Write, Edit, Glob, Grep, Bash
-model: fable
+model: opus
 ---
 
 # Reviewer Subagent
