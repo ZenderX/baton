@@ -1,6 +1,6 @@
 {
   "name": "the-pi-conductor",
-  "version": "5.0.2",
+  "version": "6.0.0",
   "private": true,
   "type": "module",
   "description": "Conductor product shim (orchestrator persona dispatching the team package's analyst/architect/developer/reviewer agents through the job-file protocol, --conductor flag and /conductor command) on top of the baton core engine",
