@@ -29,10 +29,12 @@
  * pi's context estimate) produced after the first streamed token, over elapsed
  * time since that token (prefill and server queue time excluded), repainted on
  * the footer's 3s tick. At message_end the message's final rate is held and
- * shown until the next message streams past its first token; a span shorter
- * than MIN_RATE_SPAN_MS, or a single-chunk message (no tokens after its first
- * streamed chunk), keeps the previous held value. Nothing shows before a
- * session's first rate. When conductor subagents run (shared in-memory
+ * shown until the next message streams past its first token; at turn_end the
+ * speedometer rests (held rate 0, in-flight state cleared) so the idle footer
+ * reads `0 tok/s`. A span shorter than MIN_RATE_SPAN_MS, or a single-chunk
+ * message (no tokens after its first streamed chunk), keeps the previous held
+ * value. Nothing shows before a session's first rate. When conductor subagents
+ * run (shared in-memory
  * registry, extensions/subagent-live.ts), the right side carries the agent
  * group `N agent(s) | N tok/s` — the SUM of the per-child rates, each held
  * the same way — and the root figure is suppressed while no root message is
@@ -432,7 +434,8 @@ export default function (pi: ExtensionAPI) {
 	// Decode-rate speedometer for the streaming assistant message: firstTokenAt
 	// is the first streamed token's arrival and firstTokens its token estimate,
 	// lastPartial the newest partial message, lastTps the held final rate of the
-	// last completed message (undefined before any).
+	// last completed message (resting at 0 after turn_end; undefined before the
+	// session's first rate).
 	let messageInFlight = false;
 	let firstTokenAt: number | null = null;
 	let firstTokens = 0;
@@ -652,6 +655,14 @@ export default function (pi: ExtensionAPI) {
 	// not configured"). turn_end is idle, so it is the safe point to apply the
 	// deferred refresh that selfHeal requested.
 	pi.on("turn_end", async (_event, ctx) => {
+		// The turn is over: rest the speedometer (held rate 0, in-flight state
+		// cleared) so the idle footer reads `0 tok/s` until the next turn.
+		lastTps = 0;
+		messageInFlight = false;
+		firstTokenAt = null;
+		firstTokens = 0;
+		lastPartial = null;
+
 		if (!needsRegistryRefresh) return;
 		needsRegistryRefresh = false;
 		try {

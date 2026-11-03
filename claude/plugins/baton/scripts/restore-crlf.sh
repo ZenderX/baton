@@ -2,8 +2,11 @@
 # PostToolUse hook: rewrite working-tree files to CRLF wherever git attributes
 # say eol=crlf but the file holds LF or mixed endings. Claude Code's Write tool
 # and shell edits (sed -i, heredocs, redirection) emit LF, which leaves files
-# "modified" with an empty diff. Scans the whole repo instead of parsing the
-# hook input, so files written by Bash are caught too.
+# "modified" with an empty diff. Exits at once when no attribute source (a
+# tracked .gitattributes, the repo's info/attributes, the global attributes
+# file) mentions eol=crlf. Otherwise scans only the file the hook input names
+# (tool_input.file_path or notebook_path, read with jq); with no such path —
+# Bash, PowerShell, no jq — it scans the modified and untracked files.
 # Prints nothing and always exits 0 — no hook noise, never blocks a tool.
 #
 # Invoked bare (no CLAUDE_PROJECT_DIR), this rewrites the repo containing $PWD
@@ -16,11 +19,35 @@
 
 set -u
 
-# The hook input is unused; drain it so the writer never sees a broken pipe.
-[ -t 0 ] || cat >/dev/null 2>&1
+# Read the whole input up front so the writer never sees a broken pipe.
+input=
+[ -t 0 ] || input=$(cat 2>/dev/null)
 
 top=$(git -C "${CLAUDE_PROJECT_DIR:-$PWD}" rev-parse --show-toplevel 2>/dev/null) || exit 0
 cd "$top" 2>/dev/null || exit 0
+
+crlf_wanted() {
+  local info global
+  info=$(git rev-parse --git-path info/attributes 2>/dev/null) || return 0
+  # Unset core.attributesFile: git reads $XDG_CONFIG_HOME/git/attributes, else ~/.config/git/attributes.
+  global=$(git config --type=path --get core.attributesFile 2>/dev/null) || global=${XDG_CONFIG_HOME:-${HOME:-}/.config}/git/attributes
+  grep -qsF 'eol=crlf' -- "$info" "$global" && return 0
+  git grep -q -F -e 'eol=crlf' -- ':(glob)**/.gitattributes' 2>/dev/null
+  # 1 is "no match"; any other failure scans rather than skip a CRLF repo.
+  [ $? -ne 1 ]
+}
+crlf_wanted || exit 0
+
+target=
+if [ -n "$input" ] && command -v jq >/dev/null 2>&1; then
+  # -j, not -r: a native Windows jq would end the line in CRLF.
+  target=$(printf '%s' "$input" | jq -j '.tool_input.file_path // .tool_input.notebook_path // empty' 2>/dev/null) || target=
+fi
+if [ -n "$target" ]; then
+  scope=(-c -o --exclude-standard -- "$target")
+else
+  scope=(-m -o --exclude-standard)
+fi
 
 # Pure bash, not sed: Git for Windows sed strips CR on read.
 to_crlf() {
@@ -51,7 +78,7 @@ while IFS= read -r -d '' rec; do
   else
     rm -f "$tmp"
   fi
-done < <(git ls-files --eol -z -c -o --exclude-standard 2>/dev/null)
+done < <(git --literal-pathspecs ls-files --eol -z "${scope[@]}" 2>/dev/null)
 
 # A converted tracked file whose index stat was recorded from an LF worktree
 # would show "modified" with an empty diff. Re-record its stat, but only when

@@ -105,7 +105,7 @@ function envSpawnAllow(): Set<string> | undefined {
 	return new Set(names);
 }
 
-/** Root conductor is 0, its workers 1, their `research`/`scout` children 2 — nothing spawns beyond that. */
+/** Root conductor is 0, its workers 1, their `analyst` children 2 — nothing spawns beyond that. */
 const MAX_SPAWN_DEPTH = 2;
 
 /**
@@ -292,7 +292,13 @@ function getFinalOutput(messages: Message[]): string {
 }
 
 function isFailedResult(result: SingleResult): boolean {
-	return result.exitCode !== 0 || result.stopReason === "error" || result.stopReason === "aborted";
+	// "length": the child hit the model's output cap mid-work; its truncated reply is a failure, not a result.
+	return (
+		result.exitCode !== 0 ||
+		result.stopReason === "error" ||
+		result.stopReason === "aborted" ||
+		result.stopReason === "length"
+	);
 }
 
 function getResultOutput(result: SingleResult): string {
@@ -810,7 +816,7 @@ export default function (pi: ExtensionAPI) {
 				authedProviders: new Set(ctx.modelRegistry.getAvailable().map((m) => m.provider)),
 				notify: (message, type) => ctx.ui.notify(message, type),
 			};
-			const discovery = discoverAgents(ctx.cwd, agentScope, product.agentsDir, PACKAGE_ROOT);
+			const discovery = discoverAgents(ctx.cwd, agentScope, product.agentsDir, product.agents, PACKAGE_ROOT);
 			const agents = discovery.agents;
 			const confirmProjectAgents = params.confirmProjectAgents ?? true;
 
@@ -1111,6 +1117,19 @@ Chain stopped at step ${i + 1} (${step.agent}).` },
 					return {
 						content: [{ type: "text", text: getResultOutput(result) }],
 						details: makeDetails("single")([result]),
+					};
+				}
+				// A length-ended child is reported as BLOCKED (not the truncated text), before the generic failed branch's `Agent <stopReason>:` prefix.
+				if (result.stopReason === "length") {
+					return {
+						content: [
+							{
+								type: "text",
+								text: `BLOCKED: output cap exhausted — ${result.agent}'s final reply was truncated at the output cap`,
+							},
+						],
+						details: makeDetails("single")([result]),
+						isError: true,
 					};
 				}
 				const isError = isFailedResult(result);

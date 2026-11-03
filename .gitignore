@@ -1,24 +1,29 @@
+# Dependencies and pi runtime state
 node_modules/
 .pi/npm/
 .pi/git/
 .pi/sessions/
-bash.exe.stackdump
 
-# Job folders, active and archived (docs/job-files.md); legacy job/ kept
+# Job folders, active and archived (docs/job-files.md)
+.baton/conductor/jobs/
+.baton/refuter/jobs/
 .claude/conductor/jobs/
 .claude/refuter/jobs/
-.claude/conductor/job/
-.claude/refuter/job/
 
-# OS cruft
+# OS and shell cruft
 .DS_Store
+*.stackdump
 
 # Python bytecode caches
 __pycache__/
 *.pyc
 
+# State written by the vendored sequential-thinking script if anyone runs it
+**/.think_state.json
+
 # Per-user agent memory and machine-local state
 .claude/agent-memory/
-.claude/conductor/environment.md
+.baton/environment.md
+.claude/environment.md
 .claude/settings.local.json
 

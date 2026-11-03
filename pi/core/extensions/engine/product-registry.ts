@@ -16,6 +16,8 @@ export interface ProductDescriptor {
 	name: string;
 	packageRoot: string;
 	agentsDir: string;
+	/** Package agents (by frontmatter name) this product dispatches; the rest of `agentsDir` stays hidden from it. */
+	agents: string[];
 	orchestratorPromptPath: string;
 	vaultDir: string;
 	jobsRel: string;

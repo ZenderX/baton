@@ -10,7 +10,7 @@
  *   as the per-folder packages reach them. Each load is a fresh module
  *   instance (pi's jiti runs with moduleCache: false).
  *   Shape b, a second copy: the umbrella entries, then a copy of core,
- *   conductor and refuter in a temp dir (a published per-product install).
+ *   conductor, refuter and team in a temp dir (a published per-product install).
  *
  * For each shape and each entry:
  *   1. exactly one copy registers anything, and it is the first one loaded;
@@ -18,7 +18,8 @@
  *      shortcut or handler);
  *   2. session_start across all copies shows exactly one advisory notice,
  *      naming every skipped logical extension;
- *   3. only the winning shim's descriptor is on the product registry;
+ *   3. only the winning shim's descriptor is on the product registry, and it
+ *      points at the shared team agents with its product's roster;
  *   4. after session_shutdown, a reload of the same copies registers exactly
  *      one copy per entry again and shows no second notice.
  *
@@ -163,13 +164,28 @@ function assertOneWinnerPerEntry(shape: string, loaded: LoadedCopy[], entries: s
 	}
 }
 
+/** Both products dispatch the shared team agents; only the refuter samples disputed claims through the consultant. */
+const ROSTERS: Record<string, string[]> = {
+	conductor: ["analyst", "architect", "developer", "reviewer"],
+	refuter: ["analyst", "architect", "developer", "reviewer", "consultant"],
+};
+
 function assertWinningDescriptors(shape: string): void {
 	const products = (globalThis as GlobalChannel)[PRODUCTS_KEY];
 	assert.ok(products instanceof Map, `${shape}: the product registry should exist`);
-	for (const name of ["conductor", "refuter"]) {
+	const teamAgentsDir = path.join(PI_ROOT, "team", "agents");
+	for (const [name, roster] of Object.entries(ROSTERS)) {
 		const descriptor: unknown = products.get(name);
-		assert.ok(typeof descriptor === "object" && descriptor !== null && "packageRoot" in descriptor, `${shape}: ${name} descriptor missing`);
+		assert.ok(
+			typeof descriptor === "object" && descriptor !== null && "packageRoot" in descriptor && "agentsDir" in descriptor && "agents" in descriptor,
+			`${shape}: ${name} descriptor missing`,
+		);
 		assert.equal(descriptor.packageRoot, path.join(PI_ROOT, name), `${shape}: ${name} descriptor should be the winning (umbrella) copy's`);
+		assert.equal(descriptor.agentsDir, teamAgentsDir, `${shape}: ${name} should dispatch the shared team agents`);
+		assert.deepEqual(descriptor.agents, roster, `${shape}: ${name} roster`);
+		for (const agent of roster) {
+			assert.ok(fs.existsSync(path.join(teamAgentsDir, `${agent}.md`)), `${shape}: ${name} rosters ${agent}, which the team package lacks`);
+		}
 	}
 }
 
@@ -206,10 +222,10 @@ async function runShape(shape: string, entries: string[], secondRoot: string): P
 	console.log(`  [${shape}] ${entries.length} entries: one registration each, 1 notice, reload re-registers once, no second notice`);
 }
 
-/** A published-install stand-in: core, conductor and refuter copied outside pi/, resolving pi's node_modules through a junction. */
+/** A published-install stand-in: core, conductor, refuter and team copied outside pi/, resolving pi's node_modules through a junction. */
 function makeCopy(): string {
 	const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-double-load-"));
-	for (const pkg of ["core", "conductor", "refuter"]) {
+	for (const pkg of ["core", "conductor", "refuter", "team"]) {
 		fs.cpSync(path.join(PI_ROOT, pkg), path.join(dir, pkg), {
 			recursive: true,
 			filter: (source) => path.basename(source) !== "node_modules",

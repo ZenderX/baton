@@ -34,12 +34,17 @@
  *      through grep or Select-String draw none; counters stay bounded.
  *  10. Per-child drift config: the engine hands each child PI_CONDUCTOR_DRIFT,
  *      with no-progress on only for `driftProgress: true` agents (the real
- *      implement and developer, not code-review) and the Surface prefixes of
+ *      team developer, not reviewer or consultant), package agents limited to the
+ *      product's roster (no consultant for the conductor), and the Surface prefixes of
  *      the `plan.md#<phase-id>` section the task names, read only from its
  *      own `<jobsRel>/<job-id>/` folder (never archive/ or a malformed id).
  *  11. drift-nudge extension: against a stubbed pi, the failed-run replay as
  *      tool_result events yields steer-only `[drift]` sends and no other pi
  *      or ctx call; no config, or depth 0, yields zero sends.
+ *  12. Output cap: a child whose final assistant message ends
+ *      `stopReason: "length"` is reported as `BLOCKED: output cap exhausted`
+ *      with `isError: true` (single mode), while a normal child is reported
+ *      as before.
  *
  * Run with: node --experimental-strip-types pi/scripts/worker-guard-harness.mts
  * (This file is intentionally NOT listed in package.json pi.extensions.)
@@ -93,6 +98,8 @@ interface Scenario {
 	piStream?: boolean;
 	/** On "complete", reply with this env var's value instead of COMPLETE. */
 	echoEnv?: string;
+	/** On "complete", end the final assistant message with this stopReason instead of "stop". */
+	stopReason?: "length";
 	/** Free text riding along in the task, e.g. a `plan.md#<phase-id>` reference. */
 	note?: string;
 }
@@ -136,7 +143,7 @@ scenario.calls.forEach((call, i) => {
 });
 if (scenario.then === "complete") {
 	const text = scenario.echoEnv ? String(process.env[scenario.echoEnv]) : "COMPLETE";
-	emit({ role: "assistant", content: [{ type: "text", text }], usage, stopReason: "stop", model: "fake" });
+	emit({ role: "assistant", content: [{ type: "text", text }], usage, stopReason: scenario.stopReason || "stop", model: "fake" });
 } else {
 	setInterval(() => {}, 1000);
 }
@@ -279,6 +286,7 @@ async function main(): Promise<void> {
 	const originalArgv1 = process.argv[1];
 	const originalAgentDir = process.env.PI_CODING_AGENT_DIR;
 	const originalDepth = process.env.PI_CONDUCTOR_SPAWN_DEPTH;
+	const originalSpawnAllow = process.env.PI_CONDUCTOR_SPAWN_ALLOW;
 	const originalDrift = process.env[DRIFT_ENV];
 	const channel = globalThis as Record<symbol, unknown>;
 	try {
@@ -334,6 +342,7 @@ async function main(): Promise<void> {
 		fs.mkdirSync(agentHome);
 		process.env.PI_CODING_AGENT_DIR = agentHome;
 		delete process.env.PI_CONDUCTOR_SPAWN_DEPTH;
+		delete process.env.PI_CONDUCTOR_SPAWN_ALLOW;
 		channel[PRODUCTS_KEY] = new Map([
 			[
 				"harness",
@@ -341,6 +350,7 @@ async function main(): Promise<void> {
 					name: "harness",
 					packageRoot: scratch,
 					agentsDir,
+					agents: ["capped", "free", "drifty"],
 					orchestratorPromptPath: path.join(scratch, "orchestrator.md"),
 					vaultDir: scratch,
 					jobsRel,
@@ -457,6 +467,21 @@ async function main(): Promise<void> {
 			console.log("  [8] pi 0.87.1 stream: tool results collected once via message_end; trace intact");
 		}
 
+		// 12. Output cap: a length-ended child is BLOCKED with isError; a normal child is unchanged.
+		{
+			const lengthChild = await run({
+				agent: "free",
+				task: task({ calls: distinctReads(1), then: "complete", stopReason: "length" }),
+			});
+			assert.match(textOf(lengthChild), /^BLOCKED: output cap exhausted — free's final reply was truncated at the output cap$/);
+			assert.equal(lengthChild.isError, true, "a length-ended child is an error, not a successful reply");
+			assert.equal(lengthChild.details?.results[0]?.stopReason, "length");
+			const normal = await run({ agent: "free", task: task({ calls: distinctReads(1), then: "complete" }) });
+			assert.equal(textOf(normal), "COMPLETE", "a normal child is reported as before");
+			assert.equal(normal.isError, undefined);
+			console.log("  [12] stopReason length: BLOCKED with isError; a normal child is unchanged");
+		}
+
 		// 10. Per-child drift config (run before 7, at depth 0 like the other spawns).
 		{
 			const echo = async (agent: string, note: string): Promise<unknown> =>
@@ -504,18 +529,22 @@ async function main(): Promise<void> {
 			assert.deepEqual(await echo("drifty", "no plan section"), { agent: "drifty", noProgress: true, cwd: scratch, surface: [] });
 
 			const piRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-			const noProgressOf = (product: string, name: string): boolean => {
-				const found = discoverAgents(scratch, "user", path.join(piRoot, product, "agents"), PACKAGE_ROOT).agents.find(
-					(a) => a.name === name,
-				);
-				assert.ok(found !== undefined && found.source === "package", `${product}/${name} is a package agent`);
+			const teamAgentsDir = path.join(piRoot, "team", "agents");
+			const conductorRoster = ["analyst", "architect", "developer", "reviewer"];
+			const refuterRoster = [...conductorRoster, "consultant"];
+			const teamAgent = (roster: string[], name: string) =>
+				discoverAgents(scratch, "user", teamAgentsDir, roster, PACKAGE_ROOT).agents.find((a) => a.name === name);
+			const noProgressOf = (roster: string[], name: string): boolean => {
+				const found = teamAgent(roster, name);
+				assert.ok(found !== undefined && found.source === "package", `team/${name} is a package agent`);
 				return childDriftConfig(found.name, found.driftProgress, "task", scratch, undefined).noProgress;
 			};
-			assert.equal(noProgressOf("conductor", "implement"), true);
-			assert.equal(noProgressOf("refuter", "developer"), true);
-			assert.equal(noProgressOf("conductor", "code-review"), false);
-			assert.equal(noProgressOf("refuter", "expert"), false);
-			console.log("  [10] per-child drift config: no-progress for implement/developer only; Surface from the named plan section");
+			assert.equal(noProgressOf(conductorRoster, "developer"), true);
+			assert.equal(noProgressOf(refuterRoster, "developer"), true);
+			assert.equal(noProgressOf(conductorRoster, "reviewer"), false);
+			assert.equal(noProgressOf(refuterRoster, "consultant"), false);
+			assert.equal(teamAgent(conductorRoster, "consultant"), undefined, "a team agent outside the product's roster stays hidden");
+			console.log("  [10] per-child drift config: no-progress for developer only; roster hides unlisted team agents; Surface from the named plan section");
 		}
 
 		// 7. Boundary hook.
@@ -808,7 +837,7 @@ async function main(): Promise<void> {
 		// 11. drift-nudge extension (this process is at depth 1 since case 7).
 		{
 			const failedRun = [...healthyCalls(), ...scratchCalls(), ...symbolGreps("grep")];
-			const childConfig = { agent: "implement", noProgress: true, cwd: DRIFT_CWD, surface: ["crates/"] };
+			const childConfig = { agent: "developer", noProgress: true, cwd: DRIFT_CWD, surface: ["crates/"] };
 			process.env[DRIFT_ENV] = JSON.stringify(childConfig);
 			const child = replayNudgeExtension(failedRun);
 			assert.ok(child.sends.length >= 2, `at least two nudges, got ${child.sends.length}`);
@@ -840,6 +869,9 @@ async function main(): Promise<void> {
 		else process.env.PI_CODING_AGENT_DIR = originalAgentDir;
 		if (originalDepth === undefined) delete process.env.PI_CONDUCTOR_SPAWN_DEPTH;
 		else process.env.PI_CONDUCTOR_SPAWN_DEPTH = originalDepth;
+		// The engine exports this on every child (empty at depth 0's children); a leftover value would refuse every dispatch here.
+		if (originalSpawnAllow === undefined) delete process.env.PI_CONDUCTOR_SPAWN_ALLOW;
+		else process.env.PI_CONDUCTOR_SPAWN_ALLOW = originalSpawnAllow;
 		if (originalDrift === undefined) delete process.env[DRIFT_ENV];
 		else process.env[DRIFT_ENV] = originalDrift;
 		delete channel[PRODUCTS_KEY];

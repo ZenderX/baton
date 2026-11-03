@@ -3,8 +3,11 @@
  * files to CRLF wherever git attributes say eol=crlf but the file holds LF or
  * mixed endings. pi's write/edit tools and shell edits (sed -i strips CR on
  * Git for Windows; heredocs and redirects write LF) leave such files
- * "modified" with an empty diff. Scans the whole repo instead of the tool
- * input, so files written by a shell command are caught too. Port of
+ * "modified" with an empty diff. Does nothing when no attribute source (a
+ * tracked .gitattributes, the repo's info/attributes, the global attributes
+ * file) mentions eol=crlf. Otherwise scans only the file a write/edit input
+ * names (`input.path`); with no such path (bash, powershell) it scans the
+ * modified and untracked files. Port of
  * claude/plugins/baton/scripts/restore-crlf.sh; runs in the top-level session
  * and in every spawned child, where a lost race just finds the file CRLF.
  *
@@ -18,6 +21,7 @@
 import { execFile } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import * as fs from "node:fs";
+import * as os from "node:os";
 import * as path from "node:path";
 import { type ExtensionAPI, withFileMutationQueue } from "@earendil-works/pi-coding-agent";
 import { claimExtension } from "./load-guard.ts";
@@ -108,18 +112,48 @@ async function onlyStatIsStale(top: string, file: string): Promise<boolean> {
 	}
 }
 
+/** The global attributes file git reads: core.attributesFile, else $XDG_CONFIG_HOME/git/attributes, else ~/.config/git/attributes. */
+async function globalAttributesFile(top: string): Promise<string> {
+	try {
+		return (await git(top, ["config", "--type=path", "--get", "core.attributesFile"])).trim();
+	} catch (_error: unknown) {
+		const configHome = process.env.XDG_CONFIG_HOME || path.join(process.env.HOME || os.homedir(), ".config");
+		return path.join(configHome, "git", "attributes");
+	}
+}
+
+/** True unless every attribute source (info/attributes, the global file, tracked .gitattributes) lacks `eol=crlf`. */
+async function crlfWanted(top: string): Promise<boolean> {
+	const info = path.resolve(top, (await git(top, ["rev-parse", "--git-path", "info/attributes"])).trim());
+	for (const file of [info, await globalAttributesFile(top)]) {
+		const text = await fs.promises.readFile(file, "utf8").catch(() => "");
+		if (text.includes("eol=crlf")) return true;
+	}
+	try {
+		await git(top, ["grep", "-q", "-F", "-e", "eol=crlf", "--", ":(glob)**/.gitattributes"]);
+		return true;
+	} catch (error: unknown) {
+		// Exit 1 is "no match"; any other failure scans rather than skip a CRLF repo.
+		return !(error instanceof Error && "code" in error && error.code === 1);
+	}
+}
+
 /**
- * Converts every stale CRLF file in the repo containing `cwd`, then re-records
- * the index stat of converted files whose content matches the index (never
- * `git add`; real edits keep their index untouched). Returns the converted
- * paths, relative to the repo top. Never throws; outside a repo it does nothing.
+ * Converts the stale CRLF files in the repo containing `cwd` — only `written`
+ * (absolute, or relative to `cwd`) when given, else every modified and
+ * untracked file — then re-records the index stat of converted files whose
+ * content matches the index (never `git add`; real edits keep their index
+ * untouched). Returns the converted paths, relative to the repo top. Never
+ * throws; outside a repo, or when no attribute source sets eol=crlf, it does nothing.
  */
-export async function restoreCrlf(cwd: string): Promise<string[]> {
+export async function restoreCrlf(cwd: string, written?: string): Promise<string[]> {
 	let top: string;
 	let listing: string;
 	try {
 		top = (await git(cwd, ["rev-parse", "--show-toplevel"])).trim();
-		listing = await git(top, ["ls-files", "--eol", "-z", "-c", "-o", "--exclude-standard"]);
+		if (!(await crlfWanted(top))) return [];
+		const scope = written === undefined ? ["-m", "-o", "--exclude-standard"] : ["-c", "-o", "--exclude-standard", "--", path.resolve(cwd, written)];
+		listing = await git(top, ["--literal-pathspecs", "ls-files", "--eol", "-z", ...scope]);
 	} catch (_error: unknown) {
 		return [];
 	}
@@ -144,6 +178,20 @@ export async function restoreCrlf(cwd: string): Promise<string[]> {
 	return converted;
 }
 
+/**
+ * The existing file a write/edit input names (`path`, with pi's leading `@`
+ * stripped and `~` expanded, relative to `cwd`); undefined when the input has
+ * no path or it does not resolve to a file, so the caller scans modified and
+ * untracked files instead.
+ */
+function writtenPath(input: unknown, cwd: string): string | undefined {
+	if (typeof input !== "object" || input === null || !("path" in input) || typeof input.path !== "string") return undefined;
+	const named = input.path.startsWith("@") ? input.path.slice(1) : input.path;
+	const expanded = /^~(?:$|[/\\])/u.test(named) ? path.join(os.homedir(), named.slice(1)) : named;
+	const resolved = path.resolve(cwd, expanded);
+	return fs.statSync(resolved, { throwIfNoEntry: false })?.isFile() ? resolved : undefined;
+}
+
 export default function (pi: ExtensionAPI) {
 	if (!claimExtension(pi, "core.restore-crlf")) return;
 
@@ -151,7 +199,8 @@ export default function (pi: ExtensionAPI) {
 	let queue: Promise<unknown> = Promise.resolve();
 	pi.on("tool_result", async (event, ctx) => {
 		if (!WRITING_TOOLS.has(event.toolName)) return;
-		queue = queue.then(() => restoreCrlf(ctx.cwd)).catch(() => undefined);
+		const written = writtenPath(event.input, ctx.cwd);
+		queue = queue.then(() => restoreCrlf(ctx.cwd, written)).catch(() => undefined);
 		// Awaited so the next tool call (e.g. a shell edit) never races the rewrite of the file it touches.
 		await queue;
 	});
