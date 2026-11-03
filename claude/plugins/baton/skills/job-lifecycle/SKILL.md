@@ -1,6 +1,6 @@
 ---
 name: job-lifecycle
-description: Orchestrator job lifecycle - Job end note and archive, Resume and Archive on request, worker skill copy, environment pre-check, developer resume, verification waits and gate reuse. Load when your prompt's Job end, Resume, Archive, Skills, Environment pre-check, Developer resume or Verification waits trigger applies.
+description: Orchestrator job lifecycle - Job end note and archive, Resume and Archive on request, worker skill copy, held output, developer resume, verification waits and gate reuse. Load when your prompt's Job end, Resume, Archive, Skills, Held output, Developer resume or Verification waits trigger applies.
 ---
 
 # Job Lifecycle
@@ -59,16 +59,19 @@ Only when asked: list active `jobs/*/` (not `archive/`, `local/`) by job-id and 
 
 Append `**Closed incomplete:** <YYYY-MM-DD>` to the set-aside job's `request.md` preamble; once memory is saved as your prompt's trigger orders, close it per **Job end** with `outcome: incomplete`.
 
-## Environment pre-check
+## Held output
 
-For each phase your prompt's trigger names (its acceptance runs a built binary or app end to end), name the output it rebuilds or runs, from its **Surface**, **Context** or acceptance commands. Create one `Decision: free <output>` task `in_progress` whose `description` asks the human to stop whatever holds that output (a running instance of the program, a debugger, a viewer) before that phase starts, and ask it in the message carrying the first dispatches, so the human acts while earlier phases run. `completed` once the human confirms, `deleted` if the phase is dropped. The phase still dispatches when its dependencies complete; a still-held output stops its developer `BLOCKED` at once, before any gate. Then ask again under the same task, and once the human frees it, append that confirmation to the phase's **Context** and resume the developer per **Developer resume**.
+Try first, ask only after a failure: dispatch every phase with no prior probe and no task. A developer or reviewer that finds an output file locked or busy replies `BLOCKED` naming the file, the symptom and, when the OS reports it, the holder. On such a `BLOCKED`, create one `Action: close <holder>` task `in_progress`, where `<holder>` is the program, debugger or viewer the reason names, else the output file. Its `description` asks the human to close it. Ask in the same message; creating it triggers your prompt's **Task List** ordering rule: recreate every open task behind it so it reads first among open tasks. Keep it `in_progress` until the human confirms, asking again under the same task if they report it is still held; then mark it `completed` (`deleted` if the phase is dropped). On confirmation:
+
+- Developer: append the confirmation to the phase's **Context** and resume the developer per **Developer resume** (pi spawns fresh).
+- Reviewer: delete any `issues.md` first only if your prompt does so before a fresh `Review` (the conductor; the refuter keeps its `issues.md#<phase-id>` blocks), then dispatch a fresh `Review`, never a `Recheck`.
 
 ## Developer resume
 
 Claude Code only: pi's `subagent` has no resume, so a pi orchestrator spawns fresh.
 
 1. After a developer's `BLOCKED` reply, write or replace its `agents.md` row in one `Edit` or `Write`, other rows kept: `| developer | <dispatched file>#<anchor> | <agent id> | <model it ran on> | kept |`, under `# Agents` and the header `| Role | Anchor | Agent ID | Model | State |` (create the file when absent).
-2. A correction that only widens or clarifies the section resumes: a settled fact added to **Context** or **Unknowns**, a test file the phase's own behaviour change broke added to **Surface**, a freed output (**Environment pre-check**). A redesign (new goal, approach or phase split) does not.
+2. A correction that only widens or clarifies the section resumes: a settled fact added to **Context** or **Unknowns**, a test file the phase's own behaviour change broke added to **Surface**, a freed output (**Held output**). A redesign (new goal, approach or phase split) does not.
 3. Resume: correct the section, then send the same `Implement` or `Fix` line by `SendMessage` to the row's agent ID. The run keeps its model, effort, built state and result file, then replies as a fresh run would; route its reply as usual.
 4. Set the row's `State` to `expired` on a redesign, a `SendMessage` error or cancelled notice (then spawn fresh), on any fresh spawn for that anchor, and once the phase passes review.
 
