@@ -1,6 +1,6 @@
 {
   "name": "the-team",
-  "version": "6.0.0",
+  "version": "6.1.0",
   "private": true,
   "description": "Shared worker agents (analyst/architect/developer/reviewer/consultant) for the conductor and the refuter; each product shim points its agentsDir here and picks its roster (the conductor dispatches all but consultant). Loads no pi resources of its own",
   "license": "MIT",

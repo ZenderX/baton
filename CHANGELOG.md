@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v6.1.0 — 2026-11-04
 
 - Changed: the architect (Claude Code and pi) existence-checks every map path a phase cites with `Glob` (pi: `find`/`ls`), exempting paths the phase creates, still without reading code; a path that fails goes to an analyst question or **Unknowns**.
 - Changed: the developer (Claude Code and pi) verifies every cited anchor before its first edit and stops `BLOCKED` at once, naming the wrong anchor.
