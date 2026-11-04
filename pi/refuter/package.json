@@ -1,6 +1,6 @@
 {
   "name": "the-refuter",
-  "version": "6.1.0",
+  "version": "6.2.0",
   "private": true,
   "type": "module",
   "description": "Refuter product shim (orchestrator persona dispatching the team package's analyst/architect/developer/reviewer/consultant agents through the job-file protocol, --refuter flag and /refuter command) on top of the baton core engine",

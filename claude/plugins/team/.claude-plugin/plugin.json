@@ -1,6 +1,6 @@
 {
   "name": "team",
-  "version": "6.1.0",
+  "version": "6.2.0",
   "description": "Team worker pack: 5 subagents (analyst, architect, developer, reviewer, consultant) shared by the baton:conductor and baton:refuter orchestrators; the conductor dispatches all but consultant. The orchestrators, the context7 MCP server and the git-diff, okf-memory, planning-poker and sequential-thinking skills come from the baton dependency. Subagents work through the job-file protocol in the dispatching orchestrator's .baton/conductor/jobs/<job-id>/ or .baton/refuter/jobs/<job-id>/; workers reply once, and the reviewer can be resumed for a re-check; the orchestrator is the only agent that talks to you and keeps the project's .claude/agent-memory/ vault. Run /baton:setup to enable the Task tools (CLAUDE_CODE_ENABLE_TODO_TOOLS) in the project's .claude/settings.json.",
   "author": {
     "name": "ZenderX"

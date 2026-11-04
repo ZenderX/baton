@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v6.2.0 — 2026-11-04
 
 - Changed: the `memory-review` skill is renamed `baton-review` (`/baton:baton-review`, pi `/skill:baton-review`), still user-invoked only. The baton plugin and marketplace descriptions name the new skill, and `scripts/clean-global.ps1` removes a `memory-review` copy left in `~/.claude/skills/`
 - Changed: `baton-review` fully migrates an older `.claude/`-based project into `.baton/`, after a pre-move report the user confirms. Every job folder, active or stale, moves as-is; archive notes, raw folders and `references/` files merge per entry with their `jobs/local/` folders, a taken name getting the job-lifecycle `-2`, `-3` suffix, and the legacy `index.md` merges line by line; `.claude/environment.md`, `.claude/conductor/environment.md` and `.claude/refuter/environment.md` are all covered, the first becoming `.baton/environment.md` when that is absent and any other kept as `.baton/environment.legacy*.md` to merge by hand; transient pre-v5 leftovers are deleted; the root `.gitignore` lines for the legacy paths are rewritten to `.baton/`; and the emptied legacy folders are removed. Afterwards only agent memory is left under `.claude/`. The job-note `sources` title matches `job-lifecycle`
