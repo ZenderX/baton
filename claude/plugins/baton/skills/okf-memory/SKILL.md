@@ -14,7 +14,7 @@ Each note is valid in both formats at once: it carries OKF's top-level `type` an
 - Flat folder, one fact per note, no subfolders.
 - A note is `<kebab-slug>.md`. Never name a note `index.md` or `log.md` (OKF-reserved), and never create either file: git is the history.
 - No memory subagent, hook, or per-write validator.
-- Job archives (`.baton/<product>/jobs/archive/`) are a separate OKF bundle governed by the `memory-review` skill; this vault stays flat and holds no job notes.
+- Job archives (`.baton/<product>/jobs/archive/`) are a separate OKF bundle governed by the `baton-review` skill; this vault stays flat and holds no job notes.
 
 ## Note frontmatter
 

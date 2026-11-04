@@ -13,7 +13,7 @@
     {
       "name": "baton",
       "source": "./claude/plugins/baton",
-      "description": "Shared core and orchestrators: the baton:conductor and baton:refuter orchestrator agents, whose workers live in the team plugin, context7 MCP server, Task-tools SessionStart hook + /baton:setup, CRLF-restoring PostToolUse hook, git-diff, job-lifecycle, memory-review, okf-memory, planning-poker and sequential-thinking skills."
+      "description": "Shared core and orchestrators: the baton:conductor and baton:refuter orchestrator agents, whose workers live in the team plugin, context7 MCP server, Task-tools SessionStart hook + /baton:setup, CRLF-restoring PostToolUse hook, baton-review, git-diff, job-lifecycle, okf-memory, planning-poker and sequential-thinking skills."
     },
     {
       "name": "statusline",

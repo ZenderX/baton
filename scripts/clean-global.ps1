@@ -40,6 +40,8 @@ $PluginsRoot = Join-Path (Split-Path -Parent $PSScriptRoot) 'claude' 'plugins'
 $ManagedDirs = @('agents', 'rules', 'skills')
 # Retired from claude/plugins/ but once synced to ~/.claude/agents/, so still ours to remove.
 $RetiredAgents = @('memory.md', 'planning.md', 'research.md', 'implement.md', 'code-review.md')
+# Renamed away in claude/plugins/ but once synced to ~/.claude/skills/, so still ours to remove.
+$RetiredSkills = @('memory-review')
 $removedCount = 0
 $preservedCount = 0
 
@@ -70,7 +72,7 @@ function Get-CanonNames {
     return @(Get-ChildItem -Path $PluginsRoot -Directory | ForEach-Object {
         $skillsPath = Join-Path $_.FullName 'skills'
         if (Test-Path $skillsPath) { Get-ChildItem -Path $skillsPath -Directory | ForEach-Object { $_.Name } }
-    })
+    }) + $RetiredSkills
 }
 
 try {

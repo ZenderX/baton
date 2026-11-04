@@ -1,10 +1,10 @@
 ---
-name: memory-review
-description: Migrate a project's older conductor or refuter memory (type-prefixed notes, Obsidian vault, worker folders, dirty/superseded lifecycle, native wikilinks) to the okf-memory OKF v0.2 bundle, losing no fact, move legacy job archives and the environment file from .claude/ to .baton/, and distil raw archived job folders into the OKF job bundle.
+name: baton-review
+description: Migrate a project's older conductor or refuter memory (type-prefixed notes, Obsidian vault, worker folders, dirty/superseded lifecycle, native wikilinks) to the okf-memory OKF v0.2 bundle, losing no fact, migrate every legacy .claude/ job artefact (job folders, archives merged per entry, jobs/local, environment files, pre-v5 leftovers, .gitignore lines) to .baton/ after a confirmed pre-move report so only .claude/agent-memory/ remains, and distil raw archived job folders into the OKF job bundle.
 disable-model-invocation: true
 ---
 
-# Memory Review
+# Baton Review
 
 Convert every older conductor or refuter memory folder in this project to the OKF v0.2 bundle, with no fact lost, move legacy job data from `.claude/` to `.baton/` (step 2), and distil every raw archived job folder into its product's job bundle (step 5, **Job archives**). Optional argument: one memory folder or job archive path; restrict the run to it.
 
@@ -14,28 +14,88 @@ Read `../okf-memory/SKILL.md` (the `okf-memory` skill, beside this skill's folde
 
 ## 2. Move job data to `.baton/`
 
-Run from the repo root, before discovery; every later step reads job data under `.baton/` only. Move with plain `mv`, never `git mv`, and never stage: the user reviews the move as tracked files deleted at the old path and untracked at the new one.
-- For each `<o>` of `conductor`, `refuter`: `.claude/<o>/jobs/archive/` → `.baton/<o>/jobs/archive/`, `.claude/<o>/jobs/local/` → `.baton/<o>/jobs/local/`. Then `.claude/environment.md` → `.baton/environment.md`.
-- Skip a missing source. Skip a source whose target already exists, never merging into or overwriting it, and report both paths.
-- Never move an active job folder `.claude/<o>/jobs/<job-id>/`; it belongs to a running job.
-- With an argument, move only a source the argument names, lies inside, or contains: set `a` to it as a repo-relative path; without one, leave `a` empty.
+Run from the repo root, before discovery; every later step reads job data under `.baton/` only. Afterwards nothing baton-owned is left under `.claude/` except memory. Memory stays in `.claude/agent-memory/` and `.claude/agent-memory-local/`, the paths Claude Code reads: this step never moves, edits or deletes anything there, nor `.claude/` itself. Move with plain `mv`, never `git mv`, and never stage: the user reviews the move as tracked files deleted at the old path and untracked at the new one.
+
+Sources and targets, for each `<o>` of `conductor`, `refuter`:
+- Job folder `.claude/<o>/jobs/<job-id>/` (every folder there besides `archive/` and `local/`, active or stale) → `.baton/<o>/jobs/<job-id>/` as-is; skip one whose target exists. Closing a stale job is job-lifecycle **Archive on request**, never this step.
+- Archive `.claude/<o>/jobs/archive/` (OKF notes with `index.md`, or v5.0.x raw folders), merged per entry into `.baton/<o>/jobs/archive/`: each note `<name>.md` or raw folder `<name>/` moves under its name, together with `.claude/<o>/jobs/local/<name>/` → `.baton/<o>/jobs/local/<name>/`. A taken name gets job-lifecycle's suffix `-2`, `-3`, …, the same on the note, raw folder and local folder; taken: `archive/<name>.md`, `archive/<name>/` or `local/<name>/` exists in the target (or, for a suffixed name, in the source), or `git log --all --format=%h -1 -- .baton/<o>/jobs/archive/<name>.md` prints anything.
+- `.claude/<o>/jobs/local/<name>/` with no note: moves the same way.
+- `.claude/<o>/jobs/archive/references/<file>` → `.baton/<o>/jobs/archive/references/<file>`, suffixed `-2`, `-3`, … before the extension when taken.
+- `.claude/<o>/jobs/archive/index.md` → `.baton/<o>/jobs/archive/index.md` when that is absent, else merged line by line (fix-up below).
+- Environment, in priority order `.claude/environment.md`, `.claude/conductor/environment.md`, `.claude/refuter/environment.md`: the first that exists → `.baton/environment.md` when that is absent; every other one → `.baton/environment.legacy.md` (`environment.legacy-2.md`, … when taken), and the user merges it into `.baton/environment.md` by hand.
+- Transient pre-v5 leftovers, deleted (no `.baton/` equivalent): `.claude/<o>/job/`, `.claude/task-plan.md`, `.claude/conductor/task-plan.md`, `.claude/refuter/task-plan.md`, `.claude/conductor/plan.md`.
+- Any other entry in `.claude/<o>/`, `.claude/<o>/jobs/`, `jobs/archive/` or `jobs/local/`, dotfiles and dot-folders included (a pre-v4 layout is unmapped): report it as `LEAVE`, never guess a target.
+- With an argument, act only on a source the argument names, lies inside, or contains: set `a` to it as a repo-relative path; without one, leave `a` empty.
 
 ```sh
-a=''; a=${a#./}; a=${a%/}
-m() { s=$1; t=$2; if [ -n "$a" ]; then case "$s/" in "$a"/*) ;; *) case "$a/" in "$s"/*) ;; *) return;; esac;; esac; fi; if [ -e "$t" ] && [ -e "$s" ]; then echo "SKIP $s: $t exists"; elif [ -e "$s" ]; then mkdir -p "${t%/*}" && mv "$s" "$t" && echo "MOVED $s -> $t"; fi; }
-for o in conductor refuter; do for d in archive local; do m .claude/$o/jobs/$d .baton/$o/jobs/$d; done; done
-m .claude/environment.md .baton/environment.md
+a=''; a=${a#./}; a=${a%/}; run=''
+in_a() { [ -z "$a" ] && return 0; case "$1/" in "$a"/*) return 0;; esac; case "$a/" in "$1"/*) return 0;; esac; return 1; }
+mv1() { if [ -e "$2" ]; then echo "SKIP $1: $2 exists"; return; fi; echo "MOVE $1 -> $2"; if [ -n "$run" ]; then mkdir -p "${2%/*}" && mv "$1" "$2" || echo "FAIL $1"; fi; }
+rm1() { echo "DELETE $1"; if [ -n "$run" ]; then rm -rf -- "$1" || echo "FAIL $1"; fi; }
+taken() { for r in "$T" "$L"; do [ "$r" = "$L" ] && [ "$1" = "$b" ] && continue; { [ -e "$r/archive/$1.md" ] || [ -e "$r/archive/$1" ] || [ -e "$r/local/$1" ]; } && return 0; done; [ -n "$(git log --all --format=%h -1 -- "$T/archive/$1.md")" ]; }
+for o in conductor refuter; do
+  L=.claude/$o/jobs; T=.baton/$o/jobs
+  for e in .claude/$o/* .claude/$o/.[!.]*; do [ -e "$e" ] || continue; case ${e##*/}:$o in jobs:*|job:*|environment.md:*|task-plan.md:*|plan.md:conductor) ;; *) echo "LEAVE $e";; esac; done
+  for e in "$L"/* "$L"/.[!.]*; do [ -e "$e" ] || continue; case ${e##*/} in archive|local) ;; *) if [ -d "$e" ]; then in_a "$e" && mv1 "$e" "$T/${e##*/}"; else echo "LEAVE $e"; fi;; esac; done
+  names=$(for e in "$L"/archive/* "$L"/archive/.[!.]* "$L"/local/* "$L"/local/.[!.]*; do [ -e "$e" ] || continue; b=${e##*/}; case $e in "$L"/archive/index.md|"$L"/archive/references) ;; "$L"/archive/*.md) echo "${b%.md}";; *) if [ -d "$e" ]; then echo "$b"; else echo "LEAVE $e" >&2; fi;; esac; done | sort -u)
+  for b in $names; do
+    for p in "$L/archive/$b.md" "$L/archive/$b" "$L/local/$b"; do [ -e "$p" ] && in_a "$p" && break; p=''; done; [ -n "$p" ] || continue
+    n=$b; i=1; while taken "$n"; do i=$((i+1)); n=$b-$i; done
+    [ "$n" = "$b" ] || echo "RENAME $o $b -> $n"
+    [ -e "$L/archive/$b.md" ] && mv1 "$L/archive/$b.md" "$T/archive/$n.md"
+    [ -e "$L/archive/$b" ] && mv1 "$L/archive/$b" "$T/archive/$n"
+    [ -e "$L/local/$b" ] && mv1 "$L/local/$b" "$T/local/$n"
+  done
+  for e in "$L"/archive/references/* "$L"/archive/references/.[!.]*; do
+    [ -e "$e" ] && in_a "$e" || continue
+    f=${e##*/}; s=${f%.*}; x=${f#"$s"}; n=$s; i=1
+    while [ -e "$T/archive/references/$n$x" ] || { [ "$n" != "$s" ] && [ -e "$L/archive/references/$n$x" ]; }; do i=$((i+1)); n=$s-$i; done
+    [ "$n" = "$s" ] || echo "RENAME $o references/$f -> $n$x"
+    mv1 "$e" "$T/archive/references/$n$x"
+  done
+  e=$L/archive/index.md
+  if [ -e "$e" ] && in_a "$e"; then if [ -e "$T/archive/index.md" ]; then echo "MERGE $e -> $T/archive/index.md"; else mv1 "$e" "$T/archive/index.md"; fi; fi
+done
+w=''; k=1
+for s in .claude/environment.md .claude/conductor/environment.md .claude/refuter/environment.md; do
+  [ -e "$s" ] || continue
+  if [ -z "$w" ] && [ ! -e .baton/environment.md ]; then w=$s; in_a "$s" && mv1 "$s" .baton/environment.md; continue; fi
+  in_a "$s" || continue
+  n=.baton/environment.legacy.md; [ "$k" -gt 1 ] && n=.baton/environment.legacy-$k.md
+  while [ -e "$n" ]; do k=$((k+1)); n=.baton/environment.legacy-$k.md; done; k=$((k+1))
+  mv1 "$s" "$n"; echo "MERGE-BY-HAND $n -> .baton/environment.md"
+done
+for s in .claude/conductor/job .claude/refuter/job .claude/task-plan.md .claude/conductor/task-plan.md .claude/refuter/task-plan.md .claude/conductor/plan.md; do [ -e "$s" ] && in_a "$s" && rm1 "$s"; done
 ```
 
-A second run finds no source to move and prints only the earlier SKIP lines, if any.
+1. **Report.** Run the block with `run=''`; it changes nothing. Draft the `.gitignore` rewrite (below) without writing it. Present the pre-move report: every `MOVE` source → target, each `RENAME` suffix, `MERGE`, `MERGE-BY-HAND`, `DELETE`, `SKIP` and `LEAVE` line, and the `.gitignore` diff. For moved job folders, say that a job still running in another session must stop before the user confirms, and that a stale one is closed afterwards by asking its orchestrator to archive it (job-lifecycle **Archive on request**). End the turn asking for confirmation; move nothing until the user says yes. An empty report (no line, no `.gitignore` change) needs no confirmation: go to `## 3. Discover`.
+2. **Move.** On yes, run the block again with `run=1`. Its lines must match the confirmed report; on a difference or a `FAIL` line, stop and report it.
+3. **Fix up**, with file edits, never a shell rewrite:
+   - Each `MERGE`: take every line under the legacy `index.md`'s `# Jobs`, its link set to the note's final name; insert each one whose link the target `index.md` lacks under the target's `# Jobs`, in job-lifecycle's `* [<title>](<name>.md) - <description>` form, at its date position, newest first. Lines under `## References` go under the target's `## References` the same way, the heading added last when absent. Then delete the legacy `index.md`.
+   - Each `RENAME <o> <name> -> <new>` of a note: in `.baton/<o>/jobs/archive/<new>.md`, set `sources` `resource: ../local/<name>/` to `../local/<new>/`, and make the target `index.md` line link `(<new>.md)`. A renamed raw folder is distilled under its new name (step 5).
+   - Each `RENAME <o> references/<file> -> <new>`: point its `## References` line at `references/<new>`.
+   - `.gitignore`: write the confirmed rewrite.
+4. **Clean up.** Remove the emptied legacy folders; a `KEPT` folder still holds a `SKIP` or `LEAVE` entry:
+
+```sh
+for o in conductor refuter; do for d in .claude/$o/jobs/archive/references .claude/$o/jobs/archive .claude/$o/jobs/local .claude/$o/jobs .claude/$o; do [ -d "$d" ] || continue; rmdir "$d" 2>/dev/null || echo "KEPT $d: not empty"; done; done
+```
+
+`.gitignore` rewrite, without an argument only (a restricted run leaves it and the report says so), in the repo-root `.gitignore`. A line's path is its pattern after an optional `!` and leading `/`, both kept in the rewrite; the first matching rule applies:
+- Path `.claude/<o>/job` or starting `.claude/<o>/job/`, or path `.claude/task-plan.md`, `.claude/conductor/task-plan.md`, `.claude/refuter/task-plan.md` or `.claude/conductor/plan.md`: remove the line; a deleted pre-v5 path is never rewritten to `.baton/`.
+- Path `.claude/environment.md` or `.claude/<o>/environment.md`: `.baton/environment.md`.
+- Path `.claude/<o>` or starting `.claude/<o>/`: the same with `.baton/<o>` (`!.claude/conductor/jobs/archive/` → `!.baton/conductor/jobs/archive/`).
+- A rewritten line already in the file: remove it rather than add a duplicate. Keep every other line and the line order; keep the file's line endings; never add a line the project did not have. A glob that may match a baton path (`.claude/*/jobs/`): report it, leave it.
+
+A second run finds no source to move and prints only `SKIP`, `LEAVE` and `KEPT` lines, if any.
 
 ## 3. Discover
 
 Glob only these paths; never search the whole repo or drive.
 - `.claude/agent-memory/*/`, `.claude/agent-memory-local/*/`, and nested strays `.claude/agent-memory/*/.claude/agent-memory/*/`.
 - Vault leftovers in `.claude/agent-memory/`: `_conventions.md`, `.obsidian/`, `topics/`.
-- `~/.claude/agent-memory/promotion-queue/` and job-side `.baton/{conductor,refuter}/jobs/*/memory.md` and legacy `.claude/{conductor,refuter}/jobs/*/memory.md`: report only.
-- Job bundles `.baton/{conductor,refuter}/jobs/archive/`: their notes, `index.md`, `references/`, and any raw job folder directly under `archive/`. Never read `.baton/{conductor,refuter}/jobs/local/`.
+- `~/.claude/agent-memory/promotion-queue/` and job-side `.baton/{conductor,refuter}/jobs/*/memory.md`: report only.
+- Job bundles `.baton/{conductor,refuter}/jobs/archive/` only, never a legacy `.claude/` path (step 2 moved them): their notes, `index.md`, `references/`, and any raw job folder directly under `archive/`. Never read `.baton/{conductor,refuter}/jobs/local/`.
 
 Classify each folder:
 - **Target:** `baton-conductor/`, `baton-refuter/`. Create `baton-conductor/` when only older conductor folders exist, `baton-refuter/` when only older refuter folders exist.
@@ -140,7 +200,7 @@ Job note schema: frontmatter keys
 - `archived: <YYYY-MM-DD>` (producer key, date only)
 - `outcome: complete | incomplete | unknown` (never `status`, which OKF §5.4 reserves for lifecycle)
 - `tags: [job, <product>]`
-- `sources:` one entry `- resource: ../local/<YYYY-MM-DD>-<slug>/` with `title: raw job folder (untracked; in git history before the migration commit)`
+- `sources:` one entry `- resource: ../local/<YYYY-MM-DD>-<slug>/` with `title: raw job folder (untracked, on the machine that ran the job)`
 
 Body sections in order:
 - `## Goal` (from `request.md` **Goal**)
@@ -201,7 +261,7 @@ Checks: every note and reference has frontmatter with `type`; every note has an 
 
 ## 9. Report
 
-- Each move to `.baton/` and each skipped target (step 2).
+- Step 2: each move to `.baton/`, archive and `index.md` merge, suffix rename, deletion, skipped target, `LEAVE` entry and `KEPT` folder, each `environment.legacy*.md` to merge by hand, the `.gitignore` diff, and moved job folders with the pointer to job-lifecycle **Archive on request** for stale ones.
 - Per folder: path, era, notes before → after, the folder's fate (converted, merged into `<target>`, removed).
 - Per job bundle: raw folders distilled to notes and moved to `jobs/local/`, index lines added, artifacts retained under `references/`.
 - Every delete, merge and rename from the ledger, with the reason.
