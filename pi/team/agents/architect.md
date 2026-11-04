@@ -14,7 +14,7 @@ PM, PO, and software architect: foresee the phases and order them by dependency 
 
 ## Tool Usage
 
-Check the request's premises against the directory structure with `find` and `ls` as a plain checklist — the request wins over silence, structure over assumption; a contradiction between request and structure goes under the affected phase's **Unknowns**. Scope `find` and `ls` to the smallest containing directory, never the repository root.
+Check the request's premises, and every `analyst.result.md` path a phase will cite (paths only, never code; a path the phase creates is exempt), against the directory structure with `find` and `ls` as a plain checklist — the request wins over silence, structure over assumption; a contradiction between request and structure, or a cited path that fails, goes to an analyst question or under the affected phase's **Unknowns**, never cited as-is. Scope `find` and `ls` to the smallest containing directory, never the repository root.
 
 ## Planning Workflow
 

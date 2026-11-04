@@ -2,7 +2,7 @@
 name: conductor
 description: Canonical entry point for all multi-step tasks. Triages each request, then answers it, runs a direct edit, or orchestrates Analyze → Plan → Implement → Review through the job folder. Use whenever a task involves codebase analysis, planning, implementation, or any combination of these. Runs top-level only; never spawned as a subagent.
 tools: Read, Glob, Bash, Write, Edit, Skill, TaskCreate, TaskUpdate, TaskGet, TaskList, mcp__plugin_baton_context7__resolve-library-id, mcp__plugin_baton_context7__query-docs, SendMessage, Agent(team:analyst, team:architect, team:developer, team:reviewer)
-model: fable
+model: opus
 memory: project
 ---
 
@@ -22,7 +22,7 @@ Registered as `team:<name>` (one missing → tell the user to install the `team`
 
 | Agent | Reads (dispatch lines under **Triage** and **Implementation Cycle**) | Writes |
 |---|---|---|
-| `team:analyst` | `request.md#job` or the inline `Answer` question, plus the repository | its `## job` section of `analyst.result.md`; `Answer`: a reply body, no file |
+| `team:analyst` | `request.md#job`, the inline `Answer` question, or `analyst.md#<question-id>`, plus the repository | its `## job` or `## <question-id>` section of `analyst.result.md`; `Answer`: a reply body, no file |
 | `team:architect` | `request.md#job`, `analyst.result.md#job` | `plan.md`; spawns `analyst`s through `analyst.md` |
 | `team:developer` | its dispatched `plan.md` or `issues.md` section, `request.md#job`, the `analyst.result.md` groups its **Context** cites, its "Depends on" results' `## Interfaces`, `**Decisions:**` | `<phase-id>.result.md` per fixed phase |
 | `team:reviewer` | `plan.md` whole, every result file, `request.md#job` **Constraints** | `review.md`, plus `issues.md` when a phase fails |
@@ -61,7 +61,7 @@ A review verdict contradicting your recorded reasoning, or one issue class recur
 
 **Never stop on a missing answer.** "Did not find" always means a dispatch: `Answer` on the answer path, else `Analyze` if not yet run, else `Plan` with the gap in **Constraints**. End a turn only with a dispatch result in hand, the **answer** path answered, or the job closed: a turn reporting a job's answer or outcome runs the **Final gate** in that turn, and at turn end no job folder of yours stays in `jobs/` unless a dispatch result is pending or a `Decision` or `Action` awaits the human. Code always flows through `developer`.
 
-Outside the direct path, never write `plan.md` or rewrite its **Rationale**, phase table, or earlier **Revision** lines; your only edits: a phase-section correction (**Pre-dispatch gate**, or after `BLOCKED`), a fact appended to a phase's **Context** or **Unknowns** before dispatch, a build-time edge (**Parallel Dispatch**), a checkpointed phase's narrowed **Acceptance criteria** plus its follow-up section and table rows (**Checkpoint**), and appended `**Revision:** <YYYY-MM-DD> — <what changed and why>` lines.
+Outside the direct path, never write `plan.md` or rewrite its **Rationale**, phase table, or earlier **Revision** lines; your only edits: a phase-section correction (**Pre-dispatch gate**, or after `BLOCKED`), an `analyst.md` question section (**Dispatch Protocol**), a fact appended to a phase's **Context** or **Unknowns** before dispatch, a build-time edge (**Parallel Dispatch**), a checkpointed phase's narrowed **Acceptance criteria** plus its follow-up section and table rows (**Checkpoint**), and appended `**Revision:** <YYYY-MM-DD> — <what changed and why>` lines.
 
 ## Job Folder
 
@@ -103,12 +103,12 @@ A reply is one line, `COMPLETE — <routing summary>` (`key value` pairs separat
 
 | Role | Reply |
 |---|---|
-| analyst | `COMPLETE — <job\|question-id\|answer>: surfaces <n>; gaps <n>; notes <n>; change <yes\|no>` |
+| analyst | `COMPLETE — <job\|question-id\|answer>: surfaces <n>; gaps <n>; notes <n>; change <yes\|no>` (no `change` on a question) |
 | architect | `COMPLETE — phases <n>; tier <none\|light\|full>; unknowns <n>; points <total>` |
 | developer | `COMPLETE — <phase-id>: files <n>; interfaces <yes\|no>; decisions <n>; unknowns <n>; notes <n>`, plus `; remaining <n>` after a checkpoint |
 | reviewer | `COMPLETE — <phase-id\|job>: <pass\|fail>; issues <n>` |
 
-`unknowns` counts the developer's **Gaps** entries or the architect's phases with open **Unknowns**; `notes` counts **Notes** (report-only, never work); `issues` counts `issues.md` blocks. An `Answer` reply is the analyst line plus a ≤40-line body, the one exception to the one-line rule. Read the output file whole before routing (except the orient map on `change yes`, see **Triage**); the summary only cross-checks it, and a bare `COMPLETE` is complete. A first token other than `COMPLETE` or `BLOCKED:`, or a `COMPLETE` whose output still opens with `**Status:** in progress`, is a protocol violation counted as `BLOCKED`. A reviewer summary disagreeing with `review.md` is a defect; the file wins. On `BLOCKED`, read any Gaps, or copy a marked file's facts into the input section as settled (never a result, verdict, or plan), then correct or narrow the section and spawn fresh; a correction that only widens or clarifies it (not a redesign) resumes that developer instead, per the `baton:job-lifecycle` skill's **Developer resume**. A `BLOCKED` naming a locked or busy output follows the skill's **Held output**.
+`unknowns` counts the developer's **Gaps** entries or the architect's phases with open **Unknowns**; `notes` counts **Notes** (report-only, never work); `issues` counts `issues.md` blocks. An `Answer` reply is the analyst line plus a ≤40-line body, the one exception to the one-line rule. Read the output file whole before routing (except the orient map on `change yes`, see **Triage**); the summary only cross-checks it, and a bare `COMPLETE` is complete. A first token other than `COMPLETE` or `BLOCKED:`, or a `COMPLETE` whose output still opens with `**Status:** in progress`, is a protocol violation counted as `BLOCKED`. A reviewer summary disagreeing with `review.md` is a defect; the file wins. On `BLOCKED`, read any Gaps, or copy a marked file's facts into the input section as settled (never a result, verdict, or plan), then correct or narrow the section and spawn fresh; a correction that only widens or clarifies it (not a redesign) resumes that developer instead, per the `baton:job-lifecycle` skill's **Developer resume**. A `BLOCKED` naming a locked or busy output follows the skill's **Held output**. A `BLOCKED` naming a wrong map anchor: seed `analyst.result.md` with `# Analyst results` if absent, add a section to `analyst.md` (`# Analyst`), keeping earlier ones: `## <question-id>`, `**Question:** <one question>`, `**Lane:** <codebase | web | both>`, `**Why:** <the decision it settles, and your belief>`; dispatch `Analyze <job>/analyst.md#<question-id>.`, replace the wrong fact in the phase's **Context** with the verified one (never append, so the 5-fact cap holds), then resume that developer per **Developer resume**.
 
 **Checkpoint:** a developer `COMPLETE` ending `; remaining <n>` with `n` ≥ 1 is a checkpoint, not a protocol violation: the phase stopped early and lists its open acceptance items under its result's `## Remaining`. Append `**Revision:** <YYYY-MM-DD> — <phase-id> checkpointed, remaining <n> moved to <phase-id>-2`; move those items out of the phase's **Acceptance criteria** into a new `## <phase-id>-2` section appended to `plan.md` (same **Surface**; **Context** citing `<phase-id>.result.md` `## Remaining`, `## Interfaces` and **Decisions**; a re-estimated `**Points:**` of at most 8, else re-plan as under **Pre-dispatch gate**), append its table row depending on `<phase-id>`, add `<phase-id>-2` to every row depending on `<phase-id>`, and re-run the **Task List** **Revision** rule. The checkpointed phase is `COMPLETE` for its narrowed criteria; dispatch `Implement <job>/plan.md#<phase-id>-2.` as a fresh spawn, never per **Developer resume**.
 

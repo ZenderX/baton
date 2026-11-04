@@ -33,7 +33,7 @@ Job folders and the environment file live under `.baton/`, outside the protected
 .baton/<product>/jobs/<job-id>/
   request.md               # main: preamble and the human's goal, written at job start
   plan.md                  # architect: one anchored section per phase
-  analyst.md               # architect, or refuter main: analyst questions, one anchored section each
+  analyst.md               # architect, or conductor or refuter main: analyst questions, one anchored section each
   analyst.result.md        # analyst: a job section at orient, one section per question
   <phase-id>.result.md     # developer: one file per phase
   review.md                # reviewer: one block per phase with its verdict
@@ -157,7 +157,7 @@ The "Spawned by" column names the only agent that dispatches the role.
 
 | Product | Harness | Role | Input file | Output file | Spawned by |
 |---|---|---|---|---|---|
-| conductor, refuter | Claude, pi | analyst | orient: `request.md#job`; question: `analyst.md#<question-id>`; answer: the dispatch line | `analyst.result.md#job` or `analyst.result.md#<question-id>`; answer: none, the reply body | orient and answer: main; question: architect, or refuter main |
+| conductor, refuter | Claude, pi | analyst | orient: `request.md#job`; question: `analyst.md#<question-id>`; answer: the dispatch line | `analyst.result.md#job` or `analyst.result.md#<question-id>`; answer: none, the reply body | orient and answer: main; question: architect, or conductor or refuter main |
 | conductor, refuter | Claude, pi | architect | `request.md#job` plus `analyst.result.md#job` when present | `plan.md` | main |
 | conductor, refuter | Claude, pi | developer | `plan.md#<phase-id>`; fix pass: `issues.md#<phase-id>`, or `issues.md#job` for every open block; plus `request.md#job` **Goal** and **Constraints**, the `analyst.result.md` sections its **Context** cites by anchor, and the `## Interfaces` and `**Decisions:**` of each "Depends on" phase's `<phase-id>.result.md` | `<phase-id>.result.md`, one per fixed phase | main |
 | conductor | Claude, pi | reviewer, whole job | `plan.md#job`, every full `plan.md#<phase-id>` section, every `<phase-id>.result.md` with its `**Decisions:**`, plus `request.md#job` **Constraints** | `review.md`, plus `issues.md` when any phase fails | main |
@@ -190,7 +190,7 @@ Before it creates a job, main puts the request on one of three paths by the crit
 
 ## Review cycle
 
-A fix pass is a fresh developer spawn that reads `issues.md` cold. On Claude main resumes three workers: the kept reviewer for `Recheck`, a `BLOCKED` developer whose section correction only widens or clarifies it, and this session's `Answer` analyst for the orient `Analyze`; a `Fix` after a `FAIL` and the refuter's `Consult` consultant stay fresh spawns.
+A fix pass is a fresh developer spawn that reads `issues.md` cold. On Claude main resumes three workers: the kept reviewer for `Recheck`, a `BLOCKED` developer whose section correction only widens or clarifies it, and this session's `Answer` analyst for the orient `Analyze`; a `Fix` after a `FAIL` and the refuter's `Consult` consultant stay fresh spawns. A developer `BLOCKED` naming a wrong map anchor makes main add an `analyst.md` section and dispatch `Analyze <job>/analyst.md#<question-id>.`, replace the wrong fact in the phase's **Context** with the verified one, and resume the developer (Claude) or spawn it fresh (pi).
 
 **Verify once.** Each check is paid for once, then its recorded evidence is trusted. The developer runs its phase's acceptance commands and records each one's output in its result file, and does not re-run the analyst's exploratory probes. The whole-job reviewer, the tier-`none` check, the conductor's direct-path run, and the refuter's direct-path developer (through its phase's **Acceptance criteria**) execute the job's **Verification commands** once, and re-run an acceptance command only when its recorded output is missing, is contradicted by the diff or another result file, or covers files a later phase touched. A `Recheck` still re-runs the fixed phases' acceptance criteria, since a fix invalidates their recorded output, except where the state-hash rule below lets it cite a recorded pass.
 
@@ -402,7 +402,7 @@ The reviewer writes this file only when a phase fails, and only in its final wri
 
 ### analyst.md and analyst.result.md
 
-An orient analyst reads `request.md#job` and needs no `analyst.md`. `analyst.md` holds one section per question, written by the architect or by refuter main; a writer that finds the file present rewrites it whole with every earlier section kept. **Lane** is `codebase` when absent.
+An orient analyst reads `request.md#job` and needs no `analyst.md`. `analyst.md` holds one section per question, written by the architect or by conductor or refuter main; a writer that finds the file present rewrites it whole with every earlier section kept. **Lane** is `codebase` when absent.
 
 ```markdown
 # Analyst

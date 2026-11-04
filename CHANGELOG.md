@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Changed: the architect (Claude Code and pi) existence-checks every map path a phase cites with `Glob` (pi: `find`/`ls`), exempting paths the phase creates, still without reading code; a path that fails goes to an analyst question or **Unknowns**.
+- Changed: the developer (Claude Code and pi) verifies every cited anchor before its first edit and stops `BLOCKED` at once, naming the wrong anchor.
+- Changed: the conductor and refuter (Claude Code and pi) answer a developer `BLOCKED` naming a wrong map anchor with an `Analyze <job>/analyst.md#<question-id>.` dispatch and replace the wrong fact in the phase's **Context** with the verified one; Claude resumes the developer, pi spawns it fresh. The conductor gains the question-analyst dispatch.
+- Changed: the conductor and refuter (Claude Code) run on `opus` instead of `fable`; the blended price per token of a job led by a fable orchestrator measured about 3.5x that of an opus-led one, with no judgment the prompts leave to the orchestrator to justify it; the architect (Claude Code) runs on `fable` instead of `opus`, the one Fable role, since the plan is the highest-leverage artifact and the architect's context is short.
+- Changed: the developer (Claude Code and pi) keeps the Operating Rules once, the compressed restatement of them after the tool rules removed with every clause the rules do not hold kept; the reviewer (Claude Code and pi) checks each phase's diff against the twelve rules, and a violation is an issue of at least MAJOR that names its rule number, so it fails the phase.
+- Changed: the developer (Claude Code) runs on `opus` instead of `sonnet`, since the rules need depth to be applied thoroughly; the developer measured about 27% of worker cost at `sonnet`, so about +25% worker cost at `opus`.
+
 ## v6.0.0 — 2026-11-03
 
 - Added: the `planning-poker` skill in `baton` sizes plan phases on the Fibonacci scale, planning-poker style, from size drivers that include test writing, gate cost and measurement runs, with anchors for 1, 3, 8 and 13 and a calibration on long developer runs that score 13 or more; a phase above 8 is split before the plan is final. The conductor and refuter (Claude Code and pi) copy it with `sequential-thinking` before the first `Plan` (`job-lifecycle` **Skill copy**); the architect writes a mandatory `**Points:** <1|2|3|5|8> — <size driver>` line after each phase's **Acceptance criteria** and adds `; points <total>` to its reply; the orchestrators' pre-dispatch gate sends a phase with no **Points** or above 8 back to `Plan` with a **Revision**; a direct-path phase carries at most 3 points, written by the orchestrator without the skill, and a higher estimate moves the job to the full path; the reviewer lists **Points** among the phase fields and treats a misjudged estimate as a remark. The baton plugin and marketplace descriptions name the skill
